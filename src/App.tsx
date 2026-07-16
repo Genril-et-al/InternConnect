@@ -1,4 +1,13 @@
 import { useMemo, useState } from 'react'
+import {
+  Briefcase,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Search,
+  User,
+  Users,
+} from 'lucide-react'
 import './App.css'
 import { useAuth } from './auth/context'
 import { LoginPage } from './auth/LoginPage'
@@ -47,10 +56,19 @@ const companyListings: CompanyListing[] = [
 ]
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
-const navigation: Record<Exclude<Role, 'admin'>, string[]> = {
-  student: ['Dashboard', 'Browse', 'Applications', 'Profile'],
-  company: ['Dashboard', 'Listings', 'Applicants', 'Profile'],
-}
+const STUDENT_NAV = [
+  { icon: LayoutDashboard, label: 'Dashboard' },
+  { icon: Search, label: 'Browse' },
+  { icon: FileText, label: 'Applications' },
+  { icon: User, label: 'Profile' },
+]
+
+const COMPANY_NAV = [
+  { icon: LayoutDashboard, label: 'Dashboard' },
+  { icon: Briefcase, label: 'Listings' },
+  { icon: Users, label: 'Applicants' },
+  { icon: User, label: 'Profile' },
+]
 
 function App() {
   const { session, profile, loading, signOut } = useAuth()
@@ -114,54 +132,49 @@ function App() {
   const roleLabel =
     role === 'student' ? 'Student' : role === 'company' ? 'Company' : 'Coordinator'
 
+  const navItems = role === 'student' ? STUDENT_NAV : COMPANY_NAV
+  const portalLabel = role === 'student' ? 'Student Portal' : 'Company Portal'
+
   return (
     <main className="app-shell">
-      <aside className="sidebar" aria-label="Main navigation">
-        <div>
-          <p className="eyebrow">InternConnect</p>
-          <h1>Internship matching workspace</h1>
-        </div>
-
-        <nav className="nav-list">
-          {navigation[role].map((item) => (
-            <button
-              className={activeView === item ? 'active' : ''}
-              key={item}
-              onClick={() => setActiveView(item)}
-              type="button"
-            >
-              <span>{item}</span>
-              <span aria-hidden="true">/</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="profile-chip">
-          <span className="avatar">{initials || 'IC'}</span>
+      <aside className="ad-sidebar" aria-label="Main navigation">
+        <div className="ad-brand">
+          <span className="ad-logo">IC</span>
           <div>
-            <strong>{displayName}</strong>
-            <span>{roleLabel}</span>
+            <div className="ad-brand-name">InternConnect</div>
+            <div className="ad-brand-sub">{portalLabel}</div>
           </div>
         </div>
-        <button className="sign-out" onClick={signOut} type="button">
-          Sign out
-        </button>
+
+        <nav className="ad-nav">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            return (
+              <button
+                className={activeView === item.label ? 'active' : ''}
+                key={item.label}
+                onClick={() => setActiveView(item.label)}
+                type="button"
+              >
+                <Icon size={16} /> {item.label}
+              </button>
+            )
+          })}
+        </nav>
+
+        <div className="ad-user">
+          <span className="ad-user-avatar">{initials || 'IC'}</span>
+          <div className="ad-user-main">
+            <p className="ad-user-name">{displayName}</p>
+            <p className="ad-user-role">{roleLabel}</p>
+          </div>
+          <button aria-label="Sign out" className="ad-signout" onClick={signOut} type="button">
+            <LogOut size={15} />
+          </button>
+        </div>
       </aside>
 
       <section className="workspace">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">{role} portal</p>
-            <h2>{activeView}</h2>
-          </div>
-          <div className="quick-actions">
-            <button type="button">Notifications</button>
-            <button className="primary" type="button">
-              {role === 'student' ? 'Apply' : role === 'company' ? 'Post listing' : 'Generate report'}
-            </button>
-          </div>
-        </header>
-
         {role === 'student' && <StudentPortal activeView={activeView} onNavigate={setActiveView} />}
         {role === 'company' && <CompanyPortal activeView={activeView} />}
       </section>
