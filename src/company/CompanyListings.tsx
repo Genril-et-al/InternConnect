@@ -6,13 +6,16 @@ import type { CompanyApplicant, CompanyListing, PreEmploymentRequirement } from 
 export function CompanyListings({
   listings,
   applicants,
+  setListings
 }: {
   listings: CompanyListing[]
   applicants: CompanyApplicant[]
+  setListings?: (listings: CompanyListing[]) => void
 }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [isPosting, setIsPosting] = useState(false)
+  const [managingId, setManagingId] = useState<number | null>(null)
 
   const filtered = useMemo(
     () => listings.filter((l) => {
@@ -73,27 +76,115 @@ export function CompanyListings({
         </div>
       </div>
 
-      <div className="cp-rows">
+      <div className="cp-rows" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {filtered.length === 0 ? (
           <div className="cp-card cp-empty">No listings found.</div>
         ) : (
           filtered.map((l) => (
-            <div className="cp-row" key={l.id} style={{ cursor: 'default' }}>
-              <div className="cp-row-main">
-                <p className="cp-row-name">{l.title}</p>
-                <p className="cp-muted">
-                  {l.slots} slot{l.slots > 1 ? 's' : ''} · Deadline {l.deadline} ·{' '}
-                  {countFor(l)} applicant{countFor(l) === 1 ? '' : 's'} ·{' '}
-                  {countFor(l, 'Pending')} pending
+            <div className="cp-card" key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px', cursor: l.status === 'Draft' ? 'pointer' : 'default', border: '1px solid var(--border)' }} onClick={() => { if (l.status === 'Draft') setIsPosting(true) }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>{l.title}</h3>
+                  <span
+                    className={`cp-badge ${
+                      l.status === 'Open' ? 'success' : l.status === 'Draft' ? 'neutral' : 'rejected'
+                    }`}
+                    style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 500 }}
+                  >
+                    {l.status}
+                  </span>
+                </div>
+                <p className="cp-muted" style={{ margin: '0 0 8px 0', fontSize: '13px' }}>
+                  {l.department} · {l.slots} slot{l.slots > 1 ? 's' : ''} · {countFor(l)} applicant{countFor(l) === 1 ? '' : 's'} · Deadline {l.deadline}
+                </p>
+                
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                  {l.skills.map(skill => (
+                    <span key={skill} style={{ background: 'var(--brand-sand)', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', color: 'var(--brand-brown)', fontWeight: 500 }}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+                
+                <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-light)' }}>
+                  {l.description}
                 </p>
               </div>
-              <span
-                className={`cp-badge ${
-                  l.status === 'Open' ? 'success' : l.status === 'Draft' ? 'neutral' : 'rejected'
-                }`}
-              >
-                {l.status}
-              </span>
+              
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                {managingId === l.id ? (
+                  <>
+                    {l.status !== 'Closed' && (
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          if (l.status === 'Open') {
+                            setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Draft' } : listing))
+                            setManagingId(null)
+                          } else {
+                            setIsPosting(true)
+                          }
+                        }} 
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                        {l.status === 'Draft' ? 'Edit Draft' : 'Draft'}
+                      </button>
+                    )}
+                    
+                    {l.status === 'Closed' && (
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Open' } : listing))
+                          setManagingId(null)
+                        }} 
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        Open
+                      </button>
+                    )}
+
+                    {l.status !== 'Closed' && (
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setManagingId(null)
+                          setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Closed' } : listing))
+                        }} 
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: 'none', background: 'var(--brand-crimson)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+                        Close
+                      </button>
+                    )}
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setManagingId(null)
+                        setListings?.(listings.filter(listing => listing.id !== l.id))
+                      }} 
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--brand-crimson)', padding: '6px 12px', fontSize: '13px', fontWeight: 500 }}
+                    >
+                      Delete
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => setManagingId(l.id)} style={{ padding: '6px 16px', borderRadius: '20px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
+                      Manage
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setListings?.(listings.filter(listing => listing.id !== l.id))} 
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--brand-crimson)', padding: '6px 12px', fontSize: '13px', fontWeight: 500 }}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           ))
         )}

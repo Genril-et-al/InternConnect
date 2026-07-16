@@ -19,11 +19,11 @@ export function CompanyPortal({
   activeView: string
   onNavigate: (view: string) => void
 }) {
-  const [listings] = useState<CompanyListing[]>(SEED_COMPANY_LISTINGS)
+  const [listings, setListings] = useState<CompanyListing[]>(SEED_COMPANY_LISTINGS)
   const [applicants, setApplicants] = useState<CompanyApplicant[]>(SEED_COMPANY_APPLICANTS)
 
   if (activeView === 'Listings') {
-    return <CompanyListings applicants={applicants} listings={listings} />
+    return <CompanyListings applicants={applicants} listings={listings} setListings={setListings} />
   }
   if (activeView === 'Applicants') {
     return (

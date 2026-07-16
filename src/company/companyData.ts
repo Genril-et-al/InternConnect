@@ -16,6 +16,9 @@ export type CompanyListing = {
   status: 'Open' | 'Draft' | 'Closed'
   slots: number
   deadline: string
+  department: string
+  skills: string[]
+  description: string
   requirements?: PreEmploymentRequirement[]
 }
 
@@ -50,9 +53,46 @@ export type CompanyApplicant = {
 }
 
 export const SEED_COMPANY_LISTINGS: CompanyListing[] = [
-  { id: 1, title: 'Frontend Developer Intern', status: 'Open', slots: 4, deadline: 'Jul 29' },
-  { id: 2, title: 'Technical Writer Intern', status: 'Draft', slots: 1, deadline: 'Aug 5' },
-  { id: 3, title: 'QA Automation Intern', status: 'Open', slots: 2, deadline: 'Aug 8' },
+  { 
+    id: 1, 
+    title: 'Frontend Developer Intern', 
+    status: 'Open', 
+    slots: 4, 
+    deadline: 'Jul 29',
+    department: 'Engineering',
+    skills: ['React', 'TypeScript', 'Figma', 'HTML/CSS'],
+    description: 'Build beautiful web interfaces using React and Figma.'
+  },
+  { 
+    id: 2, 
+    title: 'Technical Writer Intern', 
+    status: 'Draft', 
+    slots: 1, 
+    deadline: 'Aug 5',
+    department: 'Documentation',
+    skills: ['Markdown', 'Git', 'Technical Writing'],
+    description: 'Create and maintain API documentation and user guides for our core products.'
+  },
+  { 
+    id: 3, 
+    title: 'QA Automation Intern', 
+    status: 'Open', 
+    slots: 2, 
+    deadline: 'Aug 8',
+    department: 'Quality Assurance',
+    skills: ['Playwright', 'Testing', 'JavaScript'],
+    description: 'Write automated test scripts and ensure the quality of our weekly releases.'
+  },
+  { 
+    id: 4, 
+    title: 'Data Analyst Intern', 
+    status: 'Open', 
+    slots: 2, 
+    deadline: 'Aug 5',
+    department: 'Analytics',
+    skills: ['Python', 'SQL', 'Excel', 'Tableau'],
+    description: 'Analyze data and generate business insights.'
+  },
 ]
 
 export const SEED_COMPANY_APPLICANTS: CompanyApplicant[] = [
