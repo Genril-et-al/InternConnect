@@ -11,11 +11,16 @@ export function CompanyListings({
   applicants: CompanyApplicant[]
 }) {
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
   const [isPosting, setIsPosting] = useState(false)
 
   const filtered = useMemo(
-    () => listings.filter((l) => l.title.toLowerCase().includes(search.toLowerCase())),
-    [listings, search],
+    () => listings.filter((l) => {
+      const matchesSearch = l.title.toLowerCase().includes(search.toLowerCase())
+      const matchesStatus = statusFilter === 'All' || l.status === statusFilter
+      return matchesSearch && matchesStatus
+    }),
+    [listings, search, statusFilter],
   )
 
   const countFor = (listing: CompanyListing, status?: string) =>
@@ -35,14 +40,36 @@ export function CompanyListings({
         </button>
       </div>
 
-      <div className="cp-toolbar">
-        <div className="cp-search">
+      <div className="cp-toolbar" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="cp-search" style={{ flex: 1 }}>
           <Search size={14} />
           <input
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search listing title…"
+            placeholder="Search listings…"
             value={search}
           />
+        </div>
+        
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {['All', 'Open', 'Draft', 'Closed'].map(status => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '20px',
+                border: statusFilter === status ? 'none' : '1px solid var(--border)',
+                background: statusFilter === status ? 'var(--brand-orange)' : 'transparent',
+                color: statusFilter === status ? 'white' : 'var(--text)',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500
+              }}
+              type="button"
+            >
+              {status}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -85,7 +112,10 @@ function PostListingModal({ onClose }: { onClose: () => void }) {
   const [skills, setSkills] = useState('')
   const [description, setDescription] = useState('')
   
-  const [requirements, setRequirements] = useState<PreEmploymentRequirement[]>([])
+  const [publishImmediately, setPublishImmediately] = useState(true)
+  const [requirements, setRequirements] = useState<PreEmploymentRequirement[]>([
+    { id: Math.random().toString(36).slice(2), name: '', type: 'text', isPrintable: false }
+  ])
   
   const addRequirement = () => {
     setRequirements([
@@ -150,7 +180,7 @@ function PostListingModal({ onClose }: { onClose: () => void }) {
           </div>
           
           <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-            <h4 style={{ marginBottom: '8px', color: 'var(--brand-brown)', fontSize: '16px' }}>Pre-employment Requirements (Optional)</h4>
+            <h4 style={{ marginBottom: '8px', color: 'var(--brand-brown)', fontSize: '16px' }}>Pre-employment Requirements <span style={{color:'var(--brand-crimson)'}}>*</span></h4>
             <p className="cp-muted" style={{ fontSize: '13px', marginBottom: '16px' }}>
               These will only be visible to students after they accept the internship offer. Use this to request medical certificates, NDAs, or other documents.
             </p>
@@ -160,29 +190,40 @@ function PostListingModal({ onClose }: { onClose: () => void }) {
                 <div key={req.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'var(--bg)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <div style={{ flex: 1 }}>
                     <input 
+                      required
                       placeholder="Requirement name (e.g., Medical Certificate)" 
                       value={req.name} 
                       onChange={e => updateRequirement(req.id, { name: e.target.value })}
                       style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', marginBottom: '12px' }}
                     />
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center', fontSize: '13px', flexWrap: 'wrap' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                        <input type="radio" name={`type-${req.id}`} checked={req.type === 'text'} onChange={() => updateRequirement(req.id, { type: 'text' })} />
+                    
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center', fontSize: '12px', flexWrap: 'wrap', color: 'var(--text-light)' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input type="radio" name={`type-${req.id}`} checked={req.type === 'text'} onChange={() => updateRequirement(req.id, { type: 'text' })} style={{ width: '12px', height: '12px', margin: 0 }} />
                         Text instruction
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                        <input type="radio" name={`type-${req.id}`} checked={req.type === 'file'} onChange={() => updateRequirement(req.id, { type: 'file' })} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input type="radio" name={`type-${req.id}`} checked={req.type === 'file'} onChange={() => updateRequirement(req.id, { type: 'file' })} style={{ width: '12px', height: '12px', margin: 0 }} />
                         File upload
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto', cursor: 'pointer', background: 'var(--bg-subtle)', padding: '4px 8px', borderRadius: '4px' }}>
-                        <input type="checkbox" checked={req.isPrintable} onChange={e => updateRequirement(req.id, { isPrintable: e.target.checked })} />
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto', cursor: 'pointer', background: 'var(--bg-subtle)', padding: '4px 8px', borderRadius: '4px' }}>
+                        <input type="checkbox" checked={req.isPrintable} onChange={e => updateRequirement(req.id, { isPrintable: e.target.checked })} style={{ width: '12px', height: '12px', margin: 0 }} />
                         Needs to be printed
                       </label>
                     </div>
+
+                    {req.type === 'file' && (
+                      <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-subtle)', borderRadius: '6px', border: '1px dashed var(--border)' }}>
+                        <p style={{ fontSize: '12px', marginBottom: '8px', color: 'var(--text-light)' }}>Upload template or document for students to fill out (optional):</p>
+                        <input type="file" style={{ fontSize: '12px' }} />
+                      </div>
+                    )}
                   </div>
-                  <button type="button" onClick={() => removeRequirement(req.id)} style={{ padding: '8px', background: 'transparent', color: 'var(--brand-crimson)', border: 'none', cursor: 'pointer', opacity: 0.7 }} title="Remove requirement">
-                    <Trash2 size={18} />
-                  </button>
+                  {requirements.length > 1 && (
+                    <button type="button" onClick={() => removeRequirement(req.id)} style={{ padding: '8px', background: 'transparent', color: 'var(--brand-crimson)', border: 'none', cursor: 'pointer', opacity: 0.7 }} title="Remove requirement">
+                      <Trash2 size={18} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -196,9 +237,33 @@ function PostListingModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           
-          <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-            <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-            <button type="submit" style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>Post Listing</button>
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>
+              <input 
+                type="checkbox" 
+                checked={publishImmediately} 
+                onChange={e => setPublishImmediately(e.target.checked)} 
+                style={{ width: '16px', height: '16px' }}
+              />
+              Publish immediately (uncheck to save as draft)
+            </label>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end', paddingTop: '16px' }}>
+            <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontWeight: 500 }}>Discard</button>
+            <button type="submit" style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {publishImmediately ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                  Publish
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 3v5h5M16 13H8M16 17H8M10 9H8"/></svg>
+                  Save Draft
+                </>
+              )}
+            </button>
           </div>
         </form>
       </div>
