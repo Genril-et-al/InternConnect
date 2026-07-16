@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
 import './App.css'
+import { useAuth } from './auth/context'
+import { LoginPage } from './auth/LoginPage'
+import { ProfileSetup } from './profile/ProfileSetup'
 
 type Role = 'student' | 'company' | 'admin'
 type Status =
@@ -185,13 +188,61 @@ const navigation: Record<Role, string[]> = {
 }
 
 function App() {
-  const [role, setRole] = useState<Role>('student')
+  const { session, profile, loading, signOut } = useAuth()
   const [activeView, setActiveView] = useState('Dashboard')
 
-  function changeRole(nextRole: Role) {
-    setRole(nextRole)
-    setActiveView('Dashboard')
+  // Auth gate — resolve the session before deciding what to render.
+  if (loading) {
+    return (
+      <div className="auth-loading">
+        <p>Loading InternConnect…</p>
+      </div>
+    )
   }
+
+  if (!session) {
+    return <LoginPage />
+  }
+
+  // Signed in, but the profile row hasn't materialised (or was removed).
+  if (!profile) {
+    return (
+      <div className="auth-loading">
+        <p>Finishing account setup…</p>
+        <button className="primary" onClick={signOut} type="button">
+          Sign out
+        </button>
+      </div>
+    )
+  }
+
+  // Deactivated by an admin (UC-A01).
+  if (!profile.is_active) {
+    return (
+      <div className="auth-loading">
+        <p>Your account has been deactivated. Please contact the NLO office.</p>
+        <button className="primary" onClick={signOut} type="button">
+          Sign out
+        </button>
+      </div>
+    )
+  }
+
+  // New students finish profile setup before entering the workspace (UC-S01 → UC-S02).
+  if (profile.role === 'student' && !profile.profile_completed) {
+    return <ProfileSetup />
+  }
+
+  const role = profile.role
+  const displayName = profile.full_name?.trim() || profile.email
+  const initials = displayName
+    .split(/[\s.@]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+  const roleLabel =
+    role === 'student' ? 'Student' : role === 'company' ? 'Company' : 'Coordinator'
 
   return (
     <main className="app-shell">
@@ -199,19 +250,6 @@ function App() {
         <div>
           <p className="eyebrow">InternConnect</p>
           <h1>Internship matching workspace</h1>
-        </div>
-
-        <div className="role-switcher" aria-label="Choose portal">
-          {(['student', 'company', 'admin'] as Role[]).map((item) => (
-            <button
-              className={role === item ? 'active' : ''}
-              key={item}
-              onClick={() => changeRole(item)}
-              type="button"
-            >
-              {item}
-            </button>
-          ))}
         </div>
 
         <nav className="nav-list">
@@ -229,12 +267,15 @@ function App() {
         </nav>
 
         <div className="profile-chip">
-          <span className="avatar">GS</span>
+          <span className="avatar">{initials || 'IC'}</span>
           <div>
-            <strong>{role === 'student' ? 'Genril S.' : role === 'company' ? 'Arcway HR' : 'NLO Admin'}</strong>
-            <span>{role === 'student' ? 'BSIT - 4th Year' : role === 'company' ? 'Verified company' : 'Coordinator'}</span>
+            <strong>{displayName}</strong>
+            <span>{roleLabel}</span>
           </div>
         </div>
+        <button className="sign-out" onClick={signOut} type="button">
+          Sign out
+        </button>
       </aside>
 
       <section className="workspace">
