@@ -16,7 +16,7 @@ import { StudentDashboard } from './dashboard/StudentDashboard'
 import { AdminApp } from './admin/AdminApp'
 import { CompanyPortal } from './company/CompanyPortal'
 import { applications, internships } from './lib/mockData'
-import type { Internship } from './lib/mockData'
+import type { Internship, Application } from './lib/mockData'
 
 type Role = 'student' | 'company' | 'admin'
 
@@ -327,6 +327,7 @@ function BrowseInternships() {
 function StudentApplications() {
   const [status, setStatus] = useState('All')
   const visible = applications.filter((application) => status === 'All' || application.status === status)
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null)
 
   return (
     <div className="stack">
@@ -348,9 +349,89 @@ function StudentApplications() {
           application.role,
           application.dateApplied,
           application.status,
-          application.nextStep,
+          application.status === 'Accepted' && application.requirements?.length ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>{application.nextStep}</span>
+              <button 
+                type="button"
+                className="sd-primary" 
+                style={{ padding: '4px 8px', fontSize: '12px' }}
+                onClick={() => setSelectedApp(application)}
+              >
+                View Requirements
+              </button>
+            </div>
+          ) : (
+            application.nextStep
+          ),
         ])}
       />
+      {selectedApp && <RequirementsModal application={selectedApp} onClose={() => setSelectedApp(null)} />}
+    </div>
+  )
+}
+
+function RequirementsModal({ application, onClose }: { application: Application, onClose: () => void }) {
+  const [uploads, setUploads] = useState<Record<string, File>>({})
+  
+  const handleUpload = (id: string, file: File | null) => {
+    if (file) setUploads({ ...uploads, [id]: file })
+    else {
+      const newUploads = { ...uploads }
+      delete newUploads[id]
+      setUploads(newUploads)
+    }
+  }
+
+  const requirements = application.requirements || []
+  
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-panel" style={{ maxWidth: '500px', background: 'var(--surface)', borderRadius: '12px', padding: 0 }}>
+        <div className="modal-header" style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ margin: 0, color: 'var(--brand-brown)' }}>Pre-employment Requirements</h3>
+            <p className="muted" style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{application.company} - {application.role}</p>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
+        </div>
+        
+        <div style={{ padding: '20px', maxHeight: '60vh', overflowY: 'auto' }}>
+          {requirements.length === 0 ? (
+            <p className="muted">No additional requirements.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {requirements.map((req) => (
+                <div key={req.id} style={{ padding: '16px', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <strong style={{ display: 'block', color: 'var(--text)' }}>{req.name}</strong>
+                    {req.isPrintable && <span style={{ fontSize: '11px', background: 'var(--brand-orange-soft)', padding: '2px 6px', borderRadius: '4px', color: 'var(--brand-brown)' }}>Needs to be printed</span>}
+                  </div>
+                  
+                  {req.type === 'text' ? (
+                    <p className="muted" style={{ fontSize: '14px', margin: 0 }}>Please prepare this document as instructed by the company.</p>
+                  ) : (
+                    <div style={{ marginTop: '12px' }}>
+                      <p className="muted" style={{ fontSize: '13px', marginBottom: '8px' }}>Please upload the requested file.</p>
+                      <input 
+                        type="file" 
+                        onChange={e => handleUpload(req.id, e.target.files?.[0] || null)} 
+                        style={{ fontSize: '13px' }}
+                      />
+                      {uploads[req.id] && <span style={{ color: 'var(--brand-orange)', fontSize: '13px', marginLeft: '8px' }}>✓ Attached</span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="modal-footer" style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' }}>Close</button>
+          <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>Submit Requirements</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -584,7 +665,7 @@ function ApplyModal({
   )
 }
 
-function DataTable({ columns, rows }: { columns: string[]; rows: string[][] }) {
+function DataTable({ columns, rows }: { columns: string[]; rows: React.ReactNode[][] }) {
   return (
     <div className="table-wrap">
       <table>

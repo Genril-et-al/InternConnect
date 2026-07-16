@@ -28,6 +28,13 @@ export type Internship = {
   summary: string
 }
 
+export type PreEmploymentRequirement = {
+  id: string
+  name: string
+  type: 'file' | 'text'
+  isPrintable: boolean
+}
+
 export type Application = {
   id: number
   company: string
@@ -35,6 +42,7 @@ export type Application = {
   dateApplied: string
   status: ApplicationStatus
   nextStep: string
+  requirements?: PreEmploymentRequirement[]
 }
 
 export const internships: Internship[] = [
@@ -136,8 +144,12 @@ export const applications: Application[] = [
     company: 'Arcway Labs',
     role: 'Frontend Developer Intern',
     dateApplied: 'Jul 10',
-    status: 'Under review',
-    nextStep: 'Company reviewed resume and portfolio.',
+    status: 'Accepted',
+    nextStep: 'Please submit your pre-employment requirements.',
+    requirements: [
+      { id: '1', name: 'Medical Certificate', type: 'text', isPrintable: true },
+      { id: '2', name: 'Company Non-Disclosure Agreement', type: 'file', isPrintable: false }
+    ]
   },
   {
     id: 2,

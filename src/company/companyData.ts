@@ -3,12 +3,20 @@
  * applications, storage files) in a later slice.
  */
 
+export type PreEmploymentRequirement = {
+  id: string
+  name: string
+  type: 'file' | 'text'
+  isPrintable: boolean
+}
+
 export type CompanyListing = {
   id: number
   title: string
   status: 'Open' | 'Draft' | 'Closed'
   slots: number
   deadline: string
+  requirements?: PreEmploymentRequirement[]
 }
 
 export type ApplicantStatus = 'Pending' | 'Reviewed' | 'Accepted' | 'Rejected'
