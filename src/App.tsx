@@ -187,20 +187,50 @@ function StudentPortal({
 
 function BrowseInternships() {
   const [query, setQuery] = useState('')
-  const [setup, setSetup] = useState('All')
+  const [location, setLocation] = useState('All Locations')
+  const [matchDropdown, setMatchDropdown] = useState('Any Match %')
+  const [matchFilter, setMatchFilter] = useState('All')
   const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
   const [showApplyModal, setShowApplyModal] = useState(false)
 
+  // Derive unique locations from data
+  const locations = useMemo(() => {
+    const locs = Array.from(new Set(internships.map((i) => i.location)))
+    return ['All Locations', ...locs.sort()]
+  }, [])
+
+  // Minimum match thresholds
+  const matchThresholds: Record<string, number> = {
+    'All': 0,
+    '60+': 60,
+    '70+': 70,
+    '80+': 80,
+    '90+': 90,
+  }
+
+  const matchDropdownThresholds: Record<string, number> = {
+    'Any Match %': 0,
+    '60% +': 60,
+    '70% +': 70,
+    '80% +': 80,
+    '90% +': 90,
+  }
+
   const filtered = useMemo(() => {
+    const pillMin = matchThresholds[matchFilter] ?? 0
+    const dropdownMin = matchDropdownThresholds[matchDropdown] ?? 0
+    const minMatch = Math.max(pillMin, dropdownMin)
+
     return internships.filter((internship) => {
       const matchesQuery = [internship.title, internship.company, internship.industry, ...internship.skills]
         .join(' ')
         .toLowerCase()
         .includes(query.toLowerCase())
-      const matchesSetup = setup === 'All' || internship.setup === setup
-      return matchesQuery && matchesSetup
+      const matchesLocation = location === 'All Locations' || internship.location === location
+      const matchesScore = internship.match >= minMatch
+      return matchesQuery && matchesLocation && matchesScore
     })
-  }, [query, setup])
+  }, [query, location, matchDropdown, matchFilter])
 
   // Detail view — full internship page
   if (selectedInternship && !showApplyModal) {
@@ -231,22 +261,72 @@ function BrowseInternships() {
   }
 
   return (
-    <div className="stack">
-      <section className="toolbar">
-        <input
-          aria-label="Search internships"
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search role, company, skill, or industry"
-          value={query}
-        />
-        <select aria-label="Work setup" onChange={(event) => setSetup(event.target.value)} value={setup}>
-          <option>All</option>
-          <option>Onsite</option>
-          <option>Remote</option>
-          <option>Hybrid</option>
-        </select>
-      </section>
+    <div className="browse-root">
+      {/* Heading */}
+      <div className="browse-heading">
+        <h2 className="browse-title">Browse Internships</h2>
+        <p className="browse-subtitle">AI-ranked by your resume skills</p>
+      </div>
 
+      {/* Search + dropdowns row */}
+      <div className="browse-search-row">
+        <div className="browse-search-field">
+          <span className="browse-search-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <input
+            aria-label="Search internships"
+            className="browse-search-input"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by title, company, or skill..."
+            value={query}
+          />
+        </div>
+        <select
+          aria-label="Location"
+          className="browse-dropdown"
+          onChange={(event) => setLocation(event.target.value)}
+          value={location}
+        >
+          {locations.map((loc) => (
+            <option key={loc}>{loc}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Match percentage"
+          className="browse-dropdown"
+          onChange={(event) => setMatchDropdown(event.target.value)}
+          value={matchDropdown}
+        >
+          <option>Any Match %</option>
+          <option>60% +</option>
+          <option>70% +</option>
+          <option>80% +</option>
+          <option>90% +</option>
+        </select>
+      </div>
+
+      {/* Match filter pills + result count */}
+      <div className="browse-filters-row">
+        <div className="browse-pills">
+          <span className="browse-pills-label">Filter by match:</span>
+          {Object.keys(matchThresholds).map((key) => (
+            <button
+              className={`browse-pill ${matchFilter === key ? 'active' : ''}`}
+              key={key}
+              onClick={() => setMatchFilter(key)}
+              type="button"
+            >
+              {key}
+            </button>
+          ))}
+        </div>
+        <span className="browse-result-count">
+          {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* Listing strips */}
       <section className="listing-strips">
         {filtered.length === 0 ? (
           <p className="muted" style={{ textAlign: 'center', padding: '32px 0' }}>
