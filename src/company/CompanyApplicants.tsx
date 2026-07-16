@@ -56,6 +56,7 @@ export function CompanyApplicants({
     return (
       <ApplicantDetail
         applicant={selected}
+        listings={listings}
         onBack={() => setSelectedId(null)}
         onUpdate={(patch) =>
           setApplicants((prev) =>
@@ -149,13 +150,14 @@ function ApplicantDetail({
   applicant,
   onBack,
   onUpdate,
+  listings
 }: {
   applicant: CompanyApplicant
   onBack: () => void
   onUpdate: (patch: Partial<CompanyApplicant>) => void
+  listings?: CompanyListing[]
 }) {
   const [rejectOpen, setRejectOpen] = useState(false)
-  const [acceptOpen, setAcceptOpen] = useState(false)
 
   return (
     <div className="cp-root">
@@ -178,59 +180,110 @@ function ApplicantDetail({
           <StatusBadge status={applicant.status} />
         </div>
 
-        <div className="cp-detail-actions" style={{ marginTop: 18 }}>
-          {applicant.status !== 'Accepted' && (
-            <button className="cp-accept" onClick={() => setAcceptOpen(true)} type="button">
-              <CheckCircle2 size={13} /> Accept
-            </button>
-          )}
-          {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && (
-            <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
-              <XCircle size={13} /> Reject with feedback
-            </button>
-          )}
-          {applicant.status === 'Pending' && (
-            <button
-              className="cp-secondary"
-              onClick={() => onUpdate({ status: 'Reviewed' })}
-              type="button"
-            >
-              <Eye size={13} /> Mark reviewed
-            </button>
-          )}
-        </div>
-      </section>
-
-      {applicant.status === 'Rejected' && applicant.feedback && (
-        <p className="cp-notice rejected">
-          <strong>Feedback sent to applicant:</strong> {applicant.feedback}
-        </p>
-      )}
-
-      {applicant.status === 'Accepted' && (
-        <div className="cp-notice accepted">
-          <strong>Accepted.</strong>{' '}
-          {applicant.requirements?.length
-            ? `${applicant.requirements.length} requirement file(s) sent — the student can download them from their application.`
-            : 'No requirement files sent yet.'}
-          {applicant.requirements?.map((r) => (
-            <div className="cp-doc" key={r.name} style={{ marginTop: 8 }}>
-              <Paperclip size={14} />
-              <span className="cp-doc-name">
-                {r.name} <span className="cp-muted">({r.size})</span>
-              </span>
-            </div>
-          ))}
-          <button
-            className="cp-secondary"
-            onClick={() => setAcceptOpen(true)}
-            style={{ marginTop: 10 }}
+      <div className="cp-detail-actions" style={{ marginTop: 18 }}>
+        {applicant.status !== 'Accepted' && (
+          <button 
+            className="cp-accept" 
+            onClick={() => {
+              // Find the corresponding listing to get its requirements
+              const listing = listings?.find(l => l.title === applicant.role);
+              const submittedRequirements = listing?.requirements?.map(r => ({
+                id: r.id,
+                name: r.name,
+                status: 'Pending' as const
+              })) || [];
+              
+              onUpdate({ status: 'Accepted', submittedRequirements });
+            }} 
             type="button"
           >
-            <Send size={12} /> Send more files
+            <CheckCircle2 size={13} /> Accept
           </button>
-        </div>
-      )}
+        )}
+        {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && (
+          <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
+            <XCircle size={13} /> Reject with feedback
+          </button>
+        )}
+        {applicant.status === 'Pending' && (
+          <button
+            className="cp-secondary"
+            onClick={() => onUpdate({ status: 'Reviewed' })}
+            type="button"
+          >
+            <Eye size={13} /> Mark reviewed
+          </button>
+        )}
+      </div>
+    </section>
+
+    {applicant.status === 'Rejected' && applicant.feedback && (
+      <p className="cp-notice rejected">
+        <strong>Feedback sent to applicant:</strong> {applicant.feedback}
+      </p>
+    )}
+
+    {applicant.status === 'Accepted' && (
+      <section className="cp-card">
+        <h3 style={{ fontSize: '16px', margin: '0 0 16px 0', color: 'var(--brand-brown)' }}>Pre-employment Requirements</h3>
+        {(!applicant.submittedRequirements || applicant.submittedRequirements.length === 0) ? (
+          <p className="cp-muted">No requirements were set for this listing.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {applicant.submittedRequirements.map((req, idx) => (
+              <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div>
+                  <p style={{ margin: '0 0 4px 0', fontWeight: 500, fontSize: '14px', color: 'var(--text)' }}>{req.name}</p>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ 
+                      fontSize: '12px', padding: '2px 8px', borderRadius: '12px', fontWeight: 500,
+                      background: req.status === 'Approved' ? 'var(--brand-orange-soft)' : req.status === 'Needs Revision' ? 'var(--brand-crimson)' : 'var(--bg)',
+                      color: req.status === 'Approved' ? 'var(--brand-orange)' : req.status === 'Needs Revision' ? 'white' : 'var(--text-light)'
+                    }}>
+                      {req.status}
+                    </span>
+                    {req.status === 'Pending' && (
+                      <button type="button" onClick={() => downloadDemoFile(req.name, applicant.name)} style={{ background: 'transparent', border: 'none', color: 'var(--brand-orange)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Download size={12} /> View Submission
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {req.status !== 'Approved' && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newReqs = [...applicant.submittedRequirements!];
+                        newReqs[idx] = { ...newReqs[idx], status: 'Approved' };
+                        onUpdate({ submittedRequirements: newReqs });
+                      }}
+                      style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
+                    >
+                      Approve
+                    </button>
+                  )}
+                  {req.status !== 'Needs Revision' && (
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const newReqs = [...applicant.submittedRequirements!];
+                        newReqs[idx] = { ...newReqs[idx], status: 'Needs Revision' };
+                        onUpdate({ submittedRequirements: newReqs });
+                      }}
+                      style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
+                    >
+                      Needs Revision
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    )}
 
       <div className="cp-detail-grid">
         <section className="cp-card">
@@ -310,17 +363,6 @@ function ApplicantDetail({
           }}
         />
       )}
-      {acceptOpen && (
-        <AcceptModal
-          existing={applicant.requirements ?? []}
-          name={applicant.name}
-          onClose={() => setAcceptOpen(false)}
-          onSubmit={(requirements) => {
-            onUpdate({ status: 'Accepted', requirements })
-            setAcceptOpen(false)
-          }}
-        />
-      )}
     </div>
   )
 }
@@ -382,97 +424,6 @@ function RejectModal({
   )
 }
 
-/* ── Accept + send requirement files (UC-C05 extension) ──────────────── */
-
-function AcceptModal({
-  name,
-  existing,
-  onClose,
-  onSubmit,
-}: {
-  name: string
-  existing: RequirementFile[]
-  onClose: () => void
-  onSubmit: (requirements: RequirementFile[]) => void
-}) {
-  const [files, setFiles] = useState<File[]>([])
-  const [note, setNote] = useState('')
-
-  function addFiles(list: FileList | null) {
-    if (!list) return
-    setFiles((prev) => [...prev, ...Array.from(list)])
-  }
-
-  function submit() {
-    const newReqs: RequirementFile[] = files.map((f) => ({
-      name: f.name,
-      size: `${(f.size / 1024).toFixed(1)} KB`,
-      note: note.trim() || undefined,
-    }))
-    onSubmit([...existing, ...newReqs])
-  }
-
-  return (
-    <div
-      className="modal-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div className="modal-panel">
-        <div className="modal-header">
-          <h3>Accept &amp; send requirements</h3>
-          <button className="modal-close" onClick={onClose} type="button">
-            ✕
-          </button>
-        </div>
-        <p className="cp-muted">
-          <strong>{name}</strong> will be notified of the acceptance. Attach additional
-          requirements (MOA, medical form, onboarding checklist…) — the student can download
-          them from their application.
-        </p>
-
-        <label className="cp-upload">
-          <input hidden multiple onChange={(e) => addFiles(e.target.files)} type="file" />
-          <Paperclip size={14} /> Attach requirement files
-        </label>
-
-        {files.map((f, i) => (
-          <div className="cp-doc" key={`${f.name}-${i}`}>
-            <FileText size={14} />
-            <span className="cp-doc-name">
-              {f.name} <span className="cp-muted">({(f.size / 1024).toFixed(1)} KB)</span>
-            </span>
-            <button
-              onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
-              type="button"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
-
-        <label className="cp-modal-label">
-          Message to the student (optional)
-          <textarea
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Congratulations! Please accomplish the attached forms before your onboarding on Aug 4."
-            value={note}
-          />
-        </label>
-
-        <div className="cp-modal-footer">
-          <button className="cp-secondary" onClick={onClose} type="button">
-            Cancel
-          </button>
-          <button className="cp-primary" onClick={submit} type="button">
-            <Send size={13} /> Accept &amp; send
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 /* ── Shared bits ─────────────────────────────────────────────────────── */
 

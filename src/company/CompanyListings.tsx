@@ -15,7 +15,6 @@ export function CompanyListings({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [isPosting, setIsPosting] = useState(false)
-  const [managingId, setManagingId] = useState<number | null>(null)
 
   const filtered = useMemo(
     () => listings.filter((l) => {
@@ -112,77 +111,53 @@ export function CompanyListings({
               </div>
               
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
-                {managingId === l.id ? (
-                  <>
-                    {l.status !== 'Closed' && (
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          if (l.status === 'Open') {
-                            setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Draft' } : listing))
-                            setManagingId(null)
-                          } else {
-                            setIsPosting(true)
-                          }
-                        }} 
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                        {l.status === 'Draft' ? 'Edit Draft' : 'Draft'}
-                      </button>
-                    )}
-                    
-                    {l.status === 'Closed' && (
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Open' } : listing))
-                          setManagingId(null)
-                        }} 
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        Open
-                      </button>
-                    )}
+                {l.status !== 'Closed' && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (l.status === 'Open') {
+                        setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Draft' } : listing))
+                      } else {
+                        setIsPosting(true)
+                      }
+                    }} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    {l.status === 'Draft' ? 'Edit Draft' : 'Draft'}
+                  </button>
+                )}
+                
+                {l.status === 'Closed' && (
+                  <button 
+                    type="button" 
+                    onClick={() => setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Open' } : listing))} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Open
+                  </button>
+                )}
 
-                    {l.status !== 'Closed' && (
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setManagingId(null)
-                          setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Closed' } : listing))
-                        }} 
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: 'none', background: 'var(--brand-crimson)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
-                        Close
-                      </button>
-                    )}
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        setManagingId(null)
-                        setListings?.(listings.filter(listing => listing.id !== l.id))
-                      }} 
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--brand-crimson)', padding: '6px 12px', fontSize: '13px', fontWeight: 500 }}
-                    >
-                      Delete
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button type="button" onClick={() => setManagingId(l.id)} style={{ padding: '6px 16px', borderRadius: '20px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
-                      Manage
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setListings?.(listings.filter(listing => listing.id !== l.id))} 
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--brand-crimson)', padding: '6px 12px', fontSize: '13px', fontWeight: 500 }}
-                    >
-                      Delete
-                    </button>
-                  </>
+                {l.status !== 'Closed' && (
+                  <button 
+                    type="button" 
+                    onClick={() => setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Closed' } : listing))} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: 'none', background: 'var(--brand-crimson)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+                    Close
+                  </button>
+                )}
+                
+                {l.status === 'Closed' && (
+                  <button 
+                    type="button" 
+                    onClick={() => setListings?.(listings.filter(listing => listing.id !== l.id))} 
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--brand-crimson)', padding: '6px 12px', fontSize: '13px', fontWeight: 500 }}
+                  >
+                    Delete
+                  </button>
                 )}
               </div>
             </div>
@@ -190,7 +165,7 @@ export function CompanyListings({
         )}
       </div>
 
-      {isPosting && <PostListingModal onClose={() => setIsPosting(false)} />}
+      {isPosting && <PostListingModal onClose={() => setIsPosting(false)} setListings={setListings} listings={listings} />}
     </div>
   )
 }
@@ -199,7 +174,7 @@ function newRequirementId(): string {
   return Math.random().toString(36).slice(2)
 }
 
-function PostListingModal({ onClose }: { onClose: () => void }) {
+function PostListingModal({ onClose, setListings, listings }: { onClose: () => void; setListings?: (listings: CompanyListing[]) => void; listings?: CompanyListing[] }) {
   const [title, setTitle] = useState('')
   const [department, setDepartment] = useState('')
   const [slots, setSlots] = useState('1')
@@ -230,8 +205,27 @@ function PostListingModal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock submit logic
-    console.log('Submitted', { title, department, slots, deadline, skills, description, requirements })
+    
+    // Make sure we have setListings passed in
+    if (!setListings || !listings) {
+      console.error("setListings or listings is undefined")
+      onClose()
+      return
+    }
+    
+    const newListing: CompanyListing = {
+      id: Math.max(...listings.map(l => l.id), 0) + 1,
+      title,
+      department,
+      slots: parseInt(slots) || 1,
+      deadline,
+      skills: skills.split(',').map(s => s.trim()).filter(Boolean),
+      description,
+      status: publishImmediately ? 'Open' : 'Draft',
+      requirements: requirements.filter(r => r.name.trim() !== '')
+    }
+    
+    setListings([...listings, newListing])
     onClose()
   }
 

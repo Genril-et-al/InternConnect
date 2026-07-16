@@ -50,6 +50,7 @@ export type CompanyApplicant = {
   feedback?: string
   /** Additional requirement files sent when accepted (student can download). */
   requirements?: RequirementFile[]
+  submittedRequirements?: SubmittedRequirement[]
 }
 
 export const SEED_COMPANY_LISTINGS: CompanyListing[] = [
@@ -92,6 +93,20 @@ export const SEED_COMPANY_LISTINGS: CompanyListing[] = [
     department: 'Analytics',
     skills: ['Python', 'SQL', 'Excel', 'Tableau'],
     description: 'Analyze data and generate business insights.'
+  },
+  { 
+    id: 5, 
+    title: 'UI/UX Design Intern', 
+    status: 'Open', 
+    slots: 1, 
+    deadline: 'Aug 15',
+    department: 'Design',
+    skills: ['Figma', 'Prototyping', 'User Research'],
+    description: 'Help design the next generation of our mobile app.',
+    requirements: [
+      { id: 'req-portfolio', name: 'Final Portfolio PDF', type: 'file', isPrintable: false },
+      { id: 'req-contract', name: 'Internship Contract', type: 'file', isPrintable: true }
+    ]
   },
 ]
 
@@ -175,6 +190,25 @@ export const SEED_COMPANY_APPLICANTS: CompanyApplicant[] = [
     portfolioLink: 'https://jamestan.carrd.co',
     coverLetter:
       'Self-taught front-ender looking for my first product team experience.',
+  },
+  {
+    id: 6,
+    name: 'Alex Rivera',
+    email: 'alex.rivera@cit.edu',
+    listingId: 5,
+    role: 'UI/UX Design Intern',
+    match: 95,
+    status: 'Accepted',
+    applied: 'Jul 15',
+    skills: ['Figma', 'Prototyping'],
+    specializations: ['UI/UX Design'],
+    resume: 'Alex_Rivera_Resume.pdf',
+    portfolioLink: 'https://alexrivera.design',
+    coverLetter: 'I am passionate about creating accessible interfaces and would love to intern here.',
+    submittedRequirements: [
+      { id: 'req-portfolio', name: 'Final Portfolio PDF', status: 'Pending', fileUrl: 'Alex_Portfolio_Final.pdf' },
+      { id: 'req-contract', name: 'Internship Contract', status: 'Approved', fileUrl: 'Signed_Contract_Alex.pdf' }
+    ]
   },
 ]
 
