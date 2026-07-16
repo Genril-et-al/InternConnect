@@ -20,16 +20,15 @@ export function isUniversityEmail(email: string): boolean {
   return email.trim().toLowerCase().endsWith(UNIVERSITY_DOMAIN)
 }
 
+/**
+ * Sign-up collects only the student's full name and university email
+ * (UC-S01). Personal details are filled in later on the profile.
+ */
 export type SignupName = {
   firstName: string
   middleInitial: string
   lastName: string
   suffix: string
-  age: string
-  gender: string
-  address: string
-  personalEmail: string
-  contactNumber: string
 }
 
 /** Step 1: send a verification code to the email (creates the pending user). */
@@ -43,11 +42,6 @@ export async function requestSignupCode(email: string, name: SignupName) {
         middle_initial: name.middleInitial.trim(),
         last_name: name.lastName.trim(),
         suffix: name.suffix.trim(),
-        age: name.age.trim(),
-        gender: name.gender.trim(),
-        address: name.address.trim(),
-        personal_email: name.personalEmail.trim(),
-        contact_number: name.contactNumber.trim(),
       },
     },
   })

@@ -183,11 +183,6 @@ function SignupFlow({
   const [middleInitial, setMiddleInitial] = useState('')
   const [lastName, setLastName] = useState('')
   const [suffix, setSuffix] = useState('')
-  const [age, setAge] = useState('')
-  const [gender, setGender] = useState('')
-  const [address, setAddress] = useState('')
-  const [personalEmail, setPersonalEmail] = useState('')
-  const [contactNumber, setContactNumber] = useState('')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [attempts, setAttempts] = useState(0)
@@ -210,17 +205,7 @@ function SignupFlow({
 
     setBusy(true)
     try {
-      await requestSignupCode(email, {
-        firstName,
-        middleInitial,
-        lastName,
-        suffix,
-        age,
-        gender,
-        address,
-        personalEmail,
-        contactNumber,
-      })
+      await requestSignupCode(email, { firstName, middleInitial, lastName, suffix })
       setAttempts(0)
       setInfo(`We sent a 6-digit code to ${email}. It expires in 5 minutes.`)
       setStep('verify')
@@ -257,17 +242,7 @@ function SignupFlow({
     setInfo('')
     setBusy(true)
     try {
-      await requestSignupCode(email, {
-        firstName,
-        middleInitial,
-        lastName,
-        suffix,
-        age,
-        gender,
-        address,
-        personalEmail,
-        contactNumber,
-      })
+      await requestSignupCode(email, { firstName, middleInitial, lastName, suffix })
       setAttempts(0)
       setCode('')
       setInfo('A new code has been sent.')
@@ -398,54 +373,6 @@ function SignupFlow({
             onChange={(e) => setSuffix(e.target.value)}
             placeholder="Jr., III, etc."
             value={suffix}
-          />
-        </label>
-      </div>
-      <div className="auth-details-grid">
-        <label>
-          Age
-          <input
-            inputMode="numeric"
-            min={0}
-            onChange={(e) => setAge(e.target.value)}
-            type="number"
-            value={age}
-          />
-        </label>
-        <label>
-          Gender
-          <input
-            onChange={(e) => setGender(e.target.value)}
-            placeholder="e.g. Male, Female, Non-binary"
-            value={gender}
-          />
-        </label>
-      </div>
-      <label>
-        Address
-        <input
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Street, City, Province"
-          value={address}
-        />
-      </label>
-      <div className="auth-details-grid">
-        <label>
-          Personal email address
-          <input
-            onChange={(e) => setPersonalEmail(e.target.value)}
-            placeholder="you@example.com"
-            type="email"
-            value={personalEmail}
-          />
-        </label>
-        <label>
-          Contact number
-          <input
-            onChange={(e) => setContactNumber(e.target.value)}
-            placeholder="09XX XXX XXXX"
-            type="tel"
-            value={contactNumber}
           />
         </label>
       </div>

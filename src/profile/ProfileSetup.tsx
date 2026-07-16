@@ -37,6 +37,12 @@ export function ProfileSetup({
   const [resume, setResume] = useState<File | null>(null)
   const [portfolioLink, setPortfolioLink] = useState(profile?.portfolio_link ?? '')
   const [portfolioFile, setPortfolioFile] = useState<File | null>(null)
+  // Personal details — filled here on the profile (not during sign-up).
+  const [age, setAge] = useState(profile?.age != null ? String(profile.age) : '')
+  const [gender, setGender] = useState(profile?.gender ?? '')
+  const [address, setAddress] = useState(profile?.address ?? '')
+  const [personalEmail, setPersonalEmail] = useState(profile?.personal_email ?? '')
+  const [contactNumber, setContactNumber] = useState(profile?.contact_number ?? '')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -45,11 +51,6 @@ export function ProfileSetup({
   const mi = profile?.middle_initial ?? ''
   const last = profile?.last_name ?? ''
   const suffix = profile?.suffix ?? ''
-  const age = profile?.age != null ? String(profile.age) : ''
-  const gender = profile?.gender ?? ''
-  const address = profile?.address ?? ''
-  const personalEmail = profile?.personal_email ?? ''
-  const contactNumber = profile?.contact_number ?? ''
   const initials = `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase() || 'IC'
 
   function handlePhoto(file: File | null) {
@@ -84,6 +85,11 @@ export function ProfileSetup({
         resume_url: resume ? resume.name : profile?.resume_url ?? null,
         portfolio_link: portfolioLink.trim() || null,
         portfolio_file_url: portfolioFile ? portfolioFile.name : profile?.portfolio_file_url ?? null,
+        age: age.trim() ? Number(age) : null,
+        gender: gender.trim() || null,
+        address: address.trim() || null,
+        personal_email: personalEmail.trim() || null,
+        contact_number: contactNumber.trim() || null,
         profile_completed: true,
       })
       onDone?.() // Redirect to the dashboard after saving.
@@ -107,6 +113,11 @@ export function ProfileSetup({
         resumePath,
         portfolioLink: portfolioLink.trim() || null,
         portfolioFilePath,
+        age: age.trim() ? Number(age) : null,
+        gender: gender.trim() || null,
+        address: address.trim() || null,
+        personalEmail: personalEmail.trim() || null,
+        contactNumber: contactNumber.trim() || null,
       })
       await refreshProfile()
       onDone?.() // Redirect to the dashboard after saving.
@@ -161,32 +172,56 @@ export function ProfileSetup({
           </div>
         </section>
 
-        {/* Personal details — captured at registration */}
+        {/* Personal details — filled here, not during sign-up */}
         <section className="profile-section">
           <div className="profile-section-head">
             <h2>Personal information</h2>
-            <span className="profile-locked">Locked · from your account</span>
+            <span className="profile-optional">Optional · editable anytime</span>
           </div>
           <div className="profile-personal-grid">
             <label>
               Age
-              <input readOnly value={age} />
+              <input
+                inputMode="numeric"
+                min={0}
+                onChange={(e) => setAge(e.target.value)}
+                type="number"
+                value={age}
+              />
             </label>
             <label>
               Gender
-              <input readOnly value={gender} />
+              <input
+                onChange={(e) => setGender(e.target.value)}
+                placeholder="e.g. Male, Female, Non-binary"
+                value={gender}
+              />
             </label>
             <label className="profile-field-span">
               Address
-              <input readOnly value={address} />
+              <input
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Street, City, Province"
+                value={address}
+              />
             </label>
             <label>
               Personal email address
-              <input readOnly value={personalEmail} />
+              <input
+                onChange={(e) => setPersonalEmail(e.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                value={personalEmail}
+              />
             </label>
             <label>
               Contact number
-              <input readOnly value={contactNumber} />
+              <input
+                onChange={(e) => setContactNumber(e.target.value)}
+                placeholder="09XX XXX XXXX"
+                type="tel"
+                value={contactNumber}
+              />
             </label>
           </div>
         </section>

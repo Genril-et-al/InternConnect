@@ -18,8 +18,6 @@ import { CompanyPortal } from './company/CompanyPortal'
 import { applications, internships } from './lib/mockData'
 import type { Internship, Application } from './lib/mockData'
 
-type Role = 'student' | 'company' | 'admin'
-
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 const STUDENT_NAV = [
   { icon: LayoutDashboard, label: 'Dashboard' },

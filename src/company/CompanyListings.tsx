@@ -104,6 +104,10 @@ export function CompanyListings({
   )
 }
 
+function newRequirementId(): string {
+  return Math.random().toString(36).slice(2)
+}
+
 function PostListingModal({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState('')
   const [department, setDepartment] = useState('')
@@ -113,14 +117,15 @@ function PostListingModal({ onClose }: { onClose: () => void }) {
   const [description, setDescription] = useState('')
   
   const [publishImmediately, setPublishImmediately] = useState(true)
-  const [requirements, setRequirements] = useState<PreEmploymentRequirement[]>([
-    { id: Math.random().toString(36).slice(2), name: '', type: 'text', isPrintable: false }
+  // Lazy initializer keeps the impure id generation out of render.
+  const [requirements, setRequirements] = useState<PreEmploymentRequirement[]>(() => [
+    { id: newRequirementId(), name: '', type: 'text', isPrintable: false }
   ])
-  
+
   const addRequirement = () => {
     setRequirements([
       ...requirements,
-      { id: Math.random().toString(36).slice(2), name: '', type: 'text', isPrintable: false }
+      { id: newRequirementId(), name: '', type: 'text', isPrintable: false }
     ])
   }
   

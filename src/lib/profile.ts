@@ -12,6 +12,12 @@ export type ProfileSetupInput = {
   resumePath?: string | null
   portfolioLink?: string | null
   portfolioFilePath?: string | null
+  // Personal details — collected on the profile, not during sign-up.
+  age?: number | null
+  gender?: string | null
+  address?: string | null
+  personalEmail?: string | null
+  contactNumber?: string | null
 }
 
 /** Upload a profile photo to the public `avatars` bucket; returns a public URL. */
@@ -64,6 +70,11 @@ export async function completeProfile(userId: string, input: ProfileSetupInput) 
       resume_url: input.resumePath ?? null,
       portfolio_link: input.portfolioLink ?? null,
       portfolio_file_url: input.portfolioFilePath ?? null,
+      age: input.age ?? null,
+      gender: input.gender ?? null,
+      address: input.address ?? null,
+      personal_email: input.personalEmail ?? null,
+      contact_number: input.contactNumber ?? null,
       profile_completed: true,
     })
     .eq('id', userId)
