@@ -5,46 +5,11 @@ import { LoginPage } from './auth/LoginPage'
 import { ProfileSetup } from './profile/ProfileSetup'
 import { StudentDashboard } from './dashboard/StudentDashboard'
 import { AdminApp } from './admin/AdminApp'
+import { CompanyPortal } from './company/CompanyPortal'
 import { applications, internships } from './lib/mockData'
 import type { Internship } from './lib/mockData'
 
 type Role = 'student' | 'company' | 'admin'
-
-type CompanyListing = {
-  id: number
-  title: string
-  status: 'Open' | 'Draft' | 'Closed'
-  applicants: number
-  pending: number
-  deadline: string
-}
-
-const companyListings: CompanyListing[] = [
-  {
-    id: 1,
-    title: 'Frontend Developer Intern',
-    status: 'Open',
-    applicants: 28,
-    pending: 11,
-    deadline: 'Jul 29',
-  },
-  {
-    id: 2,
-    title: 'Technical Writer Intern',
-    status: 'Draft',
-    applicants: 0,
-    pending: 0,
-    deadline: 'Aug 5',
-  },
-  {
-    id: 3,
-    title: 'QA Automation Intern',
-    status: 'Closed',
-    applicants: 19,
-    pending: 2,
-    deadline: 'Jul 12',
-  },
-]
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 const navigation: Record<Exclude<Role, 'admin'>, string[]> = {
@@ -163,7 +128,7 @@ function App() {
         </header>
 
         {role === 'student' && <StudentPortal activeView={activeView} onNavigate={setActiveView} />}
-        {role === 'company' && <CompanyPortal activeView={activeView} />}
+        {role === 'company' && <CompanyPortal activeView={activeView} onNavigate={setActiveView} />}
       </section>
     </main>
   )
@@ -374,104 +339,6 @@ function StudentApplications() {
         ])}
       />
     </div>
-  )
-}
-
-function CompanyPortal({ activeView }: { activeView: string }) {
-  if (activeView === 'Listings') return <CompanyListings />
-  if (activeView === 'Applicants') return <CompanyApplicants />
-  if (activeView === 'Profile') return <CompanyProfile />
-
-  return (
-    <div className="content-grid">
-      <Metric label="Active listings" value="8" detail="3 closing this week" />
-      <Metric label="Applicants" value="126" detail="+21 this week" />
-      <Metric label="Pending review" value="37" detail="Needs action" />
-      <Metric label="Accepted" value="14" detail="For onboarding" />
-      <section className="panel wide">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">Recruitment queue</p>
-            <h3>Applications needing review</h3>
-          </div>
-          <button type="button">Bulk reject</button>
-        </div>
-        <DataTable
-          columns={['Applicant', 'Role', 'Match', 'Status']}
-          rows={[
-            ['Maria A.', 'Frontend Developer Intern', '92%', 'Shortlisted'],
-            ['Althea K.', 'QA Automation Intern', '88%', 'Under review'],
-            ['Chielsea N.', 'Technical Writer Intern', '84%', 'Pending'],
-          ]}
-        />
-      </section>
-    </div>
-  )
-}
-
-function CompanyListings() {
-  return (
-    <div className="stack">
-      <section className="toolbar">
-        <input aria-label="Search listings" placeholder="Search listing title or status" />
-        <button className="primary" type="button">Post new listing</button>
-      </section>
-      <DataTable
-        columns={['Listing', 'Status', 'Applicants', 'Pending', 'Deadline']}
-        rows={companyListings.map((listing) => [
-          listing.title,
-          listing.status,
-          String(listing.applicants),
-          String(listing.pending),
-          listing.deadline,
-        ])}
-      />
-    </div>
-  )
-}
-
-function CompanyApplicants() {
-  return (
-    <div className="content-grid">
-      <section className="panel wide">
-        <p className="eyebrow">Applicant review</p>
-        <h3>Selected application</h3>
-        <div className="applicant-layout">
-          <div>
-            <strong>Maria Faith Antigua</strong>
-            <p className="muted">React, TypeScript, UI testing - 92% match</p>
-            <p>Resume, portfolio, certificates, and cover letter are attached.</p>
-          </div>
-          <div className="button-stack">
-            <button className="primary" type="button">Shortlist</button>
-            <button type="button">Schedule interview</button>
-            <button type="button">Message</button>
-            <button type="button">Reject</button>
-          </div>
-        </div>
-      </section>
-    </div>
-  )
-}
-
-function CompanyProfile() {
-  return (
-    <section className="panel">
-      <p className="eyebrow">Verification</p>
-      <h3>Arcway Labs</h3>
-      <span className="status success">Verified</span>
-      <p className="muted">Business permit and SEC registration reviewed by NLO.</p>
-    </section>
-  )
-}
-
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <section className="metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <p>{detail}</p>
-    </section>
   )
 }
 
