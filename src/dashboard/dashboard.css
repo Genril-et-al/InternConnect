@@ -1,0 +1,333 @@
+/* Student dashboard — follows the InternConnect brand UI. */
+
+.sd-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1040px;
+}
+
+/* Header */
+.sd-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.sd-title {
+  color: var(--brand-dark-red);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sd-subtitle {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
+/* Buttons */
+.sd-primary {
+  align-items: center;
+  background: var(--brand-orange);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 14px;
+  font-weight: 700;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 16px;
+  transition: filter 0.15s ease;
+}
+
+.sd-primary:hover {
+  border-color: var(--brand-orange);
+  filter: brightness(1.05);
+}
+
+.sd-primary.sm {
+  font-size: 12px;
+  min-height: 32px;
+  padding: 4px 12px;
+}
+
+.sd-link {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--brand-orange);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 4px;
+  min-height: auto;
+  padding: 0;
+}
+
+.sd-link:hover {
+  text-decoration: underline;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Stat cards */
+.sd-stats {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.sd-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(113, 66, 54, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+}
+
+.sd-stat-top {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sd-stat-label {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sd-stat-icon {
+  align-items: center;
+  border-radius: 12px;
+  display: inline-flex;
+  justify-content: center;
+  padding: 8px;
+}
+
+.sd-stat-value {
+  color: var(--brand-dark-red);
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+}
+
+/* Cards */
+.sd-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(113, 66, 54, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+}
+
+.sd-card-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.sd-card-head h3 {
+  color: var(--brand-dark-red);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sd-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+.sd-big-number {
+  color: var(--brand-orange);
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+}
+
+/* Progress bar */
+.sd-progress {
+  background: var(--surface-strong);
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.sd-progress span {
+  background: var(--brand-orange);
+  border-radius: 999px;
+  display: block;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+/* Checklist */
+.sd-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.sd-check {
+  align-items: center;
+  color: var(--text-muted);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 5px;
+}
+
+.sd-check.done {
+  color: var(--text-strong);
+}
+
+.sd-check.done svg {
+  color: var(--brand-orange);
+}
+
+/* Lists */
+.sd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sd-list-row {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  transition: border-color 0.15s ease;
+}
+
+.sd-list-row:hover {
+  border-color: rgba(231, 104, 20, 0.4);
+}
+
+.sd-list-main {
+  flex: 1;
+  min-width: 160px;
+}
+
+.sd-list-title {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sd-mark {
+  align-items: center;
+  background: var(--brand-brown);
+  border-radius: 10px;
+  color: #fff;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.sd-mark.dark {
+  background: var(--brand-dark-red);
+}
+
+.sd-empty {
+  padding: 12px 0;
+  text-align: center;
+}
+
+/* Match bar */
+.sd-match {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  width: 120px;
+}
+
+.sd-match-track {
+  background: var(--surface-strong);
+  border-radius: 999px;
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+}
+
+.sd-match-track span {
+  border-radius: 999px;
+  display: block;
+  height: 100%;
+}
+
+.sd-match-value {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Status badges */
+.sd-badge {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+
+.sd-badge.success {
+  background: #e8f7ee;
+  border-color: #bfe8cf;
+  color: #146b3a;
+}
+
+.sd-badge.pending {
+  background: #fdf3e0;
+  border-color: #f4ddb0;
+  color: #8a5a00;
+}
+
+.sd-badge.rejected {
+  background: #fdece9;
+  border-color: #f4c7bf;
+  color: var(--brand-crimson);
+}
+
+.sd-badge.info {
+  background: #fdf1e7;
+  border-color: #f6d3b3;
+  color: var(--brand-brown);
+}
+
+@media (max-width: 560px) {
+  .sd-match {
+    width: 90px;
+  }
+  .sd-title {
+    font-size: 22px;
+  }
+}

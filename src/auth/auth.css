@@ -139,7 +139,13 @@
 .auth-name-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: 1fr 64px 1fr;
+  grid-template-columns: 1fr 64px 1fr 1fr;
+}
+
+.auth-details-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
 }
 
 .auth-form label {
@@ -252,6 +258,56 @@
   padding: 10px 14px;
 }
 
+/* ── Demo access ───────────────────────────────────────────────────── */
+.auth-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-demo-divider {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  position: relative;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.auth-demo-divider::before,
+.auth-demo-divider::after {
+  background: var(--border);
+  content: '';
+  height: 1px;
+  position: absolute;
+  top: 50%;
+  width: 26%;
+}
+
+.auth-demo-divider::before {
+  left: 0;
+}
+
+.auth-demo-divider::after {
+  right: 0;
+}
+
+.auth-demo-btn {
+  background: var(--surface);
+  border: 1.5px solid var(--brand-orange);
+  border-radius: 12px;
+  color: var(--brand-dark-red);
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 46px;
+  transition: background 0.15s ease;
+}
+
+.auth-demo-btn:hover {
+  background: #fdf1e7;
+}
+
 /* ── Loading / gate screens ────────────────────────────────────────── */
 .auth-loading {
   align-items: center;
@@ -289,5 +345,18 @@
   }
   .auth-hero h1 {
     font-size: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-name-grid {
+    grid-template-columns: 1fr 60px;
+  }
+  .auth-name-grid label:nth-child(3),
+  .auth-name-grid label:nth-child(4) {
+    grid-column: 1 / -1;
+  }
+  .auth-details-grid {
+    grid-template-columns: 1fr;
   }
 }

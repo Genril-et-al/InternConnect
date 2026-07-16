@@ -3,40 +3,11 @@ import './App.css'
 import { useAuth } from './auth/context'
 import { LoginPage } from './auth/LoginPage'
 import { ProfileSetup } from './profile/ProfileSetup'
+import { StudentDashboard } from './dashboard/StudentDashboard'
+import { applications, internships } from './lib/mockData'
+import type { Internship } from './lib/mockData'
 
 type Role = 'student' | 'company' | 'admin'
-type Status =
-  | 'Pending'
-  | 'Under review'
-  | 'Shortlisted'
-  | 'Interview scheduled'
-  | 'Accepted'
-  | 'Rejected'
-
-type Internship = {
-  id: number
-  title: string
-  company: string
-  industry: string
-  location: string
-  setup: 'Onsite' | 'Remote' | 'Hybrid'
-  deadline: string
-  duration: string
-  slots: number
-  match: number
-  status: 'Open' | 'Closing soon' | 'Closed'
-  skills: string[]
-  summary: string
-}
-
-type Application = {
-  id: number
-  company: string
-  role: string
-  dateApplied: string
-  status: Status
-  nextStep: string
-}
 
 type CompanyListing = {
   id: number
@@ -54,81 +25,6 @@ type AdminCompany = {
   status: 'Verified' | 'Pending' | 'Rejected'
   documents: string
 }
-
-const internships: Internship[] = [
-  {
-    id: 1,
-    title: 'Frontend Developer Intern',
-    company: 'Arcway Labs',
-    industry: 'Software',
-    location: 'Cebu City',
-    setup: 'Hybrid',
-    deadline: 'Jul 29, 2026',
-    duration: '480 hours',
-    slots: 4,
-    match: 94,
-    status: 'Open',
-    skills: ['React', 'TypeScript', 'UI QA'],
-    summary: 'Build internal dashboards with a product team and ship small features weekly.',
-  },
-  {
-    id: 2,
-    title: 'Data Operations Intern',
-    company: 'Harbor Analytics',
-    industry: 'Business Intelligence',
-    location: 'Mandaue',
-    setup: 'Onsite',
-    deadline: 'Jul 22, 2026',
-    duration: '360 hours',
-    slots: 3,
-    match: 87,
-    status: 'Closing soon',
-    skills: ['SQL', 'Excel', 'Reporting'],
-    summary: 'Clean operational datasets and prepare weekly placement reports.',
-  },
-  {
-    id: 3,
-    title: 'QA Automation Intern',
-    company: 'Northstar Systems',
-    industry: 'Software',
-    location: 'Remote',
-    setup: 'Remote',
-    deadline: 'Aug 8, 2026',
-    duration: '480 hours',
-    slots: 2,
-    match: 81,
-    status: 'Open',
-    skills: ['Testing', 'Playwright', 'Documentation'],
-    summary: 'Write browser checks and document regression coverage for releases.',
-  },
-]
-
-const applications: Application[] = [
-  {
-    id: 1,
-    company: 'Arcway Labs',
-    role: 'Frontend Developer Intern',
-    dateApplied: 'Jul 10',
-    status: 'Under review',
-    nextStep: 'Company reviewed resume and portfolio.',
-  },
-  {
-    id: 2,
-    company: 'Cebu Fintech Group',
-    role: 'Product Support Intern',
-    dateApplied: 'Jul 7',
-    status: 'Interview scheduled',
-    nextStep: 'Interview on Jul 18, 10:00 AM.',
-  },
-  {
-    id: 3,
-    company: 'Harbor Analytics',
-    role: 'Data Operations Intern',
-    dateApplied: 'Jul 2',
-    status: 'Pending',
-    nextStep: 'Waiting for first company action.',
-  },
-]
 
 const companyListings: CompanyListing[] = [
   {
@@ -292,7 +188,7 @@ function App() {
           </div>
         </header>
 
-        {role === 'student' && <StudentPortal activeView={activeView} />}
+        {role === 'student' && <StudentPortal activeView={activeView} onNavigate={setActiveView} />}
         {role === 'company' && <CompanyPortal activeView={activeView} />}
         {role === 'admin' && <AdminPortal activeView={activeView} />}
       </section>
@@ -300,50 +196,18 @@ function App() {
   )
 }
 
-function StudentPortal({ activeView }: { activeView: string }) {
+function StudentPortal({
+  activeView,
+  onNavigate,
+}: {
+  activeView: string
+  onNavigate: (view: string) => void
+}) {
   if (activeView === 'Browse') return <BrowseInternships />
   if (activeView === 'Applications') return <StudentApplications />
   if (activeView === 'Profile') return <StudentProfile />
 
-  return (
-    <div className="content-grid">
-      <Metric label="Applied" value="12" detail="+3 this month" />
-      <Metric label="Pending" value="5" detail="2 newly reviewed" />
-      <Metric label="Accepted" value="1" detail="Offer awaiting decision" />
-      <Metric label="Profile" value="82%" detail="Resume parsed for matching" />
-
-      <section className="panel wide">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">Recommended</p>
-            <h3>High-match internships</h3>
-          </div>
-          <button type="button">View all</button>
-        </div>
-        <div className="card-row">
-          {internships.slice(0, 2).map((internship) => (
-            <InternshipCard internship={internship} key={internship.id} />
-          ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <p className="eyebrow">OJT progress</p>
-        <h3>326 of 480 hours</h3>
-        <Progress value={68} />
-        <p className="muted">Projected completion: Sep 4, 2026</p>
-      </section>
-
-      <section className="panel">
-        <p className="eyebrow">Recent activity</p>
-        <ul className="activity-list">
-          <li>Interview schedule received from Cebu Fintech Group.</li>
-          <li>Arcway Labs viewed your portfolio.</li>
-          <li>New React internship posted near Cebu City.</li>
-        </ul>
-      </section>
-    </div>
-  )
+  return <StudentDashboard onNavigate={onNavigate} />
 }
 
 function BrowseInternships() {

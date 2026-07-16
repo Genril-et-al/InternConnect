@@ -47,6 +47,12 @@ export type Profile = {
   first_name: string | null
   middle_initial: string | null
   last_name: string | null
+  suffix: string | null
+  age: number | null
+  gender: string | null
+  address: string | null
+  personal_email: string | null
+  contact_number: string | null
   photo_url: string | null
   skills: string[]
   specializations: string[]

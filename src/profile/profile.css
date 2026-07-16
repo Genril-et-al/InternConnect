@@ -150,7 +150,18 @@
 .profile-name-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: 1fr 72px 1fr;
+  grid-template-columns: 1fr 72px 1fr 1fr;
+}
+
+/* Personal information grid */
+.profile-personal-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.profile-field-span {
+  grid-column: 1 / -1;
 }
 
 .profile-card label {
@@ -164,6 +175,9 @@
 
 .profile-card input[type='text'],
 .profile-card input[type='url'],
+.profile-card input[type='number'],
+.profile-card input[type='email'],
+.profile-card input[type='tel'],
 .profile-card input:not([type]) {
   background: var(--surface-strong);
   border: 1px solid var(--border);
@@ -349,7 +363,14 @@
 
 @media (max-width: 560px) {
   .profile-name-grid {
-    grid-template-columns: 1fr 60px 1fr;
+    grid-template-columns: 1fr 60px;
+  }
+  .profile-name-grid label:nth-child(3),
+  .profile-name-grid label:nth-child(4) {
+    grid-column: 1 / -1;
+  }
+  .profile-personal-grid {
+    grid-template-columns: 1fr;
   }
   .profile-card {
     padding: 24px;

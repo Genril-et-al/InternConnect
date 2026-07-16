@@ -17,7 +17,7 @@ function errorMessage(err: unknown): string {
 }
 
 export function ProfileSetup() {
-  const { session, profile, signOut, refreshProfile } = useAuth()
+  const { session, profile, signOut, refreshProfile, demo, updateProfileLocal } = useAuth()
 
   const [skills, setSkills] = useState<string[]>(profile?.skills ?? [])
   const [specializations, setSpecializations] = useState<string[]>(
@@ -35,6 +35,12 @@ export function ProfileSetup() {
   const first = profile?.first_name ?? ''
   const mi = profile?.middle_initial ?? ''
   const last = profile?.last_name ?? ''
+  const suffix = profile?.suffix ?? ''
+  const age = profile?.age != null ? String(profile.age) : ''
+  const gender = profile?.gender ?? ''
+  const address = profile?.address ?? ''
+  const personalEmail = profile?.personal_email ?? ''
+  const contactNumber = profile?.contact_number ?? ''
   const initials = `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase() || 'IC'
 
   function handlePhoto(file: File | null) {
@@ -57,6 +63,20 @@ export function ProfileSetup() {
     }
     if (!userId) {
       setError('Your session expired. Please sign in again.')
+      return
+    }
+
+    // Offline demo: no Supabase, so persist to local state instead of uploading.
+    if (demo) {
+      updateProfileLocal({
+        skills,
+        specializations,
+        photo_url: photoPreview ?? null,
+        resume_url: resume ? resume.name : profile?.resume_url ?? null,
+        portfolio_link: portfolioLink.trim() || null,
+        portfolio_file_url: portfolioFile ? portfolioFile.name : profile?.portfolio_file_url ?? null,
+        profile_completed: true,
+      })
       return
     }
 
@@ -132,6 +152,40 @@ export function ProfileSetup() {
             <label>
               Last name
               <input readOnly value={last} />
+            </label>
+            <label>
+              Suffix
+              <input readOnly value={suffix} />
+            </label>
+          </div>
+        </section>
+
+        {/* Personal details — captured at registration */}
+        <section className="profile-section">
+          <div className="profile-section-head">
+            <h2>Personal information</h2>
+            <span className="profile-locked">Locked · from your account</span>
+          </div>
+          <div className="profile-personal-grid">
+            <label>
+              Age
+              <input readOnly value={age} />
+            </label>
+            <label>
+              Gender
+              <input readOnly value={gender} />
+            </label>
+            <label className="profile-field-span">
+              Address
+              <input readOnly value={address} />
+            </label>
+            <label>
+              Personal email address
+              <input readOnly value={personalEmail} />
+            </label>
+            <label>
+              Contact number
+              <input readOnly value={contactNumber} />
             </label>
           </div>
         </section>

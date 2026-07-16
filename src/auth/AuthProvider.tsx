@@ -11,6 +11,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  // Offline demo student (only used when Supabase is not connected).
+  const [demoProfile, setDemoProfile] = useState<Profile | null>(null)
 
   async function loadProfile(userId: string | undefined) {
     if (!userId) {
@@ -47,20 +49,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const value = useMemo<AuthState>(
-    () => ({
-      session,
-      profile,
+  const value = useMemo<AuthState>(() => {
+    // A demo profile takes precedence and provides a mock session so the app's
+    // auth gate treats it like a signed-in user.
+    const effectiveSession = demoProfile
+      ? ({ user: { id: demoProfile.id } } as unknown as Session)
+      : session
+    const effectiveProfile = demoProfile ?? profile
+
+    return {
+      session: effectiveSession,
+      profile: effectiveProfile,
       loading,
+      demo: demoProfile !== null,
       refreshProfile: () => loadProfile(session?.user.id),
       signOut: async () => {
+        if (demoProfile) {
+          setDemoProfile(null)
+          return
+        }
         await authLogout()
         setSession(null)
         setProfile(null)
       },
-    }),
-    [session, profile, loading],
-  )
+      enterDemo: (p: Profile) => setDemoProfile(p),
+      updateProfileLocal: (patch: Partial<Profile>) =>
+        setDemoProfile((prev) => (prev ? { ...prev, ...patch } : prev)),
+    }
+  }, [session, profile, loading, demoProfile])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

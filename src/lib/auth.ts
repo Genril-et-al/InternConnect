@@ -24,6 +24,12 @@ export type SignupName = {
   firstName: string
   middleInitial: string
   lastName: string
+  suffix: string
+  age: string
+  gender: string
+  address: string
+  personalEmail: string
+  contactNumber: string
 }
 
 /** Step 1: send a verification code to the email (creates the pending user). */
@@ -36,6 +42,12 @@ export async function requestSignupCode(email: string, name: SignupName) {
         first_name: name.firstName.trim(),
         middle_initial: name.middleInitial.trim(),
         last_name: name.lastName.trim(),
+        suffix: name.suffix.trim(),
+        age: name.age.trim(),
+        gender: name.gender.trim(),
+        address: name.address.trim(),
+        personal_email: name.personalEmail.trim(),
+        contact_number: name.contactNumber.trim(),
       },
     },
   })
