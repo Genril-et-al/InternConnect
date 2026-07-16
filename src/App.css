@@ -243,6 +243,34 @@ button.primary {
   min-width: 140px;
 }
 
+.browse-bookmark-toggle {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  min-height: 42px;
+  width: 42px;
+  padding: 0;
+  transition: all 160ms ease;
+}
+
+.browse-bookmark-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text-strong);
+  transform: none;
+  box-shadow: none;
+}
+
+.browse-bookmark-toggle.active {
+  background: var(--brand-orange-soft);
+  border-color: var(--brand-orange);
+  color: var(--brand-orange);
+}
+
 /* Filter pills row */
 .browse-filters-row {
   align-items: center;
@@ -310,30 +338,46 @@ button.primary {
 }
 
 .internship-strip {
-  align-items: center;
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 18px 45px rgba(25, 52, 80, 0.06);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(25, 52, 80, 0.04);
   cursor: pointer;
   display: flex;
-  gap: 16px;
-  padding: 16px 20px;
-  transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease;
+  flex-direction: column;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  overflow: hidden;
 }
 
 .internship-strip:hover {
   border-color: var(--accent);
-  box-shadow: 0 8px 28px rgba(231, 104, 20, 0.12);
+  box-shadow: 0 8px 24px rgba(231, 104, 20, 0.1);
   transform: translateY(-1px);
 }
 
 .internship-strip:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.strip-top {
+  display: flex;
+  padding: 20px;
+  gap: 16px;
+}
+
+.strip-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background-color: var(--brand-brown);
+  color: white;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .strip-main {
@@ -343,42 +387,125 @@ button.primary {
 
 .strip-main h3 {
   color: var(--text-strong);
-  font-size: 15px;
-  line-height: 1.3;
-  margin: 0 0 2px;
+  font-size: 16px;
+  line-height: 1.2;
+  margin: 0 0 4px;
+}
+
+.strip-subtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.strip-summary {
+  color: var(--text);
+  font-size: 13px;
+  margin: 0 0 12px;
+  line-height: 1.5;
 }
 
 .strip-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
 .strip-tags span {
   background: var(--surface-strong);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 12px;
   color: var(--text-strong);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 4px 10px;
 }
 
-.strip-meta {
+.strip-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.strip-match-container {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
+  gap: 4px;
+}
+
+.strip-match-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.strip-match-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.strip-match-track {
+  height: 4px;
+  width: 60px;
+  background-color: var(--surface-strong);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.strip-match-progress {
+  height: 100%;
+  background-color: var(--brand-orange);
+  border-radius: 4px;
+}
+
+.strip-match-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-orange);
   white-space: nowrap;
 }
 
-.strip-match {
-  color: var(--accent);
-  font-size: 14px;
+.strip-bookmark {
+  background: none;
+  border: none;
+  padding: 8px;
+  color: var(--text-muted);
+  min-height: auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.strip-meta .muted {
+.strip-bookmark:hover {
+  background: var(--surface-strong);
+  color: var(--text-strong);
+  box-shadow: none;
+  transform: none;
+  border-color: transparent;
+}
+
+.strip-bookmark.active {
+  color: var(--brand-orange);
+}
+
+.strip-apply-btn {
+  border-radius: 20px;
+  padding: 6px 20px;
+  font-size: 14px;
+  min-height: 36px;
+}
+
+.strip-bottom {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.strip-deadline {
   font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* Detail view */
@@ -973,13 +1100,12 @@ label {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .internship-strip {
-    flex-wrap: wrap;
+  .strip-top {
+    flex-direction: column;
+    gap: 16px;
   }
-
-  .strip-tags {
-    order: 10;
-    width: 100%;
+  .strip-right {
+    align-self: flex-start;
   }
 
   .browse-search-row {
