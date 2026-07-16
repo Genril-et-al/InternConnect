@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Briefcase,
+  Bookmark,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -23,7 +24,7 @@ type Role = 'student' | 'company' | 'admin'
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 const STUDENT_NAV = [
   { icon: LayoutDashboard, label: 'Dashboard' },
-  { icon: Search, label: 'Browse' },
+  { icon: Search, label: 'Browse Internships' },
   { icon: FileText, label: 'Applications' },
   { icon: User, label: 'Profile' },
 ]
@@ -154,7 +155,7 @@ function StudentPortal({
   activeView: string
   onNavigate: (view: string) => void
 }) {
-  if (activeView === 'Browse') return <BrowseInternships />
+  if (activeView === 'Browse Internships') return <BrowseInternships />
   if (activeView === 'Applications') return <StudentApplications />
   if (activeView === 'Profile') {
     return <ProfileSetup mode="edit" onDone={() => onNavigate('Dashboard')} />
@@ -166,10 +167,11 @@ function StudentPortal({
 function BrowseInternships() {
   const [query, setQuery] = useState('')
   const [location, setLocation] = useState('All Locations')
-  const [matchDropdown, setMatchDropdown] = useState('Any Match %')
   const [matchFilter, setMatchFilter] = useState('All')
   const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
   const [showApplyModal, setShowApplyModal] = useState(false)
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set())
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
 
   // Derive unique locations from data
   const locations = useMemo(() => {
@@ -186,18 +188,10 @@ function BrowseInternships() {
     '90+': 90,
   }
 
-  const matchDropdownThresholds: Record<string, number> = {
-    'Any Match %': 0,
-    '60% +': 60,
-    '70% +': 70,
-    '80% +': 80,
-    '90% +': 90,
-  }
+  const matchOrder = ['90+', '80+', '70+', '60+', 'All']
 
   const filtered = useMemo(() => {
     const pillMin = matchThresholds[matchFilter] ?? 0
-    const dropdownMin = matchDropdownThresholds[matchDropdown] ?? 0
-    const minMatch = Math.max(pillMin, dropdownMin)
 
     return internships.filter((internship) => {
       const matchesQuery = [internship.title, internship.company, internship.industry, ...internship.skills]
@@ -205,10 +199,21 @@ function BrowseInternships() {
         .toLowerCase()
         .includes(query.toLowerCase())
       const matchesLocation = location === 'All Locations' || internship.location === location
-      const matchesScore = internship.match >= minMatch
-      return matchesQuery && matchesLocation && matchesScore
+      const matchesScore = internship.match >= pillMin
+      const matchesBookmarks = !showBookmarksOnly || bookmarkedIds.has(internship.id)
+      return matchesQuery && matchesLocation && matchesScore && matchesBookmarks
     })
-  }, [query, location, matchDropdown, matchFilter])
+  }, [query, location, matchFilter, showBookmarksOnly, bookmarkedIds])
+
+  const toggleBookmark = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setBookmarkedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   // Detail view — full internship page
   if (selectedInternship && !showApplyModal) {
@@ -260,6 +265,15 @@ function BrowseInternships() {
             value={query}
           />
         </div>
+        <button
+          aria-label="Toggle bookmarks filter"
+          className={`browse-bookmark-toggle ${showBookmarksOnly ? 'active' : ''}`}
+          onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
+          title="Show bookmarked only"
+          type="button"
+        >
+          <Bookmark fill={showBookmarksOnly ? 'currentColor' : 'none'} size={18} />
+        </button>
         <select
           aria-label="Location"
           className="browse-dropdown"
@@ -270,25 +284,13 @@ function BrowseInternships() {
             <option key={loc}>{loc}</option>
           ))}
         </select>
-        <select
-          aria-label="Match percentage"
-          className="browse-dropdown"
-          onChange={(event) => setMatchDropdown(event.target.value)}
-          value={matchDropdown}
-        >
-          <option>Any Match %</option>
-          <option>60% +</option>
-          <option>70% +</option>
-          <option>80% +</option>
-          <option>90% +</option>
-        </select>
       </div>
 
       {/* Match filter pills + result count */}
       <div className="browse-filters-row">
         <div className="browse-pills">
           <span className="browse-pills-label">Filter by match:</span>
-          {Object.keys(matchThresholds).map((key) => (
+          {matchOrder.map((key) => (
             <button
               className={`browse-pill ${matchFilter === key ? 'active' : ''}`}
               key={key}
@@ -314,8 +316,10 @@ function BrowseInternships() {
           filtered.map((internship) => (
             <InternshipStrip
               internship={internship}
+              isBookmarked={bookmarkedIds.has(internship.id)}
               key={internship.id}
               onClick={() => setSelectedInternship(internship)}
+              onToggleBookmark={(e) => toggleBookmark(internship.id, e)}
             />
           ))
         )}
@@ -436,24 +440,59 @@ function RequirementsModal({ application, onClose }: { application: Application,
   )
 }
 
-function InternshipStrip({ internship, onClick }: { internship: Internship; onClick: () => void }) {
+function InternshipStrip({
+  internship,
+  onClick,
+  isBookmarked,
+  onToggleBookmark,
+}: {
+  internship: Internship
+  onClick: () => void
+  isBookmarked?: boolean
+  onToggleBookmark?: (e: React.MouseEvent) => void
+}) {
   return (
-    <article className="internship-strip" onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}>
-      <span className="company-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
-      <div className="strip-main">
-        <h3>{internship.title}</h3>
-        <p className="muted">{internship.company} · {internship.location} · {internship.setup}</p>
+    <article className="internship-strip" role="button" tabIndex={0}>
+      <div className="strip-top">
+        <span className="strip-avatar">{internship.company.slice(0, 2).toUpperCase()}</span>
+        <div className="strip-main">
+          <h3>{internship.title}</h3>
+          <p className="strip-subtitle">
+            {internship.company} · {internship.location} · {internship.slots} slots · {internship.duration}
+          </p>
+          <p className="strip-summary">{internship.summary}</p>
+          <div className="strip-tags">
+            {internship.skills.slice(0, 3).map((skill) => (
+              <span key={skill}>{skill}</span>
+            ))}
+          </div>
+        </div>
+        <div className="strip-right">
+          <div className="strip-match-container">
+            <span className="strip-match-label">AI Match</span>
+            <div className="strip-match-bar">
+              <div className="strip-match-track">
+                <div className="strip-match-progress" style={{ width: `${internship.match}%` }} />
+              </div>
+              <span className="strip-match-text">{internship.match}%</span>
+            </div>
+          </div>
+          <button
+            aria-label="Bookmark"
+            className={`strip-bookmark ${isBookmarked ? 'active' : ''}`}
+            onClick={onToggleBookmark}
+            type="button"
+          >
+            <Bookmark fill={isBookmarked ? 'currentColor' : 'none'} size={18} />
+          </button>
+          <button className="strip-apply-btn primary" type="button" onClick={onClick}>
+            Apply
+          </button>
+        </div>
       </div>
-      <div className="strip-tags">
-        {internship.skills.slice(0, 3).map((skill) => (
-          <span key={skill}>{skill}</span>
-        ))}
+      <div className="strip-bottom">
+        <span className="strip-deadline">Deadline: {internship.deadline.replace(', 2026', '')}</span>
       </div>
-      <div className="strip-meta">
-        <strong className="strip-match">{internship.match}% match</strong>
-        <span className="muted">{internship.slots} slots · {internship.deadline}</span>
-      </div>
-      <span className={`status ${internship.status === 'Open' ? 'success' : 'warning'}`}>{internship.status}</span>
     </article>
   )
 }
