@@ -16,8 +16,17 @@ function errorMessage(err: unknown): string {
   return 'Something went wrong. Please try again.'
 }
 
-export function ProfileSetup() {
+export function ProfileSetup({
+  mode = 'setup',
+  onDone,
+}: {
+  /** 'setup' = first-time full page; 'edit' = embedded in the workspace. */
+  mode?: 'setup' | 'edit'
+  /** Called after a successful save (e.g. redirect to the dashboard). */
+  onDone?: () => void
+} = {}) {
   const { session, profile, signOut, refreshProfile, demo, updateProfileLocal } = useAuth()
+  const isEdit = mode === 'edit'
 
   const [skills, setSkills] = useState<string[]>(profile?.skills ?? [])
   const [specializations, setSpecializations] = useState<string[]>(
@@ -77,6 +86,7 @@ export function ProfileSetup() {
         portfolio_file_url: portfolioFile ? portfolioFile.name : profile?.portfolio_file_url ?? null,
         profile_completed: true,
       })
+      onDone?.() // Redirect to the dashboard after saving.
       return
     }
 
@@ -99,6 +109,7 @@ export function ProfileSetup() {
         portfolioFilePath,
       })
       await refreshProfile()
+      onDone?.() // Redirect to the dashboard after saving.
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -106,24 +117,14 @@ export function ProfileSetup() {
     }
   }
 
-  return (
-    <div className="profile-page">
-      <header className="profile-topbar">
-        <div className="profile-brand">
-          <span className="profile-logo">IC</span>
-          <span className="profile-brand-name">InternConnect</span>
-        </div>
-        <button className="profile-signout" onClick={signOut} type="button">
-          Sign out
-        </button>
-      </header>
-
-      <form className="profile-card" onSubmit={handleSubmit}>
+  const formCard = (
+      <form className={`profile-card${isEdit ? ' embedded' : ''}`} onSubmit={handleSubmit}>
         <div className="profile-head">
-          <h1>Set up your profile</h1>
+          <h1>{isEdit ? 'My Profile' : 'Set up your profile'}</h1>
           <p>
-            Complete your profile so companies and the AI matching system can see
-            your qualifications.
+            {isEdit
+              ? 'Keep your skills, documents, and portfolio up to date — changes feed the AI matching system.'
+              : 'Complete your profile so companies and the AI matching system can see your qualifications.'}
           </p>
         </div>
 
@@ -290,9 +291,26 @@ export function ProfileSetup() {
         {error && <p className="profile-error">{error}</p>}
 
         <button className="profile-submit" disabled={busy} type="submit">
-          {busy ? 'Saving…' : 'Save and continue'}
+          {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Save and continue'}
         </button>
       </form>
+  )
+
+  // Edit mode renders inside the workspace; setup mode is a full page.
+  if (isEdit) return formCard
+
+  return (
+    <div className="profile-page">
+      <header className="profile-topbar">
+        <div className="profile-brand">
+          <span className="profile-logo">IC</span>
+          <span className="profile-brand-name">InternConnect</span>
+        </div>
+        <button className="profile-signout" onClick={signOut} type="button">
+          Sign out
+        </button>
+      </header>
+      {formCard}
     </div>
   )
 }

@@ -54,6 +54,13 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
+/* Embedded variant — rendered inside the workspace (student Profile tab) */
+.profile-card.embedded {
+  margin: 0;
+  max-width: 760px;
+  width: 100%;
+}
+
 /* Card */
 .profile-card {
   background: var(--surface);

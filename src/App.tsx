@@ -205,7 +205,9 @@ function StudentPortal({
 }) {
   if (activeView === 'Browse') return <BrowseInternships />
   if (activeView === 'Applications') return <StudentApplications />
-  if (activeView === 'Profile') return <StudentProfile />
+  if (activeView === 'Profile') {
+    return <ProfileSetup mode="edit" onDone={() => onNavigate('Dashboard')} />
+  }
 
   return <StudentDashboard onNavigate={onNavigate} />
 }
@@ -278,41 +280,6 @@ function StudentApplications() {
           application.nextStep,
         ])}
       />
-    </div>
-  )
-}
-
-function StudentProfile() {
-  return (
-    <div className="content-grid">
-      <section className="panel wide">
-        <p className="eyebrow">Student information</p>
-        <h3>Profile setup</h3>
-        <div className="form-grid">
-          <label>
-            Full name
-            <input defaultValue="Genril Theo Sorono" />
-          </label>
-          <label>
-            University email
-            <input defaultValue="genril.sorono@cit.edu" />
-          </label>
-          <label>
-            Course
-            <input defaultValue="BS Information Technology" />
-          </label>
-          <label>
-            Skills
-            <input defaultValue="React, TypeScript, SQL, Documentation" />
-          </label>
-        </div>
-      </section>
-      <section className="panel">
-        <p className="eyebrow">Documents</p>
-        <h3>Resume and portfolio</h3>
-        <div className="document-box">resume_genril_2026.pdf</div>
-        <div className="document-box">portfolio_site.zip</div>
-      </section>
     </div>
   )
 }
