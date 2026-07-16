@@ -7,7 +7,7 @@ import {
   verifySignupCode,
 } from '../lib/auth'
 import { isSupabaseConfigured } from '../lib/supabase'
-import { DEMO_STUDENT } from '../lib/demo'
+import { DEMO_ADMIN, DEMO_STUDENT } from '../lib/demo'
 import { useAuth } from './context'
 import './auth.css'
 
@@ -98,6 +98,13 @@ export function LoginPage() {
               type="button"
             >
               Continue as {DEMO_STUDENT.full_name} · Student
+            </button>
+            <button
+              className="auth-demo-btn"
+              onClick={() => enterDemo(DEMO_ADMIN)}
+              type="button"
+            >
+              Continue as {DEMO_ADMIN.full_name} · NLO Admin
             </button>
           </div>
         )}

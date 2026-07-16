@@ -4,6 +4,7 @@ import { useAuth } from './auth/context'
 import { LoginPage } from './auth/LoginPage'
 import { ProfileSetup } from './profile/ProfileSetup'
 import { StudentDashboard } from './dashboard/StudentDashboard'
+import { AdminApp } from './admin/AdminApp'
 import { applications, internships } from './lib/mockData'
 import type { Internship } from './lib/mockData'
 
@@ -16,14 +17,6 @@ type CompanyListing = {
   applicants: number
   pending: number
   deadline: string
-}
-
-type AdminCompany = {
-  id: number
-  name: string
-  industry: string
-  status: 'Verified' | 'Pending' | 'Rejected'
-  documents: string
 }
 
 const companyListings: CompanyListing[] = [
@@ -53,34 +46,10 @@ const companyListings: CompanyListing[] = [
   },
 ]
 
-const adminCompanies: AdminCompany[] = [
-  {
-    id: 1,
-    name: 'Arcway Labs',
-    industry: 'Software',
-    status: 'Verified',
-    documents: 'Business permit, SEC registration',
-  },
-  {
-    id: 2,
-    name: 'Harbor Analytics',
-    industry: 'Business Intelligence',
-    status: 'Pending',
-    documents: 'DTI registration pending review',
-  },
-  {
-    id: 3,
-    name: 'Cebu Design Studio',
-    industry: 'Creative Services',
-    status: 'Rejected',
-    documents: 'Missing address verification',
-  },
-]
-
-const navigation: Record<Role, string[]> = {
+// Admins have their own separate portal (src/admin/AdminApp.tsx).
+const navigation: Record<Exclude<Role, 'admin'>, string[]> = {
   student: ['Dashboard', 'Browse', 'Applications', 'Profile'],
   company: ['Dashboard', 'Listings', 'Applicants', 'Profile'],
-  admin: ['Dashboard', 'Users', 'Companies', 'Reports'],
 }
 
 function App() {
@@ -127,6 +96,11 @@ function App() {
   // New students finish profile setup before entering the workspace (UC-S01 → UC-S02).
   if (profile.role === 'student' && !profile.profile_completed) {
     return <ProfileSetup />
+  }
+
+  // Admins get their own portal, fully separate from the student/company workspace.
+  if (profile.role === 'admin') {
+    return <AdminApp />
   }
 
   const role = profile.role
@@ -190,7 +164,6 @@ function App() {
 
         {role === 'student' && <StudentPortal activeView={activeView} onNavigate={setActiveView} />}
         {role === 'company' && <CompanyPortal activeView={activeView} />}
-        {role === 'admin' && <AdminPortal activeView={activeView} />}
       </section>
     </main>
   )
@@ -372,102 +345,6 @@ function CompanyProfile() {
   )
 }
 
-function AdminPortal({ activeView }: { activeView: string }) {
-  if (activeView === 'Companies') return <AdminCompanies />
-  if (activeView === 'Users') return <AdminUsers />
-  if (activeView === 'Reports') return <AdminReports />
-
-  return (
-    <div className="content-grid">
-      <Metric label="Students" value="1,284" detail="94 active today" />
-      <Metric label="Companies" value="86" detail="7 pending approval" />
-      <Metric label="Internships" value="143" detail="112 active" />
-      <Metric label="Applications" value="3,420" detail="This period" />
-      <section className="panel wide">
-        <p className="eyebrow">Pending approvals</p>
-        <h3>Company verification queue</h3>
-        <DataTable
-          columns={['Company', 'Industry', 'Status', 'Documents']}
-          rows={adminCompanies.map((company) => [
-            company.name,
-            company.industry,
-            company.status,
-            company.documents,
-          ])}
-        />
-      </section>
-    </div>
-  )
-}
-
-function AdminUsers() {
-  return (
-    <DataTable
-      columns={['Name', 'Type', 'Status', 'Action']}
-      rows={[
-        ['EJ Kate Alcover', 'Student', 'Active', 'Reset password'],
-        ['Northstar Systems', 'Company', 'Active', 'Deactivate'],
-        ['Cebu Design Studio', 'Company', 'Pending', 'Review'],
-      ]}
-    />
-  )
-}
-
-function AdminCompanies() {
-  return (
-    <div className="stack">
-      <section className="toolbar">
-        <input aria-label="Search companies" placeholder="Search company or industry" />
-        <button className="primary" type="button">Add NLO company</button>
-      </section>
-      <DataTable
-        columns={['Company', 'Industry', 'Verification', 'Documents']}
-        rows={adminCompanies.map((company) => [
-          company.name,
-          company.industry,
-          company.status,
-          company.documents,
-        ])}
-      />
-    </div>
-  )
-}
-
-function AdminReports() {
-  return (
-    <div className="content-grid">
-      <section className="panel">
-        <p className="eyebrow">Reports</p>
-        <h3>Generate report</h3>
-        <div className="form-grid single">
-          <label>
-            Report type
-            <select defaultValue="Applications">
-              <option>Applications</option>
-              <option>Internship postings</option>
-              <option>Placement</option>
-              <option>Student participation</option>
-            </select>
-          </label>
-          <label>
-            Period
-            <input defaultValue="July 2026" />
-          </label>
-        </div>
-        <button className="primary" type="button">Export CSV</button>
-      </section>
-      <section className="panel">
-        <p className="eyebrow">Status breakdown</p>
-        <div className="bar-list">
-          <Progress label="Pending" value={42} />
-          <Progress label="Accepted" value={28} />
-          <Progress label="Rejected" value={30} />
-        </div>
-      </section>
-    </div>
-  )
-}
-
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <section className="metric">
@@ -499,22 +376,6 @@ function InternshipCard({ internship }: { internship: Internship }) {
         <span>{internship.deadline}</span>
       </div>
     </article>
-  )
-}
-
-function Progress({ value, label }: { value: number; label?: string }) {
-  return (
-    <div className="progress-block">
-      {label && (
-        <div className="progress-label">
-          <span>{label}</span>
-          <span>{value}%</span>
-        </div>
-      )}
-      <div className="progress-track">
-        <span style={{ width: `${value}%` }} />
-      </div>
-    </div>
   )
 }
 
