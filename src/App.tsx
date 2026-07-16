@@ -215,6 +215,8 @@ function StudentPortal({
 function BrowseInternships() {
   const [query, setQuery] = useState('')
   const [setup, setSetup] = useState('All')
+  const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
+  const [showApplyModal, setShowApplyModal] = useState(false)
 
   const filtered = useMemo(() => {
     return internships.filter((internship) => {
@@ -226,6 +228,34 @@ function BrowseInternships() {
       return matchesQuery && matchesSetup
     })
   }, [query, setup])
+
+  // Detail view — full internship page
+  if (selectedInternship && !showApplyModal) {
+    return (
+      <InternshipDetailView
+        internship={selectedInternship}
+        onBack={() => setSelectedInternship(null)}
+        onApply={() => setShowApplyModal(true)}
+      />
+    )
+  }
+
+  // Apply modal overlay
+  if (selectedInternship && showApplyModal) {
+    return (
+      <>
+        <InternshipDetailView
+          internship={selectedInternship}
+          onBack={() => setSelectedInternship(null)}
+          onApply={() => setShowApplyModal(true)}
+        />
+        <ApplyModal
+          internship={selectedInternship}
+          onClose={() => setShowApplyModal(false)}
+        />
+      </>
+    )
+  }
 
   return (
     <div className="stack">
@@ -244,10 +274,20 @@ function BrowseInternships() {
         </select>
       </section>
 
-      <section className="listing-grid">
-        {filtered.map((internship) => (
-          <InternshipCard internship={internship} key={internship.id} />
-        ))}
+      <section className="listing-strips">
+        {filtered.length === 0 ? (
+          <p className="muted" style={{ textAlign: 'center', padding: '32px 0' }}>
+            No internships match your search.
+          </p>
+        ) : (
+          filtered.map((internship) => (
+            <InternshipStrip
+              internship={internship}
+              key={internship.id}
+              onClick={() => setSelectedInternship(internship)}
+            />
+          ))
+        )}
       </section>
     </div>
   )
@@ -478,27 +518,232 @@ function Metric({ label, value, detail }: { label: string; value: string; detail
   )
 }
 
-function InternshipCard({ internship }: { internship: Internship }) {
+function InternshipStrip({ internship, onClick }: { internship: Internship; onClick: () => void }) {
   return (
-    <article className="internship-card">
-      <div className="card-topline">
-        <span className="company-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
-        <span className={`status ${internship.status === 'Open' ? 'success' : 'warning'}`}>{internship.status}</span>
+    <article className="internship-strip" onClick={onClick} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick() }}>
+      <span className="company-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+      <div className="strip-main">
+        <h3>{internship.title}</h3>
+        <p className="muted">{internship.company} · {internship.location} · {internship.setup}</p>
       </div>
-      <h3>{internship.title}</h3>
-      <p className="muted">{internship.company} - {internship.location} - {internship.setup}</p>
-      <p>{internship.summary}</p>
-      <div className="tag-row">
-        {internship.skills.map((skill) => (
+      <div className="strip-tags">
+        {internship.skills.slice(0, 3).map((skill) => (
           <span key={skill}>{skill}</span>
         ))}
       </div>
-      <div className="card-footer">
-        <strong>{internship.match}% match</strong>
-        <span>{internship.slots} slots</span>
-        <span>{internship.deadline}</span>
+      <div className="strip-meta">
+        <strong className="strip-match">{internship.match}% match</strong>
+        <span className="muted">{internship.slots} slots · {internship.deadline}</span>
       </div>
+      <span className={`status ${internship.status === 'Open' ? 'success' : 'warning'}`}>{internship.status}</span>
     </article>
+  )
+}
+
+function InternshipDetailView({
+  internship,
+  onBack,
+  onApply,
+}: {
+  internship: Internship
+  onBack: () => void
+  onApply: () => void
+}) {
+  return (
+    <div className="detail-view">
+      <button className="detail-back" onClick={onBack} type="button">
+        ← Back to listings
+      </button>
+
+      <div className="detail-header">
+        <span className="company-mark detail-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+        <div>
+          <h2 className="detail-title">{internship.title}</h2>
+          <p className="muted">{internship.company} · {internship.industry}</p>
+        </div>
+        <span className={`status ${internship.status === 'Open' ? 'success' : 'warning'}`}>{internship.status}</span>
+      </div>
+
+      <div className="detail-body">
+        <section className="detail-section">
+          <h4>Description</h4>
+          <p>{internship.summary}</p>
+        </section>
+
+        <div className="detail-info-grid">
+          <div className="detail-info-item">
+            <span className="detail-info-label">Location</span>
+            <span className="detail-info-value">{internship.location}</span>
+          </div>
+          <div className="detail-info-item">
+            <span className="detail-info-label">Work Setup</span>
+            <span className="detail-info-value">{internship.setup}</span>
+          </div>
+          <div className="detail-info-item">
+            <span className="detail-info-label">Duration</span>
+            <span className="detail-info-value">{internship.duration}</span>
+          </div>
+          <div className="detail-info-item">
+            <span className="detail-info-label">Deadline</span>
+            <span className="detail-info-value">{internship.deadline}</span>
+          </div>
+          <div className="detail-info-item">
+            <span className="detail-info-label">Available Slots</span>
+            <span className="detail-info-value">{internship.slots}</span>
+          </div>
+          <div className="detail-info-item">
+            <span className="detail-info-label">AI Match Score</span>
+            <span className="detail-info-value detail-match">{internship.match}%</span>
+          </div>
+        </div>
+
+        <section className="detail-section">
+          <h4>Required Skills</h4>
+          <div className="tag-row">
+            {internship.skills.map((skill) => (
+              <span key={skill}>{skill}</span>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="detail-actions">
+        <button className="primary detail-apply-btn" onClick={onApply} type="button">
+          Apply Now
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ApplyModal({
+  internship,
+  onClose,
+}: {
+  internship: Internship
+  onClose: () => void
+}) {
+  const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [coverLetterFile, setCoverLetterFile] = useState<File | null>(null)
+  const [submitted, setSubmitted] = useState(false)
+
+  const handleSubmit = () => {
+    setSubmitted(true)
+    setTimeout(() => {
+      onClose()
+    }, 2000)
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-panel">
+        {submitted ? (
+          <div className="modal-success">
+            <div className="modal-success-icon">✓</div>
+            <h3>Application Submitted!</h3>
+            <p className="muted">Your application for <strong>{internship.title}</strong> at {internship.company} has been sent.</p>
+          </div>
+        ) : (
+          <>
+            <div className="modal-header">
+              <h3>Apply for Internship</h3>
+              <button className="modal-close" onClick={onClose} type="button">✕</button>
+            </div>
+
+            {/* Internship preview */}
+            <div className="modal-preview">
+              <div className="modal-preview-header">
+                <span className="company-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+                <div>
+                  <strong>{internship.title}</strong>
+                  <p className="muted">{internship.company} · {internship.location} · {internship.setup}</p>
+                </div>
+              </div>
+              <div className="modal-preview-details">
+                <span><strong>Duration:</strong> {internship.duration}</span>
+                <span><strong>Deadline:</strong> {internship.deadline}</span>
+                <span><strong>Match:</strong> {internship.match}%</span>
+              </div>
+            </div>
+
+            {/* File attachments */}
+            <div className="modal-uploads">
+              <div className="modal-upload-field">
+                <label htmlFor="resume-upload">
+                  Resume <span className="required">*</span>
+                </label>
+                <div className={`upload-zone ${resumeFile ? 'has-file' : ''}`}>
+                  {resumeFile ? (
+                    <div className="upload-file-info">
+                      <span className="upload-file-icon">📄</span>
+                      <div>
+                        <p className="upload-file-name">{resumeFile.name}</p>
+                        <p className="muted">{(resumeFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                      <button className="upload-remove" onClick={() => setResumeFile(null)} type="button">✕</button>
+                    </div>
+                  ) : (
+                    <div className="upload-placeholder">
+                      <span className="upload-icon">↑</span>
+                      <p>Drop your resume here or <strong>browse</strong></p>
+                      <p className="muted">PDF, DOC, or DOCX (max 5 MB)</p>
+                    </div>
+                  )}
+                  <input
+                    accept=".pdf,.doc,.docx"
+                    id="resume-upload"
+                    onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
+                    type="file"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-upload-field">
+                <label htmlFor="cover-letter-upload">
+                  Cover Letter <span className="optional">(optional)</span>
+                </label>
+                <div className={`upload-zone ${coverLetterFile ? 'has-file' : ''}`}>
+                  {coverLetterFile ? (
+                    <div className="upload-file-info">
+                      <span className="upload-file-icon">📄</span>
+                      <div>
+                        <p className="upload-file-name">{coverLetterFile.name}</p>
+                        <p className="muted">{(coverLetterFile.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                      <button className="upload-remove" onClick={() => setCoverLetterFile(null)} type="button">✕</button>
+                    </div>
+                  ) : (
+                    <div className="upload-placeholder">
+                      <span className="upload-icon">↑</span>
+                      <p>Drop your cover letter here or <strong>browse</strong></p>
+                      <p className="muted">PDF, DOC, or DOCX (max 5 MB)</p>
+                    </div>
+                  )}
+                  <input
+                    accept=".pdf,.doc,.docx"
+                    id="cover-letter-upload"
+                    onChange={(e) => setCoverLetterFile(e.target.files?.[0] ?? null)}
+                    type="file"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button onClick={onClose} type="button">Cancel</button>
+              <button
+                className="primary"
+                disabled={!resumeFile}
+                onClick={handleSubmit}
+                type="button"
+              >
+                Submit Application
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
