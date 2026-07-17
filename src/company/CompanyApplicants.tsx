@@ -199,7 +199,7 @@ function ApplicantDetail({
         )}
         {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && (
           <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
-            <XCircle size={13} /> Reject with feedback
+            <XCircle size={13} /> Reject
           </button>
         )}
         {applicant.status === 'Pending' && (
@@ -234,8 +234,8 @@ function ApplicantDetail({
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ 
                       fontSize: '12px', padding: '2px 8px', borderRadius: '12px', fontWeight: 500,
-                      background: req.status === 'Approved' ? 'var(--brand-orange-soft)' : req.status === 'Needs Revision' ? 'var(--brand-crimson)' : 'var(--bg)',
-                      color: req.status === 'Approved' ? 'var(--brand-orange)' : req.status === 'Needs Revision' ? 'white' : 'var(--text-light)'
+                      background: req.status === 'Approved' ? 'rgba(46, 160, 67, 0.15)' : req.status === 'Needs Revision' ? 'var(--brand-crimson)' : 'var(--bg)',
+                      color: req.status === 'Approved' ? '#3fb950' : req.status === 'Needs Revision' ? 'white' : 'var(--text-light)'
                     }}>
                       {req.status}
                     </span>
@@ -386,7 +386,7 @@ function RejectModal({
     >
       <div className="modal-panel">
         <div className="modal-header">
-          <h3>Reject with feedback</h3>
+          <h3>Reject</h3>
           <button className="modal-close" onClick={onClose} type="button">
             ✕
           </button>

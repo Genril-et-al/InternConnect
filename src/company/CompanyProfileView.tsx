@@ -10,6 +10,7 @@ export function CompanyProfileView() {
   const [name, setName] = useState('Arcway Labs')
   const [industry, setIndustry] = useState('Software')
   const [size, setSize] = useState('51-200')
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [description, setDescription] = useState(
     'A Cebu-based software studio building internal tools and dashboards for growing companies.',
   )
@@ -29,6 +30,13 @@ export function CompanyProfileView() {
     setTimeout(() => setSaved(false), 2500)
   }
 
+  function handleLogo(file: File | null) {
+    if (file) {
+      const url = URL.createObjectURL(file)
+      setLogoPreview(url)
+    }
+  }
+
   return (
     <div className="cp-root">
       <div className="cp-head">
@@ -46,14 +54,26 @@ export function CompanyProfileView() {
 
       <section className="cp-card">
         <div className="cp-detail-head" style={{ marginBottom: 18 }}>
-          <span className="cp-detail-avatar">{name.slice(0, 2).toUpperCase()}</span>
+          <span className="cp-detail-avatar" style={{ overflow: 'hidden' }}>
+            {logoPreview ? (
+              <img src={logoPreview} alt="Company logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              name.slice(0, 2).toUpperCase()
+            )}
+          </span>
           <div className="cp-detail-main">
             <h2 className="cp-detail-name">{name}</h2>
             <span className="cp-badge success">Verified</span>
           </div>
-          <button className="cp-secondary" type="button">
+          <label className="cp-secondary" style={{ display: 'inline-flex', cursor: 'pointer', alignItems: 'center', gap: '6px' }}>
             <Upload size={12} /> Upload logo
-          </button>
+            <input 
+              hidden 
+              type="file" 
+              accept="image/*" 
+              onChange={(e) => handleLogo(e.target.files?.[0] ?? null)} 
+            />
+          </label>
         </div>
 
         <div className="cp-form-grid">

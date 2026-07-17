@@ -15,6 +15,7 @@ export function CompanyListings({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [isPosting, setIsPosting] = useState(false)
+  const [previewListing, setPreviewListing] = useState<CompanyListing | null>(null)
 
   const filtered = useMemo(
     () => listings.filter((l) => {
@@ -80,7 +81,7 @@ export function CompanyListings({
           <div className="cp-card cp-empty">No listings found.</div>
         ) : (
           filtered.map((l) => (
-            <div className="cp-card" key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px', cursor: l.status === 'Draft' ? 'pointer' : 'default', border: '1px solid var(--border)' }} onClick={() => { if (l.status === 'Draft') setIsPosting(true) }}>
+            <div className="cp-card" key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px', cursor: 'pointer', border: '1px solid var(--border)' }} onClick={() => setPreviewListing(l)}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>{l.title}</h3>
@@ -166,6 +167,112 @@ export function CompanyListings({
       </div>
 
       {isPosting && <PostListingModal onClose={() => setIsPosting(false)} setListings={setListings} listings={listings} />}
+      {previewListing && !isPosting && (
+        <PreviewListingView
+          listing={previewListing}
+          onBack={() => setPreviewListing(null)}
+          onEdit={() => {
+            setPreviewListing(null)
+            setIsPosting(true)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function PreviewListingView({
+  listing,
+  onBack,
+  onEdit,
+}: {
+  listing: CompanyListing
+  onBack: () => void
+  onEdit: () => void
+}) {
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onBack() }}>
+      <div className="modal-panel detail-view" style={{ maxWidth: '750px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <button className="detail-back" onClick={onBack} type="button" style={{ margin: 0, padding: 0, background: 'none', border: 'none', color: 'var(--text-light)', cursor: 'pointer', fontSize: '14px' }}>
+            ← Back to listings
+          </button>
+          <button className="cp-primary" onClick={onEdit} type="button" style={{ padding: '8px 16px', borderRadius: '20px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+            Edit Listing
+          </button>
+        </div>
+
+        <div style={{ background: 'rgba(255, 165, 0, 0.1)', color: 'var(--brand-orange)', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          This is a preview of how students will see your listing.
+        </div>
+
+        <div className="detail-header" style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px' }}>
+          <div style={{ flex: 1 }}>
+            <h2 className="detail-title" style={{ margin: '0 0 8px 0', fontSize: '24px', color: 'var(--text)' }}>{listing.title}</h2>
+            <p className="muted" style={{ margin: 0, color: 'var(--text-light)' }}>{listing.department}</p>
+          </div>
+          <span className={`status ${listing.status === 'Open' ? 'success' : listing.status === 'Draft' ? 'neutral' : 'rejected'}`} style={{ padding: '4px 12px', borderRadius: '16px', fontSize: '14px', fontWeight: 500, background: listing.status === 'Open' ? 'rgba(46, 160, 67, 0.15)' : listing.status === 'Draft' ? 'var(--bg-subtle)' : 'rgba(248, 81, 73, 0.15)', color: listing.status === 'Open' ? '#3fb950' : listing.status === 'Draft' ? 'var(--text)' : '#ff7b72' }}>
+            {listing.status}
+          </span>
+        </div>
+
+        <div className="detail-body" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <section className="detail-section">
+            <h4 style={{ margin: '0 0 12px 0', color: 'var(--brand-brown)', fontSize: '16px' }}>Description</h4>
+            <p style={{ margin: 0, lineHeight: 1.6, color: 'var(--text)' }}>{listing.description}</p>
+          </section>
+
+          <div className="detail-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+            <div className="detail-info-item" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span className="detail-info-label" style={{ fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Department</span>
+              <span className="detail-info-value" style={{ fontSize: '15px', color: 'var(--text)', fontWeight: 500 }}>{listing.department}</span>
+            </div>
+            <div className="detail-info-item" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span className="detail-info-label" style={{ fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Available Slots</span>
+              <span className="detail-info-value" style={{ fontSize: '15px', color: 'var(--text)', fontWeight: 500 }}>{listing.slots}</span>
+            </div>
+            <div className="detail-info-item" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span className="detail-info-label" style={{ fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Deadline</span>
+              <span className="detail-info-value" style={{ fontSize: '15px', color: 'var(--text)', fontWeight: 500 }}>{listing.deadline}</span>
+            </div>
+          </div>
+
+          <section className="detail-section">
+            <h4 style={{ margin: '0 0 12px 0', color: 'var(--brand-brown)', fontSize: '16px' }}>Required Skills</h4>
+            <div className="tag-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {listing.skills.map((skill) => (
+                <span key={skill} style={{ background: 'var(--brand-sand)', padding: '6px 12px', borderRadius: '16px', fontSize: '13px', color: 'var(--brand-brown)', fontWeight: 500 }}>
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </section>
+
+          {listing.requirements && listing.requirements.length > 0 && (
+            <section className="detail-section" style={{ marginTop: '16px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
+              <h4 style={{ margin: '0 0 8px 0', color: 'var(--brand-brown)', fontSize: '16px' }}>Pre-employment Requirements</h4>
+              <p className="cp-muted" style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--text-light)' }}>
+                These are hidden from students until they accept an offer.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {listing.requirements.map(req => (
+                  <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontWeight: 500, color: 'var(--text)', fontSize: '14px' }}>{req.name}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-light)' }}>
+                        {req.type === 'file' ? 'File upload' : 'Text instruction'}
+                        {req.isPrintable && ' · Needs to be printed'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
