@@ -5,9 +5,23 @@ import {
   uploadAvatar,
   uploadDocument,
 } from '../lib/profile'
+import { analyzeResume, NO_SKILLS_MESSAGE } from '../lib/resumeAnalysis'
 import { useAuth } from '../auth/context'
 import { TagInput } from './TagInput'
 import './profile.css'
+
+/** Case-insensitive union of manually typed and AI-extracted tags. */
+function mergeTags(current: string[], extracted: string[]): string[] {
+  const seen = new Set(current.map((t) => t.toLowerCase()))
+  const merged = [...current]
+  for (const tag of extracted) {
+    if (!seen.has(tag.toLowerCase())) {
+      seen.add(tag.toLowerCase())
+      merged.push(tag)
+    }
+  }
+  return merged
+}
 
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) {
@@ -45,6 +59,22 @@ export function ProfileSetup({
   const [contactNumber, setContactNumber] = useState(profile?.contact_number ?? '')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+  // Set when the AI found nothing to match in the uploaded resume — the
+  // student must upload a new one before it counts for matching.
+  const [resumeRejected, setResumeRejected] = useState<{
+    fileName: string
+    message: string
+    suggestion: string | null
+  } | null>(
+    profile?.resume_status === 'no_skills_found'
+      ? {
+          fileName: 'your current resume',
+          message: NO_SKILLS_MESSAGE,
+          suggestion: profile?.resume_ai_suggestion ?? null,
+        }
+      : null,
+  )
 
   const userId = session?.user.id
   const first = profile?.first_name ?? ''
@@ -62,14 +92,18 @@ export function ProfileSetup({
     event.preventDefault()
     setError('')
 
-    // Required fields (UC-S02).
-    if (skills.length === 0) {
-      setError('Please add at least one skill.')
-      return
-    }
-    if (specializations.length === 0) {
-      setError('Please add at least one specialization.')
-      return
+    // Required fields (UC-S02). When a new resume is attached, the AI analysis
+    // below may fill these in — so only hard-require them if there's no resume
+    // for the AI to read.
+    if (!resume) {
+      if (skills.length === 0) {
+        setError('Please add at least one skill.')
+        return
+      }
+      if (specializations.length === 0) {
+        setError('Please add at least one specialization.')
+        return
+      }
     }
     if (!userId) {
       setError('Your session expired. Please sign in again.')
@@ -102,13 +136,65 @@ export function ProfileSetup({
       const resumePath = resume
         ? await uploadDocument(userId, 'resume', resume)
         : profile?.resume_url ?? null
+
+      // AI analysis (cloud-side): read the new resume with Gemini and extract
+      // skills/specializations. Runs only when a new resume was uploaded.
+      let mergedSkills = skills
+      let mergedSpecializations = specializations
+      if (resume && resumePath) {
+        setAnalyzing(true)
+        try {
+          const result = await analyzeResume(resumePath)
+          if (result.status === 'no_skills_found') {
+            // The resume can't be matched — flag it and require a new upload.
+            setResumeRejected({
+              fileName: resume.name,
+              message: result.message || NO_SKILLS_MESSAGE,
+              suggestion: result.suggestion ?? null,
+            })
+            setResume(null)
+            return
+          }
+          if (result.status === 'unsupported_format') {
+            setError(result.message)
+            setResume(null)
+            return
+          }
+          // Merge AI-extracted tags with anything the student typed; the
+          // student sees the combined list and can edit it afterwards.
+          mergedSkills = mergeTags(skills, result.skills)
+          mergedSpecializations = mergeTags(specializations, result.specializations)
+          setSkills(mergedSkills)
+          setSpecializations(mergedSpecializations)
+          setResumeRejected(null)
+        } catch {
+          // AI is an accelerator, not a gate — a Gemini outage shouldn't block
+          // saving, as long as the student entered skills manually.
+          if (skills.length === 0 || specializations.length === 0) {
+            setError(
+              'We could not analyze your resume right now. Please add your skills and specializations manually, then save again.',
+            )
+            return
+          }
+        } finally {
+          setAnalyzing(false)
+        }
+      }
+
+      if (mergedSkills.length === 0 || mergedSpecializations.length === 0) {
+        setError(
+          'Your resume did not include enough to fill your skills and specializations. Please add them manually.',
+        )
+        return
+      }
+
       const portfolioFilePath = portfolioFile
         ? await uploadDocument(userId, 'portfolio', portfolioFile)
         : profile?.portfolio_file_url ?? null
 
       await completeProfile(userId, {
-        skills,
-        specializations,
+        skills: mergedSkills,
+        specializations: mergedSpecializations,
         photoUrl,
         resumePath,
         portfolioLink: portfolioLink.trim() || null,
@@ -292,8 +378,29 @@ export function ProfileSetup({
               onChange={(e) => setResume(e.target.files?.[0] ?? null)}
               type="file"
             />
-            {resume ? resume.name : 'Upload resume'}
+            {resume
+              ? resume.name
+              : resumeRejected
+                ? 'Upload a new resume'
+                : 'Upload resume'}
           </label>
+          {!resume && resumeRejected && (
+            <p className="profile-resume-rejected" role="alert">
+              <strong>{resumeRejected.message}</strong>{' '}
+              The resume you submitted ({resumeRejected.fileName}) could not be
+              matched — please upload a new one.
+              {resumeRejected.suggestion && (
+                <>
+                  {' '}
+                  <em>Recommendation: {resumeRejected.suggestion}</em>
+                </>
+              )}
+            </p>
+          )}
+          <p className="profile-info">
+            Your resume is read by our AI (in the cloud) to auto-fill your
+            skills and specializations for matching.
+          </p>
         </section>
 
         {/* Portfolio — link OR file */}
@@ -326,7 +433,13 @@ export function ProfileSetup({
         {error && <p className="profile-error">{error}</p>}
 
         <button className="profile-submit" disabled={busy} type="submit">
-          {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Save and continue'}
+          {analyzing
+            ? 'Analyzing your resume…'
+            : busy
+              ? 'Saving…'
+              : isEdit
+                ? 'Save changes'
+                : 'Save and continue'}
         </button>
       </form>
   )

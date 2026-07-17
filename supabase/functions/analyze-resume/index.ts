@@ -1,0 +1,223 @@
+// InternConnect — analyze-resume edge function
+//
+// Reads the calling student's resume PDF from the private `documents` bucket,
+// sends it to Gemini (cloud-side only — the API key and PDF never reach the
+// browser), and extracts skills + specializations as structured JSON.
+//
+// Result statuses:
+//   analyzed           — skills/specializations extracted; UI pre-fills tags
+//   no_skills_found    — nothing to match; profile flagged, re-upload required
+//   unsupported_format — resume is not a PDF; Gemini can only read PDFs inline
+//
+// Secrets required (supabase secrets set ...):
+//   GEMINI_API_KEY — Google AI Studio key
+// SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY are injected
+// automatically by the platform.
+
+import { createClient } from 'npm:@supabase/supabase-js@2'
+
+const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_URL =
+  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+type Extraction = {
+  is_valid_resume: boolean
+  skills: string[]
+  specializations: string[]
+  suggestion: string
+}
+
+const EXTRACTION_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    is_valid_resume: {
+      type: 'BOOLEAN',
+      description: 'True only if the document is actually a resume/CV.',
+    },
+    skills: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+      description:
+        'Concrete skills found in the resume (languages, tools, frameworks, soft skills). ' +
+        'Normalize names: "ReactJS"/"React.js" -> "React", "MS Excel" -> "Excel". ' +
+        'Empty if none are stated.',
+    },
+    specializations: {
+      type: 'ARRAY',
+      items: { type: 'STRING' },
+      description:
+        'Broad areas of focus, e.g. "Frontend Development", "Backend Development", ' +
+        '"Marketing", "Data Analytics", "UI/UX Design". Empty if none can be inferred.',
+    },
+    suggestion: {
+      type: 'STRING',
+      description:
+        'Only when skills AND specializations are empty (or the file is not a resume): ' +
+        'one or two sentences telling the student what to add so their resume can be ' +
+        'matched to internships (e.g. add a Skills section listing tools and languages). ' +
+        'Empty string otherwise.',
+    },
+  },
+  required: ['is_valid_resume', 'skills', 'specializations', 'suggestion'],
+}
+
+const PROMPT =
+  'You are the resume analyzer for InternConnect, an internship matching platform. ' +
+  'Read the attached document. If it is a resume/CV, extract the candidate\'s skills ' +
+  'and specializations exactly per the response schema. Only report skills actually ' +
+  'evidenced in the document — do not invent any. If the document is not a resume, or ' +
+  'contains no identifiable skills or specializations, return empty arrays and fill ' +
+  '`suggestion` with concrete advice for making the resume matchable to internships.'
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const geminiKey = Deno.env.get('GEMINI_API_KEY')
+    if (!geminiKey) return json({ error: 'GEMINI_API_KEY is not configured' }, 500)
+
+    // 1. Identify the caller from their JWT — only students analyze their own resume.
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: userData, error: userError } = await userClient.auth.getUser()
+    if (userError || !userData.user) return json({ error: 'Not authenticated' }, 401)
+    const uid = userData.user.id
+
+    const admin = createClient(supabaseUrl, serviceKey)
+
+    // 2. Locate the resume. The path is pinned to the caller's own folder, so the
+    //    service-role download cannot be pointed at another student's files.
+    const { data: profileRow, error: profileError } = await admin
+      .from('profiles')
+      .select('resume_url, role')
+      .eq('id', uid)
+      .single()
+    if (profileError) return json({ error: profileError.message }, 500)
+    if (profileRow.role !== 'student') {
+      return json({ error: 'Only student accounts have resumes to analyze' }, 403)
+    }
+
+    // Allow the client to pass the just-uploaded path (before the profile row is
+    // saved), but only accept paths inside the caller's own folder.
+    let path: string | null = null
+    try {
+      const body = await req.json()
+      if (typeof body?.path === 'string') path = body.path
+    } catch {
+      /* no body — fall back to the stored resume path */
+    }
+    if (!path) path = profileRow.resume_url
+    if (!path) return json({ error: 'No resume on file. Upload one first.' }, 400)
+    if (!path.startsWith(`${uid}/`)) {
+      return json({ error: 'Path does not belong to the caller' }, 403)
+    }
+
+    if (!path.toLowerCase().endsWith('.pdf')) {
+      return json({
+        status: 'unsupported_format',
+        message: 'Only PDF resumes can be analyzed. Please upload your resume as a PDF.',
+      })
+    }
+
+    // 3. Download the PDF from the private bucket (cloud-side only).
+    const { data: file, error: downloadError } = await admin.storage
+      .from('documents')
+      .download(path)
+    if (downloadError || !file) {
+      return json({ error: `Could not read resume: ${downloadError?.message}` }, 500)
+    }
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    let binary = ''
+    const CHUNK = 0x8000
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+    }
+    const base64 = btoa(binary)
+
+    // 4. Ask Gemini for a structured extraction.
+    const geminiRes = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: PROMPT },
+            { inline_data: { mime_type: 'application/pdf', data: base64 } },
+          ],
+        }],
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: 'application/json',
+          responseSchema: EXTRACTION_SCHEMA,
+        },
+      }),
+    })
+    if (!geminiRes.ok) {
+      const detail = await geminiRes.text()
+      console.error('Gemini error', geminiRes.status, detail)
+      return json({ error: 'AI analysis failed. Please try again shortly.' }, 502)
+    }
+    const geminiBody = await geminiRes.json()
+    const text = geminiBody?.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) return json({ error: 'AI returned no result. Please try again.' }, 502)
+    const extraction = JSON.parse(text) as Extraction
+
+    const skills = dedupe(extraction.skills)
+    const specializations = dedupe(extraction.specializations)
+    const empty = !extraction.is_valid_resume ||
+      (skills.length === 0 && specializations.length === 0)
+
+    // 5. Record the outcome on the profile (skills themselves are only written
+    //    after the student confirms them in the UI).
+    const { error: updateError } = await admin
+      .from('profiles')
+      .update({
+        resume_status: empty ? 'no_skills_found' : 'analyzed',
+        resume_analyzed_at: new Date().toISOString(),
+        resume_ai_suggestion: empty ? (extraction.suggestion || null) : null,
+      })
+      .eq('id', uid)
+    if (updateError) return json({ error: updateError.message }, 500)
+
+    if (empty) {
+      return json({
+        status: 'no_skills_found',
+        message:
+          'Not applicable. No skills/specialization available to be matched.',
+        suggestion: extraction.suggestion || null,
+      })
+    }
+    return json({ status: 'analyzed', skills, specializations })
+  } catch (err) {
+    console.error('analyze-resume failed', err)
+    return json({ error: 'Unexpected error during resume analysis.' }, 500)
+  }
+})
+
+function dedupe(values: unknown): string[] {
+  if (!Array.isArray(values)) return []
+  const seen = new Map<string, string>()
+  for (const v of values) {
+    if (typeof v !== 'string') continue
+    const t = v.trim()
+    if (t && !seen.has(t.toLowerCase())) seen.set(t.toLowerCase(), t)
+  }
+  return [...seen.values()]
+}

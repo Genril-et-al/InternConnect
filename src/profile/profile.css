@@ -347,6 +347,22 @@
   padding: 10px 14px;
 }
 
+/* AI resume rejection ("Not applicable...") shown on the resume card */
+.profile-resume-rejected {
+  background: #fdece9;
+  border: 1px solid #f4c7bf;
+  border-radius: 12px;
+  color: var(--brand-crimson);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 10px 0 0;
+  padding: 10px 14px;
+}
+
+.profile-resume-rejected em {
+  color: var(--brand-dark-red);
+}
+
 .profile-submit {
   background: var(--brand-orange);
   border: none;
