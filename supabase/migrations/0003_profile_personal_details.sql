@@ -72,3 +72,18 @@ begin
   if v_full is null then
     v_full := coalesce(new.raw_user_meta_data ->> 'full_name', '');
   end if;
+
+  insert into public.profiles (
+    id, email, role, full_name, first_name, middle_initial, last_name,
+    suffix, age, gender, address, personal_email, contact_number
+  )
+  values (
+    new.id, v_email, v_role, v_full,
+    nullif(v_first, ''), nullif(v_mi, ''), nullif(v_last, ''),
+    v_suffix, v_age, v_gender, v_address, v_pemail, v_contact
+  )
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$;
