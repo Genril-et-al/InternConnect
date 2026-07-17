@@ -20,6 +20,16 @@
   --text: #714236;
   --text-muted: #9a7a6e;
   --text-strong: #1c0a04;
+
+  /* Motion tokens — one easing curve + a small duration scale keep every
+     transition/animation in the app feeling like it comes from one place.
+     --ease-out is a soft "settle" curve for enter/hover/expand motion. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-1: 140ms;
+  --dur-2: 220ms;
+  --dur-3: 320ms;
+
   --font-display: 'Playfair Display', Georgia, serif;
   font-family: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -140,4 +150,17 @@ a {
   margin-top: 8px;
   min-height: 44px;
   padding: 0 22px;
+}
+
+/* Respect users who ask for less motion: neutralise transitions/animations
+   everywhere instead of relying on each stylesheet to opt in individually. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
