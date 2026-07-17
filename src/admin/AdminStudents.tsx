@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { UserCheck, UserX, Plus, Upload, X } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
-import type { AdminStudent } from './adminData'
+import type { AdminCompany, AdminStudent } from './adminData'
 
 /** UC-A01 — Manage Student Accounts: search, activate, deactivate. */
 export function AdminStudents({
