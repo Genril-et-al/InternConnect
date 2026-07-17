@@ -318,6 +318,7 @@
 /* ── Loading / gate screens ────────────────────────────────────────── */
 .auth-loading {
   align-items: center;
+  animation: auth-fade-in 0.4s ease both;
   background: #faf9f6;
   color: var(--text);
   display: flex;
@@ -327,6 +328,56 @@
   min-height: 100svh;
   padding: 24px;
   text-align: center;
+}
+
+@keyframes auth-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Simple branded loading spinner. */
+.ic-spinner {
+  animation: ic-spin 0.8s linear infinite;
+  border: 4px solid rgba(231, 104, 20, 0.18);
+  border-radius: 50%;
+  border-top-color: var(--brand-orange);
+  height: 44px;
+  width: 44px;
+}
+
+@keyframes ic-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Gently pulse the status text so it reads as "in progress". Scoped to the
+   spinner's sibling so the (non-loading) deactivated message never pulses. */
+.ic-spinner ~ p {
+  animation: ic-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ic-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ic-spinner {
+    animation-duration: 2.4s;
+  }
+  .ic-spinner ~ p {
+    animation: none;
+  }
 }
 
 .sign-out {

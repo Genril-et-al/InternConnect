@@ -46,6 +46,7 @@ function App() {
   if (loading) {
     return (
       <div className="auth-loading">
+        <span className="ic-spinner" aria-hidden="true" />
         <p>Loading InternConnect…</p>
       </div>
     )
@@ -59,6 +60,7 @@ function App() {
   if (!profile) {
     return (
       <div className="auth-loading">
+        <span className="ic-spinner" aria-hidden="true" />
         <p>Finishing account setup…</p>
         <button className="primary" onClick={signOut} type="button">
           Sign out

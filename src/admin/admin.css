@@ -365,6 +365,21 @@
   padding: 4px 12px;
 }
 
+/* Keep button labels (and their icons) on a single line. */
+.ad-primary,
+.ad-secondary,
+.ad-danger,
+.ad-approve {
+  white-space: nowrap;
+}
+
+.ad-primary svg,
+.ad-secondary svg,
+.ad-danger svg,
+.ad-approve svg {
+  flex-shrink: 0;
+}
+
 /* ── Cards / stats ─────────────────────────────────────────────────── */
 .ad-stats {
   display: grid;
@@ -631,6 +646,7 @@
   padding: 12px 16px;
   text-align: left;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .ad-table td {
@@ -639,6 +655,14 @@
   font-size: 13px;
   padding: 12px 16px;
   vertical-align: middle;
+}
+
+/* Override the global break-anywhere wrapping (index.css) inside data tables:
+   it was shrinking columns and breaking button labels / emails mid-token. */
+.ad-table th,
+.ad-table td {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .ad-table tbody tr:last-child td {
@@ -859,18 +883,6 @@
   color: var(--text-muted);
   padding: 32px;
   text-align: center;
-}
-
-/* Deactivation reason shown under the status badge */
-.ad-reason-line {
-  color: var(--brand-crimson);
-  font-size: 11px;
-  line-height: 1.35;
-  margin: 5px 0 0;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* ── View account modal ────────────────────────────────────────────── */

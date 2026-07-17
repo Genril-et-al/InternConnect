@@ -114,11 +114,6 @@ export function AdminStudents({
                     text={s.status === 'active' ? 'Active' : 'Inactive'}
                     variant={s.status === 'active' ? 'success' : 'neutral'}
                   />
-                  {s.status === 'inactive' && s.deactivationReason && (
-                    <p className="ad-reason-line" title={s.deactivationReason}>
-                      {s.deactivationReason}
-                    </p>
-                  )}
                 </td>
                 <td>{s.applications}</td>
                 <td className="ad-muted">{s.joined}</td>
