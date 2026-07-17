@@ -38,9 +38,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     // Keep in sync with sign-in / sign-out / token refresh.
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, next) => {
+    // NOTE: supabase-js holds an auth lock while this callback runs, and any
+    // supabase query needs that same lock to attach the token — awaiting a
+    // query here deadlocks (login hangs on "Finishing account setup…"). Defer
+    // the profile fetch out of the callback so the lock is released first.
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next)
-      await loadProfile(next?.user.id)
+      setTimeout(() => {
+        if (active) loadProfile(next?.user.id)
+      }, 0)
     })
 
     return () => {
