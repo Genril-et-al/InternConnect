@@ -10,6 +10,7 @@ import {
   STATUS_BREAKDOWN,
 } from './adminData'
 import type { AdminCompany, AdminListing, AdminStudent } from './adminData'
+import { NotificationBell } from '../components/NotificationBell'
 
 export function AdminDashboard({
   students,
@@ -29,6 +30,12 @@ export function AdminDashboard({
   const totalApplications = MONTHLY_APPLICATIONS.reduce((sum, m) => sum + m.apps, 0)
   const maxApps = Math.max(...MONTHLY_APPLICATIONS.map((m) => m.apps))
 
+  const mockNotifications = [
+    { id: '1', message: '2 new companies are awaiting verification.', date: '10 mins ago', read: false },
+    { id: '2', message: 'Monthly system report has been generated.', date: '5 hours ago', read: false },
+    { id: '3', message: '10 new student registrations today.', date: '1 day ago', read: true },
+  ]
+
   // Donut segments via conic-gradient (cumulative start/end stops).
   const stops = STATUS_BREAKDOWN.map((_, i) =>
     STATUS_BREAKDOWN.slice(0, i).reduce((sum, prev) => sum + prev.value, 0),
@@ -44,9 +51,12 @@ export function AdminDashboard({
           <h1 className="ad-title">Platform Overview</h1>
           <p className="ad-subtitle">Welcome back, NLO Admin</p>
         </div>
-        <button className="ad-primary" onClick={() => onNav(4)} type="button">
-          <BarChart3 size={14} /> Generate Report
-        </button>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <button className="ad-primary" onClick={() => onNav(4)} type="button">
+            <BarChart3 size={14} /> Generate Report
+          </button>
+          <NotificationBell notifications={mockNotifications} />
+        </div>
       </div>
 
       <div className="ad-stats">

@@ -1413,3 +1413,130 @@ label {
     font-size: 22px;
   }
 }
+
+/* Notification Bell Styles */
+.nb-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.nb-trigger {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  color: var(--text-strong);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.nb-trigger:hover {
+  background: var(--surface-strong);
+}
+
+.nb-badge {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  background: var(--brand-dark-red);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 5px;
+  border-radius: 999px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1;
+}
+
+.nb-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 320px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 100;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.nb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-light);
+  background: #fafafa;
+}
+
+.nb-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.nb-mark-read {
+  background: none;
+  border: none;
+  color: var(--brand-dark-red);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.nb-mark-read:hover {
+  text-decoration: underline;
+}
+
+.nb-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.nb-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.nb-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.15s ease;
+}
+
+.nb-item:last-child {
+  border-bottom: none;
+}
+
+.nb-item.unread {
+  background: #fffcfb;
+}
+
+.nb-item.unread .nb-message {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.nb-message {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.nb-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}

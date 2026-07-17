@@ -1,6 +1,7 @@
 import { Briefcase, CheckCircle2, Clock, Users } from 'lucide-react'
 import { MatchBar, StatusBadge } from './CompanyApplicants'
 import type { CompanyApplicant, CompanyListing } from './companyData'
+import { NotificationBell } from '../components/NotificationBell'
 
 /** UC-C06 — recruitment activity at a glance. */
 export function CompanyDashboard({
@@ -19,6 +20,11 @@ export function CompanyDashboard({
     .filter((a) => a.status === 'Pending')
     .sort((a, b) => b.match - a.match)
 
+  const mockNotifications = [
+    { id: '1', message: 'You have 3 new applicants for Frontend Developer.', date: '1 hour ago', read: false },
+    { id: '2', message: 'NLO Admin has verified your company profile.', date: '2 days ago', read: true },
+  ]
+
   return (
     <div className="cp-root">
       <div className="cp-head">
@@ -30,9 +36,12 @@ export function CompanyDashboard({
               : 'No applications waiting for review.'}
           </p>
         </div>
-        <button className="cp-primary" onClick={() => onNavigate('Applicants')} type="button">
-          <Users size={14} /> Review Applications
-        </button>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <button className="cp-primary" onClick={() => onNavigate('Applicants')} type="button">
+            <Users size={14} /> Review Applications
+          </button>
+          <NotificationBell notifications={mockNotifications} />
+        </div>
       </div>
 
       <div className="cp-stats">

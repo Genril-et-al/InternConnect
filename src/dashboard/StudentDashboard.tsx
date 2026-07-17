@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../auth/context'
 import { applications, internships } from '../lib/mockData'
 import type { Application } from '../lib/mockData'
+import { NotificationBell } from '../components/NotificationBell'
 import './dashboard.css'
 
 /**
@@ -31,6 +32,12 @@ export function StudentDashboard({
   const { profile } = useAuth()
 
   const accepted = applications.filter((a) => a.status === 'Accepted').length
+
+  const mockNotifications = [
+    { id: '1', message: 'Your application for Frontend Engineer at TechCorp is under review.', date: '2 hours ago', read: false },
+    { id: '2', message: 'You have a new AI-matched internship for your skills.', date: '1 day ago', read: false },
+    { id: '3', message: 'Welcome to InternConnect! Complete your profile to get started.', date: '3 days ago', read: true },
+  ]
   const rejected = applications.filter((a) => a.status === 'Rejected').length
   const pending = applications.length - accepted - rejected
 
@@ -38,9 +45,7 @@ export function StudentDashboard({
 
   // Profile completion — computed from the real profile record.
   const checklist = [
-    { label: 'Skills', done: (profile?.skills?.length ?? 0) > 0 },
-    { label: 'Specializations', done: (profile?.specializations?.length ?? 0) > 0 },
-    { label: 'Photo', done: Boolean(profile?.photo_url) },
+    { label: 'Formal Photo', done: Boolean(profile?.photo_url) },
     { label: 'Resume', done: Boolean(profile?.resume_url) },
     {
       label: 'Portfolio',
@@ -68,9 +73,12 @@ export function StudentDashboard({
               : 'All applications resolved.'}
           </p>
         </div>
-        <button className="sd-primary" onClick={() => onNavigate('Browse Internships')} type="button">
-          <Search size={14} /> Browse Internships
-        </button>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <button className="sd-primary" onClick={() => onNavigate('Browse Internships')} type="button">
+            <Search size={14} /> Browse Internships
+          </button>
+          <NotificationBell notifications={mockNotifications} />
+        </div>
       </div>
 
       {/* Stats */}

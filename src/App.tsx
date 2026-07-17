@@ -158,18 +158,28 @@ function StudentPortal({
   const [applicationFilter, setApplicationFilter] = useState('All')
   const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
 
+  const handleNavigate = (view: string) => {
+    onNavigate(view)
+    if (view !== 'Applications') {
+      setApplicationFilter('All')
+    }
+    if (view !== 'Browse Internships') {
+      setSelectedInternship(null)
+    }
+  }
+
   return (
     <>
       {activeView === 'Browse Internships' && <BrowseInternships selectedInternship={selectedInternship} onSelectInternship={setSelectedInternship} />}
       {activeView === 'Applications' && <StudentApplications onOpenProgress={setSelectedApp} filter={applicationFilter} onFilterChange={setApplicationFilter} />}
-      {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => onNavigate('Dashboard')} />}
+      {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => handleNavigate('Dashboard')} />}
       {activeView === 'Dashboard' && (
         <StudentDashboard 
-          onNavigate={onNavigate} 
+          onNavigate={handleNavigate} 
           onOpenProgress={setSelectedApp} 
           onFilterApplications={(filter) => {
             setApplicationFilter(filter)
-            onNavigate('Applications')
+            onNavigate('Applications') // Use raw onNavigate so we don't reset
           }}
           onOpenInternship={(id) => {
             const internship = internships.find(i => i.id === id)
@@ -196,17 +206,10 @@ function BrowseInternships({
   onSelectInternship: (internship: Internship | null) => void 
 }) {
   const [query, setQuery] = useState('')
-  const [location, setLocation] = useState('All Locations')
   const [matchFilter, setMatchFilter] = useState('All')
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set())
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
-
-  // Derive unique locations from data
-  const locations = useMemo(() => {
-    const locs = Array.from(new Set(internships.map((i) => i.location)))
-    return ['All Locations', ...locs.sort()]
-  }, [])
 
   // Minimum match thresholds
   const matchThresholds: Record<string, number> = {
@@ -223,16 +226,15 @@ function BrowseInternships({
     const pillMin = matchThresholds[matchFilter] ?? 0
 
     return internships.filter((internship) => {
-      const matchesQuery = [internship.title, internship.company, internship.industry, ...internship.skills]
+      const matchesQuery = [internship.title, internship.company, internship.industry, ...internship.skills, internship.location]
         .join(' ')
         .toLowerCase()
         .includes(query.toLowerCase())
-      const matchesLocation = location === 'All Locations' || internship.location === location
       const matchesScore = internship.match >= pillMin
       const matchesBookmarks = !showBookmarksOnly || bookmarkedIds.has(internship.id)
-      return matchesQuery && matchesLocation && matchesScore && matchesBookmarks
+      return matchesQuery && matchesScore && matchesBookmarks
     })
-  }, [query, location, matchFilter, showBookmarksOnly, bookmarkedIds])
+  }, [query, matchFilter, showBookmarksOnly, bookmarkedIds])
 
   const toggleBookmark = (id: number, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -290,7 +292,7 @@ function BrowseInternships({
             aria-label="Search internships"
             className="browse-search-input"
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by title, company, or skill..."
+            placeholder="Search by title, company, skill, or location..."
             value={query}
           />
         </div>
@@ -303,16 +305,6 @@ function BrowseInternships({
         >
           <Bookmark fill={showBookmarksOnly ? 'currentColor' : 'none'} size={18} />
         </button>
-        <select
-          aria-label="Location"
-          className="browse-dropdown"
-          onChange={(event) => setLocation(event.target.value)}
-          value={location}
-        >
-          {locations.map((loc) => (
-            <option key={loc}>{loc}</option>
-          ))}
-        </select>
       </div>
 
       {/* Match filter pills + result count */}

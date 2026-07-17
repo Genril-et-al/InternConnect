@@ -226,11 +226,11 @@ export function ProfileSetup({
           </div>
         </section>
 
-        {/* Photo — optional */}
+        {/* Photo — required */}
         <section className="profile-section">
           <div className="profile-section-head">
-            <h2>Profile photo</h2>
-            <span className="profile-optional">Optional · editable later</span>
+            <h2>Formal photo</h2>
+            <span className="profile-required">Required</span>
           </div>
           <div className="profile-photo-row">
             <span className="profile-avatar">
@@ -253,11 +253,11 @@ export function ProfileSetup({
           </div>
         </section>
 
-        {/* Skills — required */}
+        {/* Skills — optional */}
         <section className="profile-section">
           <div className="profile-section-head">
             <h2>Skills</h2>
-            <span className="profile-required">Required</span>
+            <span className="profile-optional">Optional</span>
           </div>
           <TagInput
             onChange={setSkills}
@@ -266,11 +266,11 @@ export function ProfileSetup({
           />
         </section>
 
-        {/* Specializations — required */}
+        {/* Specializations — optional */}
         <section className="profile-section">
           <div className="profile-section-head">
             <h2>Specializations</h2>
-            <span className="profile-required">Required</span>
+            <span className="profile-optional">Optional</span>
           </div>
           <TagInput
             onChange={setSpecializations}
