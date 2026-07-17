@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   LogOut,
   Search,
-  User,
   Users,
 } from 'lucide-react'
 import './App.css'
@@ -24,18 +23,18 @@ import type { Internship, Application } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
+// Profile isn't a nav item — users open their own profile from the account
+// card at the bottom of the sidebar.
 const STUDENT_NAV = [
   { icon: LayoutDashboard, label: 'Dashboard' },
   { icon: Search, label: 'Browse Internships' },
   { icon: FileText, label: 'Applications' },
-  { icon: User, label: 'Profile' },
 ]
 
 const COMPANY_NAV = [
   { icon: LayoutDashboard, label: 'Dashboard' },
   { icon: Briefcase, label: 'Listings' },
   { icon: Users, label: 'Applicants' },
-  { icon: User, label: 'Profile' },
 ]
 
 function App() {
@@ -142,11 +141,18 @@ function App() {
         </nav>
 
         <div className="ad-user">
-          <span className="ad-user-avatar">{initials || 'IC'}</span>
-          <div className="ad-user-main">
-            <p className="ad-user-name">{displayName}</p>
-            <p className="ad-user-role">{roleLabel}</p>
-          </div>
+          <button
+            className={`ad-user-trigger${activeView === 'Profile' ? ' active' : ''}`}
+            onClick={() => setActiveView('Profile')}
+            title="View your profile"
+            type="button"
+          >
+            <span className="ad-user-avatar">{initials || 'IC'}</span>
+            <div className="ad-user-main">
+              <p className="ad-user-name">{displayName}</p>
+              <p className="ad-user-role">{roleLabel}</p>
+            </div>
+          </button>
           <button aria-label="Sign out" className="ad-signout" onClick={signOut} type="button">
             <LogOut size={15} />
           </button>

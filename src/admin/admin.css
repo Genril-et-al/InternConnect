@@ -136,6 +136,36 @@
   padding: 16px;
 }
 
+/* Clickable account card — opens the signed-in user's own profile. */
+.ad-user-trigger {
+  align-items: center;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  margin: -8px 0 -8px -8px;
+  min-height: auto;
+  min-width: 0;
+  padding: 8px;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.ad-user-trigger:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.ad-user-trigger.active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .ad-user-avatar {
   align-items: center;
   background: var(--brand-orange-soft);
@@ -232,6 +262,12 @@
 
 .sb-collapsed .ad-user-main {
   display: none;
+}
+
+.sb-collapsed .ad-user-trigger {
+  justify-content: center;
+  margin: 0;
+  width: 100%;
 }
 
 .ad-page {
@@ -915,6 +951,11 @@
   }
   .ad-user-main {
     display: none;
+  }
+  .ad-user-trigger {
+    justify-content: center;
+    margin: 0;
+    width: 100%;
   }
   .ad-main {
     padding: 20px;
