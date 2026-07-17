@@ -60,6 +60,35 @@ token instead of a link.
 > During development you don't need a real inbox — Supabase logs sent emails
 > under **Authentication → Logs**, and you can also read the code there.
 
+### 4a. Send codes from a real inbox (Custom SMTP — required for real delivery)
+
+Supabase's **built-in** email sender is for testing only: it is rate-limited to a
+handful of messages per hour and often never reaches the student. To reliably
+deliver the verification code **from `internconnect000@gmail.com`**, point
+Supabase at Gmail's SMTP server.
+
+1. On the Google account `internconnect000@gmail.com`, turn on **2-Step
+   Verification** (myaccount.google.com → Security), then create an **App
+   Password** at myaccount.google.com/apppasswords (16 characters). Gmail rejects
+   normal-password SMTP — the App Password is required.
+2. In Supabase: **Project Settings → Authentication → SMTP Settings → Enable
+   Custom SMTP**, and set:
+
+   | Field | Value |
+   |-------|-------|
+   | Host | `smtp.gmail.com` |
+   | Port | `465` |
+   | Username | `internconnect000@gmail.com` |
+   | Password | the 16-char App Password (a **secret** — lives only here, never in the repo) |
+   | Sender email | `internconnect000@gmail.com` |
+   | Sender name | `InternConnect` |
+
+3. **Authentication → Rate Limits** → raise "emails per hour" above the built-in
+   default (Gmail allows ~500/day).
+
+No code changes are needed — `signInWithOtp` in `src/lib/auth.ts` already routes
+through whatever SMTP Supabase is configured with.
+
 ## 5. Seed an admin and approve a company
 
 Admins are never self-registered. In the SQL Editor:
