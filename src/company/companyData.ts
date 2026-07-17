@@ -31,6 +31,13 @@ export type RequirementFile = {
   note?: string
 }
 
+export type SubmittedRequirement = {
+  id: string
+  name: string
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Needs Revision'
+  fileUrl?: string
+}
+
 export type CompanyApplicant = {
   id: number
   name: string

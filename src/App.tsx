@@ -261,7 +261,7 @@ function BrowseInternships({
       <>
         <InternshipDetailView
           internship={selectedInternship}
-          onBack={() => setSelectedInternship(null)}
+          onBack={() => onSelectInternship(null)}
           onApply={() => setShowApplyModal(true)}
         />
         <ApplyModal
@@ -785,7 +785,7 @@ function ApplyModal({
   )
 }
 
-function DataTable({ columns, rows }: { columns: string[]; rows: React.ReactNode[][] }) {
+export function DataTable({ columns, rows }: { columns: string[]; rows: React.ReactNode[][] }) {
   return (
     <div className="table-wrap">
       <table>

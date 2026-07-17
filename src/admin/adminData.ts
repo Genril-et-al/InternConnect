@@ -30,6 +30,7 @@ export type AdminListing = {
   id: number
   title: string
   company: string
+  companyDescription?: string
   status: AdminListingStatus
   applicants: number
   posted: string
@@ -55,11 +56,11 @@ export const SEED_ADMIN_COMPANIES: AdminCompany[] = [
 ]
 
 export const SEED_ADMIN_LISTINGS: AdminListing[] = [
-  { id: 1, title: 'Frontend Developer Intern', company: 'Arcway Labs', status: 'open', applicants: 24, posted: 'Jul 1', deadline: 'Jul 29' },
-  { id: 2, title: 'Data Operations Intern', company: 'Harbor Analytics', status: 'open', applicants: 17, posted: 'Jul 2', deadline: 'Aug 5' },
-  { id: 3, title: 'Marketing Intern', company: 'BrandPulse PH', status: 'open', applicants: 8, posted: 'Jul 5', deadline: 'Jul 25' },
-  { id: 4, title: 'UI/UX Design Intern', company: 'Northstar Systems', status: 'closed', applicants: 12, posted: 'Jun 15', deadline: 'Jul 10' },
-  { id: 5, title: 'QA Automation Intern', company: 'Northstar Systems', status: 'open', applicants: 5, posted: 'Jul 8', deadline: 'Aug 8' },
+  { id: 1, title: 'Frontend Developer Intern', company: 'Arcway Labs', companyDescription: 'Arcway Labs is a Cebu-based software studio building internal tools and dashboards for growing companies.', status: 'open', applicants: 24, posted: 'Jul 1', deadline: 'Jul 29' },
+  { id: 2, title: 'Data Operations Intern', company: 'Harbor Analytics', companyDescription: 'Harbor Analytics is a leading business intelligence firm providing data cleaning, reporting, and operational insights.', status: 'open', applicants: 17, posted: 'Jul 2', deadline: 'Aug 5' },
+  { id: 3, title: 'Marketing Intern', company: 'BrandPulse PH', companyDescription: 'BrandPulse PH is a boutique digital marketing agency specializing in brand strategy, campaigns, and search engine optimization.', status: 'open', applicants: 8, posted: 'Jul 5', deadline: 'Jul 25' },
+  { id: 4, title: 'UI/UX Design Intern', company: 'Northstar Systems', companyDescription: 'Northstar Systems is an enterprise software company delivering high-quality automated testing and quality assurance solutions.', status: 'closed', applicants: 12, posted: 'Jun 15', deadline: 'Jul 10' },
+  { id: 5, title: 'QA Automation Intern', company: 'Northstar Systems', companyDescription: 'Northstar Systems is an enterprise software company delivering high-quality automated testing and quality assurance solutions.', status: 'open', applicants: 5, posted: 'Jul 8', deadline: 'Aug 8' },
 ]
 
 export const MONTHLY_APPLICATIONS = [

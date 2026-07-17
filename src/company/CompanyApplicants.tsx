@@ -6,9 +6,7 @@ import {
   Eye,
   FileText,
   Link2,
-  Paperclip,
   Search,
-  Send,
   XCircle,
 } from 'lucide-react'
 import { MATCH_FILTERS } from './companyData'
@@ -16,7 +14,6 @@ import type {
   ApplicantStatus,
   CompanyApplicant,
   CompanyListing,
-  RequirementFile,
 } from './companyData'
 
 /**
