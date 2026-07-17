@@ -1,20 +1,59 @@
 /* Admin portal — separate shell from the student/company workspace. */
 
 .ad-shell {
-  display: grid;
-  grid-template-columns: 256px minmax(0, 1fr);
+  /* Sidebar width is a variable so the fixed sidebar and the content margin
+     always stay in sync — collapsing just changes this one value. */
+  --sb-w: 256px;
   min-height: 100svh;
 }
 
-/* ── Sidebar ───────────────────────────────────────────────────────── */
+.ad-shell.sb-collapsed {
+  --sb-w: 76px;
+}
+
+/* ── Sidebar (fixed rail) ──────────────────────────────────────────── */
 .ad-sidebar {
   background: var(--brand-dark-red);
   display: flex;
   flex-direction: column;
-  height: 100svh;
-  padding: 0;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  height: 100svh;
+  width: var(--sb-w);
+  padding: 0;
+  z-index: 50;
+  transition: width 0.22s ease;
+}
+
+/* Collapse / expand toggle */
+.ad-collapse {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 9px;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  height: 30px;
+  justify-content: center;
+  margin-left: auto;
+  min-height: 30px;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+  width: 30px;
+}
+
+.ad-collapse:hover {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+  color: #fff;
+  transform: none;
+}
+
+.ad-brand-text {
+  min-width: 0;
 }
 
 .ad-brand {
@@ -151,8 +190,48 @@
 /* ── Content ───────────────────────────────────────────────────────── */
 .ad-main {
   background: #faf9f6;
-  overflow-y: auto;
+  margin-left: var(--sb-w);
+  min-height: 100svh;
   padding: 32px;
+  transition: margin-left 0.22s ease;
+}
+
+/* ── Collapsed rail state (shared by every sidebar) ────────────────── */
+.sb-collapsed .ad-brand {
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 8px;
+}
+
+.sb-collapsed .ad-brand-text {
+  display: none;
+}
+
+.sb-collapsed .ad-collapse {
+  margin-left: 0;
+}
+
+.sb-collapsed .ad-nav {
+  padding: 14px 10px;
+}
+
+.sb-collapsed .ad-nav button {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.sb-collapsed .ad-nav-label {
+  display: none;
+}
+
+.sb-collapsed .ad-user {
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 8px;
+}
+
+.sb-collapsed .ad-user-main {
+  display: none;
 }
 
 .ad-page {
@@ -803,21 +882,39 @@
 }
 
 @media (max-width: 760px) {
+  /* On narrow screens the sidebar always shows as a compact icon rail. */
+  .app-shell,
   .ad-shell {
-    grid-template-columns: 1fr;
+    --sb-w: 72px;
   }
-  .ad-sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 10;
+  .ad-brand {
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 8px;
+  }
+  .ad-brand-text {
+    display: none;
+  }
+  .ad-collapse {
+    display: none;
   }
   .ad-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding: 10px 12px;
+    padding: 14px 10px;
   }
   .ad-nav button {
-    width: auto;
+    justify-content: center;
+    padding: 10px 0;
+  }
+  .ad-nav-label {
+    display: none;
+  }
+  .ad-user {
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 8px;
+  }
+  .ad-user-main {
+    display: none;
   }
   .ad-main {
     padding: 20px;

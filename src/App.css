@@ -1,7 +1,12 @@
 .app-shell {
-  display: grid;
-  grid-template-columns: 256px minmax(0, 1fr);
+  /* Matches the admin shell: a fixed sidebar rail + content offset by its
+     width. --sb-w keeps the two in sync and drives the collapse animation. */
+  --sb-w: 256px;
   min-height: 100svh;
+}
+
+.app-shell.sb-collapsed {
+  --sb-w: 76px;
 }
 
 button,
@@ -57,8 +62,11 @@ button.primary {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 248, 251, 0.95)),
     url('./assets/hero.png') right 28px top 24px / 160px auto no-repeat;
+  margin-left: var(--sb-w);
+  min-height: 100svh;
   min-width: 0;
   padding: 28px;
+  transition: margin-left 0.22s ease;
 }
 
 .topbar,

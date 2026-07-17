@@ -3,6 +3,8 @@ import {
   Briefcase,
   Bookmark,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -19,6 +21,7 @@ import { AdminApp } from './admin/AdminApp'
 import { CompanyPortal } from './company/CompanyPortal'
 import { applications, internships } from './lib/mockData'
 import type { Internship, Application } from './lib/mockData'
+import { useSidebarCollapsed } from './lib/useSidebar'
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 const STUDENT_NAV = [
@@ -38,6 +41,7 @@ const COMPANY_NAV = [
 function App() {
   const { session, profile, loading, signOut } = useAuth()
   const [activeView, setActiveView] = useState('Dashboard')
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed()
 
   // Auth gate — resolve the session before deciding what to render.
   if (loading) {
@@ -101,14 +105,23 @@ function App() {
   const portalLabel = role === 'student' ? 'Student Portal' : 'Company Portal'
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${collapsed ? ' sb-collapsed' : ''}`}>
       <aside className="ad-sidebar" aria-label="Main navigation">
         <div className="ad-brand">
           <span className="ad-logo">IC</span>
-          <div>
+          <div className="ad-brand-text">
             <div className="ad-brand-name">InternConnect</div>
             <div className="ad-brand-sub">{portalLabel}</div>
           </div>
+          <button
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="ad-collapse"
+            onClick={toggleCollapsed}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            type="button"
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
         </div>
 
         <nav className="ad-nav">
@@ -119,9 +132,10 @@ function App() {
                 className={activeView === item.label ? 'active' : ''}
                 key={item.label}
                 onClick={() => setActiveView(item.label)}
+                title={item.label}
                 type="button"
               >
-                <Icon size={16} /> {item.label}
+                <Icon size={16} /> <span className="ad-nav-label">{item.label}</span>
               </button>
             )
           })}

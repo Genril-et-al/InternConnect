@@ -13,8 +13,15 @@
   gap: 20px;
   justify-content: center;
   padding: 64px 56px;
-  position: relative;
   overflow: hidden;
+  /* Pin the panel to the viewport so it never grows with (or drifts against)
+     the form column when the sign-up steps make the page taller than the
+     screen. It stays put while only the form side scrolls. sticky is also a
+     positioning context, so the ::after glow still anchors to it. */
+  align-self: start;
+  position: sticky;
+  top: 0;
+  height: 100svh;
 }
 
 .auth-hero::after {
@@ -341,6 +348,10 @@
     grid-template-columns: 1fr;
   }
   .auth-hero {
+    /* Stacked layout: let the panel size to its content instead of pinning a
+       full screen of red above the form. */
+    position: static;
+    height: auto;
     padding: 40px 32px;
   }
   .auth-hero h1 {

@@ -3,11 +3,14 @@ import {
   BarChart3,
   Briefcase,
   Building2,
+  ChevronLeft,
+  ChevronRight,
   GraduationCap,
   LayoutDashboard,
   LogOut,
 } from 'lucide-react'
 import { useAuth } from '../auth/context'
+import { useSidebarCollapsed } from '../lib/useSidebar'
 import { AdminDashboard } from './AdminDashboard'
 import { AdminStudents } from './AdminStudents'
 import { AdminCompanies } from './AdminCompanies'
@@ -36,6 +39,7 @@ const NAV = [
 export function AdminApp() {
   const { profile, signOut } = useAuth()
   const [active, setActive] = useState(0)
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed()
 
   // Admin-managed records (seed data until the Supabase slice lands).
   const [students, setStudents] = useState<AdminStudent[]>(SEED_ADMIN_STUDENTS)
@@ -52,14 +56,23 @@ export function AdminApp() {
       .join('') || 'NA'
 
   return (
-    <div className="ad-shell">
+    <div className={`ad-shell${collapsed ? ' sb-collapsed' : ''}`}>
       <aside className="ad-sidebar">
         <div className="ad-brand">
           <span className="ad-logo">IC</span>
-          <div>
+          <div className="ad-brand-text">
             <div className="ad-brand-name">InternConnect</div>
             <div className="ad-brand-sub">Admin Panel</div>
           </div>
+          <button
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="ad-collapse"
+            onClick={toggleCollapsed}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            type="button"
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
         </div>
 
         <nav className="ad-nav">
@@ -70,9 +83,10 @@ export function AdminApp() {
                 className={i === active ? 'active' : ''}
                 key={item.label}
                 onClick={() => setActive(i)}
+                title={item.label}
                 type="button"
               >
-                <Icon size={16} /> {item.label}
+                <Icon size={16} /> <span className="ad-nav-label">{item.label}</span>
               </button>
             )
           })}
