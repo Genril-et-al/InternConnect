@@ -34,9 +34,33 @@ export function StudentDashboard({
   const accepted = applications.filter((a) => a.status === 'Accepted').length
 
   const mockNotifications = [
-    { id: '1', message: 'Your application for Frontend Engineer at TechCorp is under review.', date: '2 hours ago', read: false },
-    { id: '2', message: 'You have a new AI-matched internship for your skills.', date: '1 day ago', read: false },
-    { id: '3', message: 'Welcome to InternConnect! Complete your profile to get started.', date: '3 days ago', read: true },
+    { 
+      id: '1', 
+      message: 'Your application for Frontend Engineer at TechCorp is under review.', 
+      date: '2 hours ago', 
+      read: false,
+      onClick: () => {
+        onFilterApplications?.('Pending')
+      }
+    },
+    { 
+      id: '2', 
+      message: 'You have a new AI-matched internship for your skills.', 
+      date: '1 day ago', 
+      read: false,
+      onClick: () => {
+        onNavigate('Browse Internships')
+      }
+    },
+    { 
+      id: '3', 
+      message: 'Welcome to InternConnect! Complete your profile to get started.', 
+      date: '3 days ago', 
+      read: true,
+      onClick: () => {
+        onNavigate('Profile')
+      }
+    },
   ]
   const rejected = applications.filter((a) => a.status === 'Rejected').length
   const pending = applications.length - accepted - rejected

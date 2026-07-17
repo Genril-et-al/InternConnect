@@ -1520,6 +1520,14 @@ label {
   border-bottom: none;
 }
 
+.nb-item.clickable {
+  cursor: pointer;
+}
+
+.nb-item.clickable:hover {
+  background: var(--surface-light, #f5f5f5);
+}
+
 .nb-item.unread {
   background: #fffcfb;
 }

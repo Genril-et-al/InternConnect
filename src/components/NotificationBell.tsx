@@ -6,6 +6,7 @@ export interface Notification {
   message: string
   date: string
   read: boolean
+  onClick?: () => void
 }
 
 interface NotificationBellProps {
@@ -62,7 +63,18 @@ export function NotificationBell({ notifications, onMarkAllRead }: NotificationB
               <p className="nb-empty">No new notifications</p>
             ) : (
               notifications.map((n) => (
-                <div key={n.id} className={`nb-item ${n.read ? 'read' : 'unread'}`}>
+                <div 
+                  key={n.id} 
+                  className={`nb-item ${n.read ? 'read' : 'unread'} ${n.onClick ? 'clickable' : ''}`}
+                  onClick={() => {
+                    if (n.onClick) {
+                      n.onClick()
+                      setIsOpen(false)
+                    }
+                  }}
+                  role={n.onClick ? "button" : undefined}
+                  tabIndex={n.onClick ? 0 : undefined}
+                >
                   <p className="nb-message">{n.message}</p>
                   <span className="nb-date">{n.date}</span>
                 </div>

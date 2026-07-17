@@ -31,9 +31,33 @@ export function AdminDashboard({
   const maxApps = Math.max(...MONTHLY_APPLICATIONS.map((m) => m.apps))
 
   const mockNotifications = [
-    { id: '1', message: '2 new companies are awaiting verification.', date: '10 mins ago', read: false },
-    { id: '2', message: 'Monthly system report has been generated.', date: '5 hours ago', read: false },
-    { id: '3', message: '10 new student registrations today.', date: '1 day ago', read: true },
+    { 
+      id: '1', 
+      message: '2 new companies are awaiting verification.', 
+      date: '10 mins ago', 
+      read: false,
+      onClick: () => {
+        onNav(2)
+      }
+    },
+    { 
+      id: '2', 
+      message: 'Monthly system report has been generated.', 
+      date: '5 hours ago', 
+      read: false,
+      onClick: () => {
+        onNav(4)
+      }
+    },
+    { 
+      id: '3', 
+      message: '10 new student registrations today.', 
+      date: '1 day ago', 
+      read: true,
+      onClick: () => {
+        onNav(1)
+      }
+    },
   ]
 
   // Donut segments via conic-gradient (cumulative start/end stops).
