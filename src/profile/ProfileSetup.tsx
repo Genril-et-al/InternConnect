@@ -7,6 +7,7 @@ import {
 } from '../lib/profile'
 import { analyzeResume, NO_SKILLS_MESSAGE } from '../lib/resumeAnalysis'
 import { useAuth } from '../auth/context'
+import { SignOutButton } from '../components/SignOutButton'
 import { TagInput } from './TagInput'
 import './profile.css'
 
@@ -39,7 +40,7 @@ export function ProfileSetup({
   /** Called after a successful save (e.g. redirect to the dashboard). */
   onDone?: () => void
 } = {}) {
-  const { session, profile, signOut, refreshProfile, demo, updateProfileLocal } = useAuth()
+  const { session, profile, refreshProfile, demo, updateProfileLocal } = useAuth()
   const isEdit = mode === 'edit'
 
   const [skills, setSkills] = useState<string[]>(profile?.skills ?? [])
@@ -454,9 +455,9 @@ export function ProfileSetup({
           <span className="profile-logo">IC</span>
           <span className="profile-brand-name">InternConnect</span>
         </div>
-        <button className="profile-signout" onClick={signOut} type="button">
+        <SignOutButton className="profile-signout">
           Sign out
-        </button>
+        </SignOutButton>
       </header>
       {formCard}
     </div>

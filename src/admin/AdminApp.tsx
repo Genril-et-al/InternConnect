@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../auth/context'
 import { useSidebarCollapsed } from '../lib/useSidebar'
+import { SignOutButton } from '../components/SignOutButton'
 import { AdminDashboard } from './AdminDashboard'
 import { AdminStudents } from './AdminStudents'
 import { AdminCompanies } from './AdminCompanies'
@@ -37,7 +38,7 @@ const NAV = [
  * (UC-A01…A06). Rendered whenever the signed-in profile has the admin role.
  */
 export function AdminApp() {
-  const { profile, signOut } = useAuth()
+  const { profile } = useAuth()
   const [active, setActive] = useState(0)
   const [collapsed, toggleCollapsed] = useSidebarCollapsed()
 
@@ -98,9 +99,9 @@ export function AdminApp() {
             <p className="ad-user-name">{name}</p>
             <p className="ad-user-role">NLO Admin</p>
           </div>
-          <button aria-label="Sign out" className="ad-signout" onClick={signOut} type="button">
+          <SignOutButton ariaLabel="Sign out" className="ad-signout">
             <LogOut size={15} />
-          </button>
+          </SignOutButton>
         </div>
       </aside>
 

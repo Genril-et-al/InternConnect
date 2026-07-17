@@ -21,6 +21,7 @@ import { CompanyPortal } from './company/CompanyPortal'
 import { applications, internships } from './lib/mockData'
 import type { Internship, Application } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
+import { SignOutButton } from './components/SignOutButton'
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 // Profile isn't a nav item — users open their own profile from the account
@@ -155,9 +156,9 @@ function App() {
               <p className="ad-user-role">{roleLabel}</p>
             </div>
           </button>
-          <button aria-label="Sign out" className="ad-signout" onClick={signOut} type="button">
+          <SignOutButton ariaLabel="Sign out" className="ad-signout">
             <LogOut size={15} />
-          </button>
+          </SignOutButton>
         </div>
       </aside>
 
