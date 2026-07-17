@@ -861,6 +861,98 @@
   text-align: center;
 }
 
+/* Deactivation reason shown under the status badge */
+.ad-reason-line {
+  color: var(--brand-crimson);
+  font-size: 11px;
+  line-height: 1.35;
+  margin: 5px 0 0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── View account modal ────────────────────────────────────────────── */
+.ad-view {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 16px;
+}
+
+.ad-view-head {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.ad-view-name {
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.ad-view-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.ad-view-row {
+  align-items: baseline;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.ad-view-row:last-child {
+  border-bottom: 0;
+}
+
+.ad-view-row dt {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ad-view-row dd {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+  text-align: right;
+  word-break: break-word;
+}
+
+.ad-view-reason {
+  background: #fdece9;
+  border: 1px solid #f4c7bf;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.ad-view-reason-label {
+  color: var(--brand-crimson);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.ad-view-reason-text {
+  color: var(--text-strong);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
 /* Reports */
 .ad-form-grid {
   display: grid;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { UserCheck, UserX, Plus, Upload, X } from 'lucide-react'
+import { Eye, UserCheck, UserX, Plus, Upload, X } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
 import type { AdminCompany, AdminStudent } from './adminData'
 
@@ -14,6 +14,8 @@ export function AdminStudents({
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
+  const [viewTarget, setViewTarget] = useState<AdminStudent | null>(null)
+  const [deactivateTarget, setDeactivateTarget] = useState<AdminStudent | null>(null)
 
   const filtered = useMemo(
     () =>
@@ -25,12 +27,39 @@ export function AdminStudents({
     [students, search],
   )
 
-  const toggle = (id: number) =>
+  // Reactivating clears the recorded reason; deactivating requires one, so it
+  // goes through the modal instead of toggling immediately.
+  const activate = (id: number) =>
     setStudents((prev) =>
       prev.map((s) =>
-        s.id === id ? { ...s, status: s.status === 'active' ? 'inactive' : 'active' } : s,
+        s.id === id
+          ? { ...s, status: 'active', deactivationReason: undefined, deactivatedAt: undefined }
+          : s,
       ),
     )
+
+  const deactivate = (id: number, reason: string) =>
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              status: 'inactive',
+              deactivationReason: reason,
+              deactivatedAt: new Date().toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              }),
+            }
+          : s,
+      ),
+    )
+
+  const handleToggle = (s: AdminStudent) => {
+    if (s.status === 'active') setDeactivateTarget(s)
+    else activate(s.id)
+  }
 
   return (
     <div className="ad-page">
@@ -85,21 +114,31 @@ export function AdminStudents({
                     text={s.status === 'active' ? 'Active' : 'Inactive'}
                     variant={s.status === 'active' ? 'success' : 'neutral'}
                   />
+                  {s.status === 'inactive' && s.deactivationReason && (
+                    <p className="ad-reason-line" title={s.deactivationReason}>
+                      {s.deactivationReason}
+                    </p>
+                  )}
                 </td>
                 <td>{s.applications}</td>
                 <td className="ad-muted">{s.joined}</td>
                 <td>
-                  <button className="ad-secondary" onClick={() => toggle(s.id)} type="button">
-                    {s.status === 'active' ? (
-                      <>
-                        <UserX size={12} /> Deactivate
-                      </>
-                    ) : (
-                      <>
-                        <UserCheck size={12} /> Activate
-                      </>
-                    )}
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="ad-secondary" onClick={() => setViewTarget(s)} type="button">
+                      <Eye size={12} /> View
+                    </button>
+                    <button className="ad-secondary" onClick={() => handleToggle(s)} type="button">
+                      {s.status === 'active' ? (
+                        <>
+                          <UserX size={12} /> Deactivate
+                        </>
+                      ) : (
+                        <>
+                          <UserCheck size={12} /> Activate
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -116,6 +155,135 @@ export function AdminStudents({
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} setStudents={setStudents} />}
       {showBulkModal && <BulkUploadModal type="student" onClose={() => setShowBulkModal(false)} setStudents={setStudents} />}
+      {viewTarget && <ViewStudentModal student={viewTarget} onClose={() => setViewTarget(null)} />}
+      {deactivateTarget && (
+        <DeactivateStudentModal
+          student={deactivateTarget}
+          onClose={() => setDeactivateTarget(null)}
+          onConfirm={(reason) => {
+            deactivate(deactivateTarget.id, reason)
+            setDeactivateTarget(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/** UC-A01 — read-only view of a student's account information. */
+function ViewStudentModal({ student, onClose }: { student: AdminStudent; onClose: () => void }) {
+  const initials = student.name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+
+  const rows: [string, string | number][] = [
+    ['Email', student.email],
+    ['Student ID', student.studentId ?? '—'],
+    ['Program', student.program ?? '—'],
+    ['Year Level', student.year ?? '—'],
+    ['Contact No.', student.phone ?? '—'],
+    ['Applications', student.applications],
+    ['Joined', student.joined],
+  ]
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-panel" style={{ width: '440px' }}>
+        <div className="modal-header">
+          <h3>Student Account</h3>
+          <button className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
+        </div>
+        <div className="ad-view">
+          <div className="ad-view-head">
+            <span className="ad-cell-mark" style={{ width: 48, height: 48, fontSize: 16 }}>{initials}</span>
+            <div>
+              <p className="ad-view-name">{student.name}</p>
+              <AdBadge
+                text={student.status === 'active' ? 'Active' : 'Inactive'}
+                variant={student.status === 'active' ? 'success' : 'neutral'}
+              />
+            </div>
+          </div>
+
+          <dl className="ad-view-list">
+            {rows.map(([label, value]) => (
+              <div className="ad-view-row" key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {student.status === 'inactive' && student.deactivationReason && (
+            <div className="ad-view-reason">
+              <p className="ad-view-reason-label">Deactivation reason</p>
+              <p className="ad-view-reason-text">{student.deactivationReason}</p>
+              {student.deactivatedAt && (
+                <p className="ad-muted" style={{ margin: '6px 0 0', fontSize: '11px' }}>
+                  Deactivated {student.deactivatedAt}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** UC-A01 — deactivation requires a recorded reason. */
+function DeactivateStudentModal({
+  student,
+  onConfirm,
+  onClose,
+}: {
+  student: AdminStudent
+  onConfirm: (reason: string) => void
+  onClose: () => void
+}) {
+  const [reason, setReason] = useState('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!reason.trim()) return
+    onConfirm(reason.trim())
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-panel" style={{ width: '420px' }}>
+        <div className="modal-header">
+          <h3>Deactivate Account</h3>
+          <button className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+          <p className="ad-muted" style={{ margin: 0 }}>
+            You're deactivating{' '}
+            <strong style={{ color: 'var(--text-strong)' }}>{student.name}</strong>. They'll lose
+            access until reactivated. Please record a reason.
+          </p>
+          <label className="cp-modal-label">
+            Reason for deactivation *
+            <textarea
+              autoFocus
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. Graduated / no longer enrolled, policy violation, duplicate account…"
+              required
+              value={reason}
+            />
+          </label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button className="ad-secondary" type="button" onClick={onClose}>Cancel</button>
+            <button className="ad-danger" type="submit" disabled={!reason.trim()}>
+              <UserX size={12} /> Deactivate
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

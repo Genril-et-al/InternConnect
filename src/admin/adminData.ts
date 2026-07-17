@@ -14,6 +14,14 @@ export type AdminStudent = {
   status: StudentStatus
   applications: number
   joined: string
+  // Account details shown in the "View account" modal (UC-A01).
+  studentId?: string
+  program?: string
+  year?: string
+  phone?: string
+  // Recorded when an admin deactivates the account; cleared on reactivation.
+  deactivationReason?: string
+  deactivatedAt?: string
 }
 
 export type AdminCompany = {
@@ -38,12 +46,12 @@ export type AdminListing = {
 }
 
 export const SEED_ADMIN_STUDENTS: AdminStudent[] = [
-  { id: 1, name: 'Chielsea S. Napoles', email: 'chielsea.napoles@cit.edu', status: 'active', applications: 3, joined: 'Jul 2026' },
-  { id: 2, name: 'Maria Santos', email: 'maria.santos@cit.edu', status: 'active', applications: 3, joined: 'Jan 2026' },
-  { id: 3, name: 'Carlo Reyes', email: 'carlo.reyes@cit.edu', status: 'active', applications: 5, joined: 'Jan 2026' },
-  { id: 4, name: 'Lena Cruz', email: 'lena.cruz@cit.edu', status: 'inactive', applications: 1, joined: 'Feb 2026' },
-  { id: 5, name: 'James Tan', email: 'james.tan@cit.edu', status: 'active', applications: 7, joined: 'Jan 2026' },
-  { id: 6, name: 'Anna Dela Cruz', email: 'anna.delacruz@cit.edu', status: 'active', applications: 2, joined: 'Mar 2026' },
+  { id: 1, name: 'Chielsea S. Napoles', email: 'chielsea.napoles@cit.edu', status: 'active', applications: 3, joined: 'Jul 2026', studentId: '21-1234-567', program: 'BS Information Technology', year: '3rd Year', phone: '0917 123 4567' },
+  { id: 2, name: 'Maria Santos', email: 'maria.santos@cit.edu', status: 'active', applications: 3, joined: 'Jan 2026', studentId: '20-2345-678', program: 'BS Computer Science', year: '4th Year', phone: '0918 234 5678' },
+  { id: 3, name: 'Carlo Reyes', email: 'carlo.reyes@cit.edu', status: 'active', applications: 5, joined: 'Jan 2026', studentId: '21-3456-789', program: 'BS Computer Engineering', year: '3rd Year', phone: '0919 345 6789' },
+  { id: 4, name: 'Lena Cruz', email: 'lena.cruz@cit.edu', status: 'inactive', applications: 1, joined: 'Feb 2026', studentId: '19-4567-890', program: 'BS Information Systems', year: '4th Year', phone: '0920 456 7890', deactivationReason: 'Graduated — no longer enrolled for the internship term.', deactivatedAt: 'Feb 20, 2026' },
+  { id: 5, name: 'James Tan', email: 'james.tan@cit.edu', status: 'active', applications: 7, joined: 'Jan 2026', studentId: '20-5678-901', program: 'BS Computer Science', year: '4th Year', phone: '0921 567 8901' },
+  { id: 6, name: 'Anna Dela Cruz', email: 'anna.delacruz@cit.edu', status: 'active', applications: 2, joined: 'Mar 2026', studentId: '22-6789-012', program: 'BS Information Technology', year: '2nd Year', phone: '0922 678 9012' },
 ]
 
 export const SEED_ADMIN_COMPANIES: AdminCompany[] = [
