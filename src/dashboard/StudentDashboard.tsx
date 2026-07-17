@@ -17,7 +17,7 @@ import './dashboard.css'
  * AI-matched internships, and recent applications.
  * Note: Internship Duty Hours is intentionally not part of this dashboard.
  */
-export function StudentDashboard({ onNavigate }: { onNavigate: (view: string) => void }) {
+export function StudentDashboard({ onNavigate, onOpenProgress }: { onNavigate: (view: string) => void; onOpenProgress?: (app: Application) => void }) {
   const { profile } = useAuth()
 
   const accepted = applications.filter((a) => a.status === 'Accepted').length
@@ -138,7 +138,13 @@ export function StudentDashboard({ onNavigate }: { onNavigate: (view: string) =>
             <p className="sd-muted sd-empty">No applications yet.</p>
           ) : (
             applications.slice(0, 3).map((app) => (
-              <div className="sd-list-row" key={app.id}>
+              <div 
+                className="sd-list-row clickable" 
+                key={app.id} 
+                onClick={() => onOpenProgress && onOpenProgress(app)}
+                role="button"
+                tabIndex={0}
+              >
                 <span className="sd-mark dark">{app.company.slice(0, 2).toUpperCase()}</span>
                 <div className="sd-list-main">
                   <p className="sd-list-title">{app.role}</p>

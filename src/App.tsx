@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   Briefcase,
   Bookmark,
+  CheckCircle2,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -153,13 +154,20 @@ function StudentPortal({
   activeView: string
   onNavigate: (view: string) => void
 }) {
-  if (activeView === 'Browse Internships') return <BrowseInternships />
-  if (activeView === 'Applications') return <StudentApplications />
-  if (activeView === 'Profile') {
-    return <ProfileSetup mode="edit" onDone={() => onNavigate('Dashboard')} />
-  }
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null)
 
-  return <StudentDashboard onNavigate={onNavigate} />
+  return (
+    <>
+      {activeView === 'Browse Internships' && <BrowseInternships />}
+      {activeView === 'Applications' && <StudentApplications onOpenProgress={setSelectedApp} />}
+      {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => onNavigate('Dashboard')} />}
+      {activeView === 'Dashboard' && <StudentDashboard onNavigate={onNavigate} onOpenProgress={setSelectedApp} />}
+      
+      {selectedApp && (
+        <ProgressModal application={selectedApp} onClose={() => setSelectedApp(null)} />
+      )}
+    </>
+  )
 }
 
 function BrowseInternships() {
@@ -326,117 +334,152 @@ function BrowseInternships() {
   )
 }
 
-function StudentApplications() {
-  const [status, setStatus] = useState('All')
-  const visible = applications.filter((application) => status === 'All' || application.status === status)
-  const [selectedApp, setSelectedApp] = useState<Application | null>(null)
+function ApplicationStrip({ application, onClick }: { application: Application; onClick: () => void }) {
+  let statusClass = 'pending'
+  if (application.status === 'Accepted') statusClass = 'success'
+  if (application.status === 'Rejected') statusClass = 'error'
 
   return (
-    <div className="stack">
-      <section className="toolbar">
-        <select aria-label="Application status" onChange={(event) => setStatus(event.target.value)} value={status}>
-          <option>All</option>
-          <option>Pending</option>
-          <option>Under review</option>
-          <option>Interview scheduled</option>
-          <option>Accepted</option>
-          <option>Rejected</option>
-        </select>
-        <button type="button">Withdraw selected</button>
-      </section>
-      <DataTable
-        columns={['Company', 'Position', 'Applied', 'Status', 'Next step']}
-        rows={visible.map((application) => [
-          application.company,
-          application.role,
-          application.dateApplied,
-          application.status,
-          application.status === 'Accepted' && application.requirements?.length ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>{application.nextStep}</span>
-              <button 
-                type="button"
-                className="sd-primary" 
-                style={{ padding: '4px 8px', fontSize: '12px' }}
-                onClick={() => setSelectedApp(application)}
-              >
-                View Requirements
-              </button>
-            </div>
-          ) : (
-            application.nextStep
-          ),
-        ])}
-      />
-      {selectedApp && <RequirementsModal application={selectedApp} onClose={() => setSelectedApp(null)} />}
-    </div>
+    <article className="application-strip" role="button" tabIndex={0} onClick={onClick}>
+      <span className="strip-avatar">{application.company.slice(0, 2).toUpperCase()}</span>
+      <div className="strip-main">
+        <h3>{application.role}</h3>
+        <p className="strip-subtitle">
+          {application.company} · Applied {application.dateApplied}
+        </p>
+        <p className="strip-summary">I am passionate about {application.role.toLowerCase()} and eager to contribute to {application.company}.</p>
+      </div>
+      <div className="strip-right">
+        <span className={`status ${statusClass}`}>{application.status}</span>
+        {application.status === 'Pending' && (
+          <button className="strip-edit-btn" type="button" aria-label="Edit" onClick={(e) => { e.stopPropagation() }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Edit
+          </button>
+        )}
+      </div>
+    </article>
   )
 }
 
-function RequirementsModal({ application, onClose }: { application: Application, onClose: () => void }) {
-  const [uploads, setUploads] = useState<Record<string, File>>({})
+function ProgressModal({ application, onClose }: { application: Application; onClose: () => void }) {
+  const internship = useMemo(() => internships.find(i => i.id === application.internshipId), [application.internshipId])
   
-  const handleUpload = (id: string, file: File | null) => {
-    if (file) setUploads({ ...uploads, [id]: file })
-    else {
-      const newUploads = { ...uploads }
-      delete newUploads[id]
-      setUploads(newUploads)
-    }
-  }
+  const steps = [
+    { label: 'Application Submitted', active: true, done: true },
+    { label: 'Under Review', active: application.status !== 'Pending', done: application.status !== 'Pending' },
+    { label: 'Interview', active: ['Interview scheduled', 'Accepted'].includes(application.status), done: ['Interview scheduled', 'Accepted'].includes(application.status) },
+    { label: 'Offer Accepted', active: application.status === 'Accepted', done: application.status === 'Accepted' },
+    { label: 'Pre-Employment Requirements', active: application.status === 'Accepted' && (application.approvedRequirements || 0) < (application.requirements?.length || 0), done: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length },
+    { label: 'Ready to Start', active: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length, done: false },
+    { label: 'Internship Started', active: false, done: false },
+  ]
 
-  const requirements = application.requirements || []
-  
   return (
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal-panel" style={{ maxWidth: '500px', background: 'var(--surface)', borderRadius: '12px', padding: 0 }}>
-        <div className="modal-header" style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h3 style={{ margin: 0, color: 'var(--brand-brown)' }}>Pre-employment Requirements</h3>
-            <p className="muted" style={{ margin: '4px 0 0 0', fontSize: '14px' }}>{application.company} - {application.role}</p>
-          </div>
-          <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
-        </div>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-panel progress-modal" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} type="button">×</button>
         
-        <div style={{ padding: '20px', maxHeight: '60vh', overflowY: 'auto' }}>
-          {requirements.length === 0 ? (
-            <p className="muted">No additional requirements.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {requirements.map((req) => (
-                <div key={req.id} style={{ padding: '16px', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <strong style={{ display: 'block', color: 'var(--text)' }}>{req.name}</strong>
-                    {req.isPrintable && <span style={{ fontSize: '11px', background: 'var(--brand-orange-soft)', padding: '2px 6px', borderRadius: '4px', color: 'var(--brand-brown)' }}>Needs to be printed</span>}
-                  </div>
-                  
-                  {req.type === 'text' ? (
-                    <p className="muted" style={{ fontSize: '14px', margin: 0 }}>Please prepare this document as instructed by the company.</p>
-                  ) : (
-                    <div style={{ marginTop: '12px' }}>
-                      <p className="muted" style={{ fontSize: '13px', marginBottom: '8px' }}>Please upload the requested file.</p>
-                      <input 
-                        type="file" 
-                        onChange={e => handleUpload(req.id, e.target.files?.[0] || null)} 
-                        style={{ fontSize: '13px' }}
-                      />
-                      {uploads[req.id] && <span style={{ color: 'var(--brand-orange)', fontSize: '13px', marginLeft: '8px' }}>✓ Attached</span>}
-                    </div>
-                  )}
-                </div>
-              ))}
+        {internship && (
+          <div className="progress-header-card">
+            <div className="progress-header-main">
+              <h2>{application.role}</h2>
+              <p>{application.company}</p>
+              <div className="progress-header-meta">
+                <span>📍 {internship.location}</span>
+                <span>📅 Starts Aug 4, 2026</span>
+                <span>⏱️ {internship.duration}</span>
+              </div>
             </div>
-          )}
+            {application.status === 'Accepted' && (
+              <span className="status success">
+                <CheckCircle2 size={14} style={{ marginRight: 4 }} />
+                Offer Accepted
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="progress-stepper-card">
+          <h3>Your Progress</h3>
+          <div className="progress-stepper">
+            {steps.map((step, index) => (
+              <div className={`stepper-item ${step.done ? 'done' : ''} ${step.active && !step.done ? 'active' : ''} ${!step.active && !step.done ? 'inactive' : ''}`} key={step.label}>
+                <div className="stepper-circle">
+                  {step.done ? <CheckCircle2 size={16} /> : step.active ? <div className="dot" /> : <span>{index + 1}</span>}
+                </div>
+                <span className="stepper-label">{step.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        
-        <div className="modal-footer" style={{ padding: '16px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' }}>Close</button>
-          <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 600, cursor: 'pointer' }}>Submit Requirements</button>
-        </div>
+
+        {application.status === 'Accepted' && application.requirements && (
+          <div className="progress-reqs-card">
+            <div className="progress-reqs-header">
+              <div>
+                <h3>Pre-Employment Progress</h3>
+                <p className="muted">{application.approvedRequirements || 0} of {application.requirements.length} requirements approved</p>
+              </div>
+              <strong className="progress-pct">
+                {Math.round(((application.approvedRequirements || 0) / application.requirements.length) * 100)}%
+              </strong>
+            </div>
+            <div className="strip-match-track" style={{ width: '100%', marginTop: '12px' }}>
+              <div className="strip-match-progress" style={{ width: `${Math.round(((application.approvedRequirements || 0) / application.requirements.length) * 100)}%` }} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
 }
+
+function StudentApplications({ onOpenProgress }: { onOpenProgress: (app: Application) => void }) {
+  const [status, setStatus] = useState('All')
+  const visible = applications.filter((application) => status === 'All' || application.status === status)
+
+  const pendingCount = applications.filter((a) => a.status === 'Pending').length
+  const acceptedCount = applications.filter((a) => a.status === 'Accepted').length
+  const rejectedCount = applications.filter((a) => a.status === 'Rejected').length
+  const total = applications.length
+
+  const filters = [
+    { label: 'All', count: total },
+    { label: 'Pending', count: pendingCount },
+    { label: 'Accepted', count: acceptedCount },
+    { label: 'Rejected', count: rejectedCount }
+  ]
+
+  return (
+    <div className="applications-root">
+      <div className="applications-header">
+        <h2 className="applications-title">My Applications</h2>
+        <p className="applications-subtitle">{total} total applications</p>
+      </div>
+
+      <div className="applications-filters">
+        {filters.map(f => (
+          <button
+            key={f.label}
+            className={`app-filter-pill ${status === f.label ? 'active' : ''}`}
+            onClick={() => setStatus(f.label)}
+            type="button"
+          >
+            {f.label} {f.label !== 'All' ? `(${f.count} · ${Math.round(f.count / total * 100)}%)` : `(${f.count})`}
+          </button>
+        ))}
+      </div>
+
+      <div className="application-strips">
+        {visible.map(app => (
+          <ApplicationStrip key={app.id} application={app} onClick={() => onOpenProgress(app)} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 
 function InternshipStrip({
   internship,
