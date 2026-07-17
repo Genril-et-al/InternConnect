@@ -508,6 +508,11 @@ button.primary {
   color: var(--text-muted);
 }
 
+.strip-deadline-date {
+  color: var(--brand-dark-red);
+  font-weight: 500;
+}
+
 /* Detail view */
 .detail-view {
   display: flex;
@@ -930,11 +935,12 @@ button.primary {
 
 .status {
   background: var(--surface-strong);
+  border-radius: 999px;
   color: var(--text-muted);
   display: inline-flex;
   font-size: 12px;
   font-weight: 800;
-  padding: 5px 8px;
+  padding: 5px 12px;
   text-transform: uppercase;
 }
 
@@ -948,13 +954,25 @@ button.primary {
   color: #8a5a00;
 }
 
+.status.error {
+  background: #fdece9;
+  color: var(--brand-crimson);
+}
+
 .tag-row {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
 }
 
-.tag-row span,
+.tag-row span {
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-strong);
+  padding: 5px 12px;
+}
+
 .document-box {
   background: var(--surface-strong);
   border: 1px solid var(--border);

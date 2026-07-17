@@ -17,7 +17,17 @@ import './dashboard.css'
  * AI-matched internships, and recent applications.
  * Note: Internship Duty Hours is intentionally not part of this dashboard.
  */
-export function StudentDashboard({ onNavigate, onOpenProgress }: { onNavigate: (view: string) => void; onOpenProgress?: (app: Application) => void }) {
+export function StudentDashboard({ 
+  onNavigate, 
+  onOpenProgress,
+  onFilterApplications,
+  onOpenInternship,
+}: { 
+  onNavigate: (view: string) => void
+  onOpenProgress?: (app: Application) => void
+  onFilterApplications?: (filter: string) => void
+  onOpenInternship?: (id: number) => void
+}) {
   const { profile } = useAuth()
 
   const accepted = applications.filter((a) => a.status === 'Accepted').length
@@ -58,17 +68,17 @@ export function StudentDashboard({ onNavigate, onOpenProgress }: { onNavigate: (
               : 'All applications resolved.'}
           </p>
         </div>
-        <button className="sd-primary" onClick={() => onNavigate('Browse')} type="button">
+        <button className="sd-primary" onClick={() => onNavigate('Browse Internships')} type="button">
           <Search size={14} /> Browse Internships
         </button>
       </div>
 
       {/* Stats */}
       <div className="sd-stats">
-        <StatCard color="var(--brand-orange)" icon={Send} label="Applied" value={applications.length} />
-        <StatCard color="var(--brand-orange)" icon={CheckCircle2} label="Accepted" value={accepted} />
-        <StatCard color="var(--brand-orange-soft)" icon={Clock} label="Pending" value={pending} />
-        <StatCard color="var(--brand-crimson)" icon={XCircle} label="Rejected" value={rejected} />
+        <StatCard color="var(--brand-orange)" icon={Send} label="Applied" value={applications.length} onClick={() => onFilterApplications?.('All')} />
+        <StatCard color="var(--brand-orange)" icon={CheckCircle2} label="Accepted" value={accepted} onClick={() => onFilterApplications?.('Accepted')} />
+        <StatCard color="var(--brand-orange-soft)" icon={Clock} label="Pending" value={pending} onClick={() => onFilterApplications?.('Pending')} />
+        <StatCard color="var(--brand-crimson)" icon={XCircle} label="Rejected" value={rejected} onClick={() => onFilterApplications?.('Rejected')} />
       </div>
 
       {/* Profile completion */}
@@ -102,7 +112,7 @@ export function StudentDashboard({ onNavigate, onOpenProgress }: { onNavigate: (
       <section className="sd-card">
         <div className="sd-card-head">
           <h3>AI-Matched Internships</h3>
-          <button className="sd-link" onClick={() => onNavigate('Browse')} type="button">
+          <button className="sd-link" onClick={() => onNavigate('Browse Internships')} type="button">
             Browse all <ChevronRight size={12} />
           </button>
         </div>
@@ -117,8 +127,14 @@ export function StudentDashboard({ onNavigate, onOpenProgress }: { onNavigate: (
                 </p>
               </div>
               <MatchBar value={job.match} />
-              <button className="sd-primary sm" onClick={() => onNavigate('Browse')} type="button">
-                Apply
+              <button 
+                className="sd-primary sm" 
+                onClick={() => {
+                  onOpenInternship?.(job.id)
+                }} 
+                type="button"
+              >
+                Learn More
               </button>
             </div>
           ))}
@@ -167,14 +183,21 @@ function StatCard({
   value,
   icon: Icon,
   color,
+  onClick,
 }: {
   label: string
   value: number
   icon: React.ElementType
   color: string
+  onClick?: () => void
 }) {
   return (
-    <div className="sd-stat">
+    <div 
+      className={`sd-stat ${onClick ? 'clickable' : ''}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
       <div className="sd-stat-top">
         <span className="sd-stat-label">{label}</span>
         <span className="sd-stat-icon" style={{ backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)` }}>

@@ -11,7 +11,10 @@
   background: var(--brand-dark-red);
   display: flex;
   flex-direction: column;
+  height: 100svh;
   padding: 0;
+  position: sticky;
+  top: 0;
 }
 
 .ad-brand {

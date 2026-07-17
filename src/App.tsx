@@ -155,13 +155,31 @@ function StudentPortal({
   onNavigate: (view: string) => void
 }) {
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
+  const [applicationFilter, setApplicationFilter] = useState('All')
+  const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
 
   return (
     <>
-      {activeView === 'Browse Internships' && <BrowseInternships />}
-      {activeView === 'Applications' && <StudentApplications onOpenProgress={setSelectedApp} />}
+      {activeView === 'Browse Internships' && <BrowseInternships selectedInternship={selectedInternship} onSelectInternship={setSelectedInternship} />}
+      {activeView === 'Applications' && <StudentApplications onOpenProgress={setSelectedApp} filter={applicationFilter} onFilterChange={setApplicationFilter} />}
       {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => onNavigate('Dashboard')} />}
-      {activeView === 'Dashboard' && <StudentDashboard onNavigate={onNavigate} onOpenProgress={setSelectedApp} />}
+      {activeView === 'Dashboard' && (
+        <StudentDashboard 
+          onNavigate={onNavigate} 
+          onOpenProgress={setSelectedApp} 
+          onFilterApplications={(filter) => {
+            setApplicationFilter(filter)
+            onNavigate('Applications')
+          }}
+          onOpenInternship={(id) => {
+            const internship = internships.find(i => i.id === id)
+            if (internship) {
+              setSelectedInternship(internship)
+              onNavigate('Browse Internships')
+            }
+          }}
+        />
+      )}
       
       {selectedApp && (
         <ProgressModal application={selectedApp} onClose={() => setSelectedApp(null)} />
@@ -170,11 +188,16 @@ function StudentPortal({
   )
 }
 
-function BrowseInternships() {
+function BrowseInternships({ 
+  selectedInternship, 
+  onSelectInternship 
+}: { 
+  selectedInternship: Internship | null 
+  onSelectInternship: (internship: Internship | null) => void 
+}) {
   const [query, setQuery] = useState('')
   const [location, setLocation] = useState('All Locations')
   const [matchFilter, setMatchFilter] = useState('All')
-  const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set())
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
@@ -226,7 +249,7 @@ function BrowseInternships() {
     return (
       <InternshipDetailView
         internship={selectedInternship}
-        onBack={() => setSelectedInternship(null)}
+        onBack={() => onSelectInternship(null)}
         onApply={() => setShowApplyModal(true)}
       />
     )
@@ -324,7 +347,7 @@ function BrowseInternships() {
               internship={internship}
               isBookmarked={bookmarkedIds.has(internship.id)}
               key={internship.id}
-              onClick={() => setSelectedInternship(internship)}
+              onClick={() => onSelectInternship(internship)}
               onToggleBookmark={(e) => toggleBookmark(internship.id, e)}
             />
           ))
@@ -397,6 +420,16 @@ function ProgressModal({ application, onClose }: { application: Application; onC
                 Offer Accepted
               </span>
             )}
+            {application.status === 'Pending' && (
+              <span className="status warning">
+                Pending
+              </span>
+            )}
+            {application.status === 'Rejected' && (
+              <span className="status error">
+                Rejected
+              </span>
+            )}
           </div>
         )}
 
@@ -435,9 +468,16 @@ function ProgressModal({ application, onClose }: { application: Application; onC
   )
 }
 
-function StudentApplications({ onOpenProgress }: { onOpenProgress: (app: Application) => void }) {
-  const [status, setStatus] = useState('All')
-  const visible = applications.filter((application) => status === 'All' || application.status === status)
+function StudentApplications({ 
+  onOpenProgress,
+  filter,
+  onFilterChange
+}: { 
+  onOpenProgress: (app: Application) => void
+  filter: string
+  onFilterChange: (filter: string) => void
+}) {
+  const visible = applications.filter((application) => filter === 'All' || application.status === filter)
 
   const pendingCount = applications.filter((a) => a.status === 'Pending').length
   const acceptedCount = applications.filter((a) => a.status === 'Accepted').length
@@ -462,8 +502,8 @@ function StudentApplications({ onOpenProgress }: { onOpenProgress: (app: Applica
         {filters.map(f => (
           <button
             key={f.label}
-            className={`app-filter-pill ${status === f.label ? 'active' : ''}`}
-            onClick={() => setStatus(f.label)}
+            className={`app-filter-pill ${filter === f.label ? 'active' : ''}`}
+            onClick={() => onFilterChange(f.label)}
             type="button"
           >
             {f.label} {f.label !== 'All' ? `(${f.count} · ${Math.round(f.count / total * 100)}%)` : `(${f.count})`}
@@ -527,12 +567,12 @@ function InternshipStrip({
             <Bookmark fill={isBookmarked ? 'currentColor' : 'none'} size={18} />
           </button>
           <button className="strip-apply-btn primary" type="button" onClick={onClick}>
-            Apply
+            Learn More
           </button>
         </div>
       </div>
       <div className="strip-bottom">
-        <span className="strip-deadline">Deadline: {internship.deadline.replace(', 2026', '')}</span>
+        <span className="strip-deadline">Deadline: <span className="strip-deadline-date">{internship.deadline.replace(', 2026', '')}</span></span>
       </div>
     </article>
   )
