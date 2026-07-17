@@ -21,17 +21,8 @@ export function CompanyDashboard({
     .sort((a, b) => b.match - a.match)
 
   const mockNotifications = [
-    { 
-      id: '1', 
-      message: 'You have 3 new applicants for Frontend Developer.', 
-      date: '1 hour ago', 
-      read: false,
-      onClick: () => {
-        onNavigate('Applicants')
-      }
-    },
-    { 
-      id: '2', 
+    {
+      id: '2',
       message: 'NLO Admin has verified your company profile.', 
       date: '2 days ago', 
       read: true,

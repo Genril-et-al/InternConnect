@@ -3,7 +3,7 @@ import { CompanyDashboard } from './CompanyDashboard'
 import { CompanyListings } from './CompanyListings'
 import { CompanyApplicants } from './CompanyApplicants'
 import { CompanyProfileView } from './CompanyProfileView'
-import { SEED_COMPANY_APPLICANTS, SEED_COMPANY_LISTINGS } from './companyData'
+import { SEED_COMPANY_LISTINGS } from './companyData'
 import type { CompanyApplicant, CompanyListing } from './companyData'
 import './company.css'
 
@@ -20,7 +20,7 @@ export function CompanyPortal({
   onNavigate: (view: string) => void
 }) {
   const [listings, setListings] = useState<CompanyListing[]>(SEED_COMPANY_LISTINGS)
-  const [applicants, setApplicants] = useState<CompanyApplicant[]>(SEED_COMPANY_APPLICANTS)
+  const [applicants, setApplicants] = useState<CompanyApplicant[]>([])
 
   if (activeView === 'Listings') {
     return <CompanyListings applicants={applicants} listings={listings} setListings={setListings} />
