@@ -23,9 +23,9 @@ import './admin.css'
 
 const NAV = [
   { icon: LayoutDashboard, label: 'Dashboard' },
-  { icon: GraduationCap, label: 'Students' },
-  { icon: Building2, label: 'Companies' },
-  { icon: Briefcase, label: 'Internships' },
+  { icon: GraduationCap, label: 'Manage Students' },
+  { icon: Building2, label: 'Manage Companies' },
+  { icon: Briefcase, label: 'Manage Internships' },
   { icon: BarChart3, label: 'Reports' },
 ]
 

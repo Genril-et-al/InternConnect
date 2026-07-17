@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react'
+import { CheckCircle2, RefreshCw, XCircle, Plus, Upload, X } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
+import { BulkUploadModal } from './AdminStudents'
 import type { AdminCompany, VerifStatus } from './adminData'
 
 /** UC-A02 / UC-A03 — Manage company accounts and NLO verification. */
@@ -13,6 +14,8 @@ export function AdminCompanies({
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | VerifStatus>('all')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
 
   const filtered = useMemo(
     () =>
@@ -34,6 +37,14 @@ export function AdminCompanies({
         <div>
           <h1 className="ad-title">Manage Companies</h1>
           <p className="ad-subtitle">{companies.length} registered companies</p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="ad-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Upload size={14} /> Add in Bulk
+          </button>
+          <button className="ad-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Plus size={14} /> Add Company
+          </button>
         </div>
       </div>
 
@@ -135,6 +146,55 @@ export function AdminCompanies({
             )}
           </tbody>
         </table>
+      </div>
+
+      {showAddModal && <AddCompanyModal onClose={() => setShowAddModal(false)} setCompanies={setCompanies} />}
+      {showBulkModal && <BulkUploadModal type="company" onClose={() => setShowBulkModal(false)} setCompanies={setCompanies} />}
+    </div>
+  )
+}
+
+function AddCompanyModal({ onClose, setCompanies }: { onClose: () => void, setCompanies: React.Dispatch<React.SetStateAction<AdminCompany[]>> }) {
+  const [name, setName] = useState('')
+  const [industry, setIndustry] = useState('')
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name || !industry) return
+    const newCompany: AdminCompany = {
+      id: Date.now(),
+      name,
+      industry,
+      verification: 'pending',
+      docs: 0,
+      listings: 0,
+      submitted: 'Just now',
+    }
+    setCompanies(prev => [newCompany, ...prev])
+    onClose()
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-panel" style={{ width: '400px' }}>
+        <div className="modal-header">
+          <h3>Add New Company</h3>
+          <button className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+          <label className="cp-modal-label">
+            Company Name *
+            <input className="ad-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Corp" required />
+          </label>
+          <label className="cp-modal-label">
+            Industry *
+            <input className="ad-input" value={industry} onChange={e => setIndustry(e.target.value)} placeholder="e.g. Technology" required />
+          </label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+            <button className="ad-secondary" type="button" onClick={onClose}>Cancel</button>
+            <button className="ad-primary" type="submit">Add Company</button>
+          </div>
+        </form>
       </div>
     </div>
   )
