@@ -37,12 +37,14 @@ export type PreEmploymentRequirement = {
 
 export type Application = {
   id: number
+  internshipId: number
   company: string
   role: string
   dateApplied: string
   status: ApplicationStatus
   nextStep: string
   requirements?: PreEmploymentRequirement[]
+  approvedRequirements?: number
 }
 
 export const internships: Internship[] = [
@@ -141,28 +143,34 @@ export const internships: Internship[] = [
 export const applications: Application[] = [
   {
     id: 1,
+    internshipId: 1, // Frontend Developer Intern, Arcway Labs
     company: 'Arcway Labs',
     role: 'Frontend Developer Intern',
     dateApplied: 'Jul 10',
     status: 'Accepted',
     nextStep: 'Please submit your pre-employment requirements.',
     requirements: [
-      { id: '1', name: 'Medical Certificate', type: 'text', isPrintable: true },
-      { id: '2', name: 'Company Non-Disclosure Agreement', type: 'file', isPrintable: false }
-    ]
+      { id: '1', name: 'Medical Certificate', type: 'file', isPrintable: true },
+      { id: '2', name: 'Company Non-Disclosure Agreement', type: 'file', isPrintable: false },
+      { id: '3', name: 'Valid ID Copy', type: 'file', isPrintable: false },
+      { id: '4', name: 'Bank Details', type: 'text', isPrintable: false },
+    ],
+    approvedRequirements: 2,
   },
   {
     id: 2,
-    company: 'Cebu Fintech Group',
-    role: 'Product Support Intern',
+    internshipId: 2, // Data Operations Intern, Harbor Analytics
+    company: 'Harbor Analytics',
+    role: 'Data Operations Intern',
     dateApplied: 'Jul 7',
-    status: 'Interview scheduled',
-    nextStep: 'Interview on Jul 18, 10:00 AM.',
+    status: 'Rejected',
+    nextStep: 'Application was not selected.',
   },
   {
     id: 3,
-    company: 'Harbor Analytics',
-    role: 'Data Operations Intern',
+    internshipId: 3, // QA Automation Intern, Northstar Systems
+    company: 'Northstar Systems',
+    role: 'QA Automation Intern',
     dateApplied: 'Jul 2',
     status: 'Pending',
     nextStep: 'Waiting for first company action.',
