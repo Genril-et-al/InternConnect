@@ -514,7 +514,7 @@ function SignupFlow({
             <input
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Genril"
-              required={accountType !== 'company'}
+              required
               value={firstName}
             />
           </label>
@@ -532,7 +532,7 @@ function SignupFlow({
             <input
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Sorono"
-              required={accountType !== 'company'}
+              required
               value={lastName}
             />
           </label>
