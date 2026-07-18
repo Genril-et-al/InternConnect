@@ -5,6 +5,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  Menu,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -93,7 +94,7 @@ export function AdminApp() {
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             type="button"
           >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {collapsed ? <Menu size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
 

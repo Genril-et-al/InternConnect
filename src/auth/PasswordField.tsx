@@ -42,7 +42,7 @@ export function PasswordField({
           title={visible ? 'Hide password' : 'Show password'}
           type="button"
         >
-          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+          {visible ? <EyeOff size={22} /> : <Eye size={22} />}
         </button>
       </div>
     </label>

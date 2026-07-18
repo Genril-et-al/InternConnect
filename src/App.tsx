@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Menu,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -124,7 +125,7 @@ function App() {
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             type="button"
           >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {collapsed ? <Menu size={16} /> : <ChevronLeft size={16} />}
           </button>
         </div>
 

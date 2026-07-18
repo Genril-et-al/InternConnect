@@ -150,24 +150,34 @@
 
 /* Cards */
 .cp-card {
-  background: var(--surface);
+  background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: 0 1px 3px rgba(113, 66, 54, 0.06);
   padding: 22px;
+  transition:
+    border-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out);
+}
+
+.cp-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(231, 104, 20, 0.1);
+  transform: translateY(-1px);
 }
 
 .cp-card h3 {
-  color: var(--brand-dark-red);
+  color: var(--text-strong);
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   margin: 0 0 14px;
 }
 
 .cp-muted {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 14px;
   margin: 2px 0 0;
 }
 

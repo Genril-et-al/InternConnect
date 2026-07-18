@@ -1,6 +1,6 @@
 .auth-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   min-height: 100svh;
 }
 
@@ -10,9 +10,9 @@
   color: rgba(255, 255, 255, 0.72);
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  justify-content: center;
-  padding: 64px 56px;
+  gap: 24px;
+  justify-content: flex-start;
+  padding: 16svh 64px 64px 64px;
   overflow: hidden;
   /* Pin the panel to the viewport so it never grows with (or drifts against)
      the form column when the sign-up steps make the page taller than the
@@ -35,7 +35,7 @@
 .auth-brand {
   align-items: center;
   display: flex;
-  gap: 12px;
+  gap: 16px;
   position: relative;
   z-index: 1;
 }
@@ -44,38 +44,38 @@
   border-radius: 12px;
   display: block;
   flex-shrink: 0;
-  height: 68px;
+  height: 96px;
   object-fit: contain;
-  width: 68px;
+  width: 96px;
   filter: drop-shadow(1px 1px 0 white) drop-shadow(-1px -1px 0 white) drop-shadow(1px -1px 0 white) drop-shadow(-1px 1px 0 white);
 }
 
 .auth-brand-name {
   color: #ffffff;
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 28px;
   font-weight: 700;
 }
 
 .auth-brand-sub {
   color: rgba(255, 255, 255, 0.55);
-  font-size: 12px;
+  font-size: 16px;
 }
 
 .auth-hero h1 {
   color: #ffffff;
   font-family: var(--font-display);
-  font-size: 38px;
+  font-size: 48px;
   font-weight: 700;
   line-height: 1.12;
-  margin: 12px 0 0;
-  max-width: 16ch;
+  margin: 16px 0 0;
+  max-width: 18ch;
   position: relative;
   z-index: 1;
 }
 
 .auth-hero-sub {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1.6;
   max-width: 44ch;
   position: relative;
@@ -87,9 +87,9 @@
   align-self: center;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
   margin: 0 auto;
-  max-width: 400px;
+  max-width: 460px;
   padding: 48px 40px;
   width: 100%;
 }
@@ -97,14 +97,14 @@
 .auth-card-head h2 {
   color: var(--text-strong);
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 700;
   margin: 0;
 }
 
 .auth-card-head p {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 16px;
   margin: 6px 0 0;
 }
 
@@ -187,7 +187,7 @@
 
 .auth-password input {
   /* leave room for the eye button */
-  padding-right: 46px;
+  padding-right: 56px;
   width: 100%;
 }
 
@@ -199,13 +199,14 @@
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
-  height: 32px;
+  height: 40px;
   justify-content: center;
   position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
+  right: 8px;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  width: 40px;
 }
 
 .auth-password-toggle:hover {

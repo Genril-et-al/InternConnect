@@ -30,6 +30,7 @@ function errorMessage(err: unknown): string {
   return 'Something went wrong. Please try again.'
 }
 
+
 export function LoginPage() {
   const { refreshProfile, enterDemo } = useAuth()
   const [mode, setMode] = useState<Mode>('login')
@@ -41,13 +42,12 @@ export function LoginPage() {
           <img className="auth-logo" src="/logo.png" alt="InternConnect" />
           <div>
             <div className="auth-brand-name">InternConnect</div>
-            <div className="auth-brand-sub">Internship Skill Matching System</div>
+            <div className="auth-brand-sub">Where Skills Meet Opportunity</div>
           </div>
         </div>
-        <h1>Internship matching for students, companies, and coordinators.</h1>
+        <h1>Find Your Perfect Internship.</h1>
         <p className="auth-hero-sub">
-          Sign in with your university account to browse listings, apply, and
-          track your placement — all in one workspace.
+          Explore verified opportunities, apply with ease, and track your internship journey—all in one platform designed for students and the industry.
         </p>
       </section>
 

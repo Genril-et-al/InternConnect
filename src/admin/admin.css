@@ -762,7 +762,7 @@
 
 .ad-row {
   align-items: center;
-  background: var(--surface);
+  background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: 0 1px 3px rgba(113, 66, 54, 0.06);
@@ -775,8 +775,9 @@
 }
 
 .ad-row:hover {
-  border-color: var(--brand-orange-soft);
-  box-shadow: 0 4px 12px rgba(113, 66, 54, 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(231, 104, 20, 0.1);
+  transform: translateY(-1px);
 }
 
 .ad-row.expanded {

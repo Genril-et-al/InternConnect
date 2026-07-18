@@ -351,7 +351,7 @@ button.primary {
 }
 
 .internship-strip {
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(25, 52, 80, 0.04);
@@ -403,20 +403,21 @@ button.primary {
 
 .strip-main h3 {
   color: var(--text-strong);
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 700;
   line-height: 1.2;
   margin: 0 0 4px;
 }
 
 .strip-subtitle {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 14px;
   margin: 0 0 8px;
 }
 
 .strip-summary {
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   margin: 0 0 12px;
   line-height: 1.5;
 }
@@ -1255,8 +1256,8 @@ label {
 
 .application-strip {
   align-items: center;
-  background: white;
-  border: 1px solid var(--border-light);
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--shadow-sm);
   cursor: pointer;
@@ -1269,7 +1270,8 @@ label {
 }
 
 .application-strip:hover {
-  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(231, 104, 20, 0.1);
   transform: translateY(-1px);
 }
 
