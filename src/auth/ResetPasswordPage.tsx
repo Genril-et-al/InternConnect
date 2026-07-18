@@ -50,7 +50,7 @@ export function ResetPasswordPage() {
     <div className="auth-shell">
       <section className="auth-hero">
         <div className="auth-brand">
-          <span className="auth-logo">IC</span>
+          <img className="auth-logo" src="/logo.png" alt="InternConnect" />
           <div>
             <div className="auth-brand-name">InternConnect</div>
             <div className="auth-brand-sub">Internship Skill Matching System</div>
