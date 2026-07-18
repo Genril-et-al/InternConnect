@@ -1,7 +1,7 @@
 /**
- * Shared prototype seed data. Replaced by Supabase tables (listings,
- * applications) in a later slice — keep UI components reading from here so the
- * swap is one file.
+ * Shared student-portal view models. Data now loads live from Supabase
+ * (see listingsApi.ts) — these types are the UI-facing shapes the
+ * components render.
  */
 
 export type ApplicationStatus =
@@ -13,7 +13,7 @@ export type ApplicationStatus =
   | 'Rejected'
 
 export type Internship = {
-  id: number
+  id: string
   title: string
   company: string
   industry: string
@@ -28,28 +28,27 @@ export type Internship = {
   summary: string
 }
 
+export type SubmissionStatus = 'not_submitted' | 'pending' | 'approved' | 'rejected'
+
 export type PreEmploymentRequirement = {
   id: string
   name: string
   type: 'file' | 'text'
   isPrintable: boolean
+  /** Review state of the student's submission for this requirement. */
+  submissionStatus?: SubmissionStatus
+  submittedText?: string
 }
 
 export type Application = {
-  id: number
-  internshipId: number
+  id: string
+  internshipId: string
   company: string
   role: string
   dateApplied: string
   status: ApplicationStatus
   nextStep: string
+  coverLetter?: string
   requirements?: PreEmploymentRequirement[]
   approvedRequirements?: number
 }
-
-
-// Mock listings/applications removed — both views read live data once the
-// Supabase listings + applications slice lands. Empty until then.
-export const internships: Internship[] = []
-
-export const applications: Application[] = []

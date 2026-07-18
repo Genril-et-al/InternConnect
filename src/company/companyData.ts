@@ -1,6 +1,6 @@
 /**
- * Company portal seed data — replaced by Supabase tables (listings,
- * applications, storage files) in a later slice.
+ * Company portal view models. Data now loads live from Supabase
+ * (see companyQueries.ts) — these are the UI-facing shapes.
  */
 
 export type PreEmploymentRequirement = {
@@ -11,7 +11,7 @@ export type PreEmploymentRequirement = {
 }
 
 export type CompanyListing = {
-  id: number
+  id: string
   title: string
   status: 'Open' | 'Draft' | 'Closed'
   slots: number
@@ -34,23 +34,27 @@ export type RequirementFile = {
 export type SubmittedRequirement = {
   id: string
   name: string
-  status: 'Pending' | 'Approved' | 'Rejected' | 'Needs Revision'
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Needs Revision' | 'Awaiting submission'
+  /** Set once the student has submitted — required to review. */
+  submissionId?: string
   fileUrl?: string
 }
 
 export type CompanyApplicant = {
-  id: number
+  id: string
   name: string
   email: string
-  listingId: number
+  listingId: string
   role: string
   match: number
   status: ApplicantStatus
   applied: string
   skills: string[]
   specializations: string[]
+  /** Storage path of the student's resume in the documents bucket. */
   resume: string
   portfolioLink?: string
+  /** Storage path of the student's portfolio file. */
   portfolioFile?: string
   coverLetter: string
   /** Feedback sent to the applicant when rejected. */
@@ -59,10 +63,6 @@ export type CompanyApplicant = {
   requirements?: RequirementFile[]
   submittedRequirements?: SubmittedRequirement[]
 }
-
-// Seed listings removed — the portal starts empty and fills from real company
-// actions (and the Supabase listings table once that slice lands).
-export const SEED_COMPANY_LISTINGS: CompanyListing[] = []
 
 export const MATCH_FILTERS: Record<string, number> = {
   'Any match %': 0,

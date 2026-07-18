@@ -5,58 +5,39 @@ import {
   FileText,
   GraduationCap,
 } from 'lucide-react'
-import {
-  MONTHLY_APPLICATIONS,
-  STATUS_BREAKDOWN,
-} from './adminData'
-import type { AdminCompany, AdminListing, AdminStudent } from './adminData'
+import type { AdminAppStats, AdminCompany, AdminListing, AdminStudent } from './adminData'
 import { NotificationBell } from '../components/NotificationBell'
-import { useState } from 'react'
-
-let globalAdminNotifications: {
-  id: string
-  message: string
-  date: string
-  read: boolean
-  navOffset: number
-}[] = []
+import { useNotifications } from '../components/useNotifications'
 
 export function AdminDashboard({
   students,
   companies,
   listings,
+  appStats,
   onNav,
 }: {
   students: AdminStudent[]
   companies: AdminCompany[]
   listings: AdminListing[]
+  appStats: AdminAppStats
   onNav: (index: number) => void
 }) {
   const verified = companies.filter((c) => c.verification === 'verified').length
   const pendingVerifs = companies.filter((c) => c.verification === 'pending').length
   const openListings = listings.filter((l) => l.status === 'open').length
   const flagged = listings.filter((l) => l.status === 'flagged').length
-  const totalApplications = MONTHLY_APPLICATIONS.reduce((sum, m) => sum + m.apps, 0)
+  const MONTHLY_APPLICATIONS = appStats.monthly
+  const STATUS_BREAKDOWN = appStats.breakdown
+  const totalApplications = appStats.total
   // Guard the spread: Math.max() with no args is -Infinity, which would make
   // every bar height NaN the moment a single data point arrives.
   const maxApps = Math.max(1, ...MONTHLY_APPLICATIONS.map((m) => m.apps))
 
-  const [notifications, setNotifications] = useState(
-    globalAdminNotifications.map(n => ({
-      ...n,
-      onClick: () => onNav(n.navOffset)
-    }))
-  )
-
-  const handleMarkRead = (id: string) => {
-    globalAdminNotifications = globalAdminNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-  }
-
-  const handleMarkAllRead = () => {
-    globalAdminNotifications = globalAdminNotifications.map((n) => ({ ...n, read: true }))
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-  }
+  // Admin nav hints look like 'admin:<index>' — map to the sidebar index.
+  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications((hint) => {
+    const index = Number(hint.split(':')[1])
+    if (!Number.isNaN(index)) onNav(index)
+  })
 
   // Donut segments via conic-gradient (cumulative start/end stops).
   const stops = STATUS_BREAKDOWN.map((_, i) =>

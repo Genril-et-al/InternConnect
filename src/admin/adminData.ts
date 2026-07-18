@@ -41,7 +41,7 @@ export type AdminCompany = {
 }
 
 export type AdminListing = {
-  id: number
+  id: string
   title: string
   company: string
   companyDescription?: string
@@ -51,18 +51,21 @@ export type AdminListing = {
   deadline: string
 }
 
-// Fake seeded students removed — the Manage Students table starts empty and is
-// populated by real admin actions (Add Student / bulk) writing to the
-// approved_students roster. Company seeds below are still placeholders.
-export const SEED_ADMIN_STUDENTS: AdminStudent[] = []
+export type AdminAppStats = {
+  monthly: { month: string; apps: number }[]
+  /** Percentage share per display status (sums to 100 when there is data). */
+  breakdown: { name: string; value: number; color: string }[]
+  total: number
+  accepted: number
+  pending: number
+  rejected: number
+}
 
-// Loaded live from Supabase (admin_list_companies) in AdminApp; empty until then.
-export const SEED_ADMIN_COMPANIES: AdminCompany[] = []
-
-// Seed listings and report figures removed — these views read live data once
-// the Supabase listings + applications slice lands. Empty until then.
-export const SEED_ADMIN_LISTINGS: AdminListing[] = []
-
-export const MONTHLY_APPLICATIONS: { month: string; apps: number }[] = []
-
-export const STATUS_BREAKDOWN: { name: string; value: number; color: string }[] = []
+export const EMPTY_APP_STATS: AdminAppStats = {
+  monthly: [],
+  breakdown: [],
+  total: 0,
+  accepted: 0,
+  pending: 0,
+  rejected: 0,
+}

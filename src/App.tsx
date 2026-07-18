@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Briefcase,
   Bookmark,
@@ -19,8 +19,17 @@ import { ProfileSetup } from './profile/ProfileSetup'
 import { StudentDashboard } from './dashboard/StudentDashboard'
 import { AdminApp } from './admin/AdminApp'
 import { CompanyPortal } from './company/CompanyPortal'
-import { applications, internships } from './lib/mockData'
 import type { Internship, Application } from './lib/mockData'
+import {
+  applyToListing,
+  fetchBookmarks,
+  fetchMyApplications,
+  fetchOpenListings,
+  setBookmarked,
+  submitRequirementFile,
+  submitRequirementText,
+} from './lib/listingsApi'
+import type { PreEmploymentRequirement } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
 import { SignOutButton } from './components/SignOutButton'
 import { Avatar } from './components/Avatar'
@@ -179,9 +188,88 @@ function StudentPortal({
   activeView: string
   onNavigate: (view: string) => void
 }) {
-  const [selectedApp, setSelectedApp] = useState<Application | null>(null)
+  const { profile } = useAuth()
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
   const [applicationFilter, setApplicationFilter] = useState('All')
   const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
+
+  // Live data — listings, my applications, my bookmarks (UC-S03..S05).
+  const [internships, setInternships] = useState<Internship[]>([])
+  const [applications, setApplications] = useState<Application[]>([])
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const userId = profile?.id
+  const skills = profile?.skills
+
+  const refresh = useCallback(async () => {
+    if (!userId) return
+    const [l, a, b] = await Promise.all([
+      fetchOpenListings(skills ?? []),
+      fetchMyApplications(userId),
+      fetchBookmarks(userId),
+    ])
+    setInternships(l)
+    setApplications(a)
+    setBookmarkedIds(b)
+  }, [userId, skills])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setLoadError(null)
+      try {
+        await refresh()
+      } catch (err) {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load internships.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [refresh])
+
+  const handleToggleBookmark = useCallback(
+    (listingId: string) => {
+      if (!userId) return
+      const willBookmark = !bookmarkedIds.has(listingId)
+      // Optimistic — revert on failure.
+      setBookmarkedIds((prev) => {
+        const next = new Set(prev)
+        if (willBookmark) next.add(listingId)
+        else next.delete(listingId)
+        return next
+      })
+      setBookmarked(userId, listingId, willBookmark).catch(() => {
+        setBookmarkedIds((prev) => {
+          const next = new Set(prev)
+          if (willBookmark) next.delete(listingId)
+          else next.add(listingId)
+          return next
+        })
+      })
+    },
+    [userId, bookmarkedIds],
+  )
+
+  // Derived so the open progress modal stays fresh when applications refresh.
+  const selectedApp = selectedAppId
+    ? (applications.find((a) => a.id === selectedAppId) ?? null)
+    : null
+  const openProgress = (app: Application) => setSelectedAppId(app.id)
+
+  const handleApply = useCallback(
+    async (listingId: string, coverLetter: string) => {
+      if (!userId) throw new Error('Not signed in.')
+      await applyToListing(userId, listingId, coverLetter)
+      await refresh()
+    },
+    [userId, refresh],
+  )
 
   const handleNavigate = (view: string) => {
     onNavigate(view)
@@ -193,15 +281,34 @@ function StudentPortal({
     }
   }
 
+  if (loading) {
+    return <div className="auth-loading"><span className="ic-spinner" aria-hidden="true" /><p>Loading internships…</p></div>
+  }
+  if (loadError) {
+    return <div className="auth-loading"><p>{loadError}</p></div>
+  }
+
   return (
     <>
-      {activeView === 'Browse Internships' && <BrowseInternships selectedInternship={selectedInternship} onSelectInternship={setSelectedInternship} />}
-      {activeView === 'Applications' && <StudentApplications onOpenProgress={setSelectedApp} filter={applicationFilter} onFilterChange={setApplicationFilter} />}
+      {activeView === 'Browse Internships' && (
+        <BrowseInternships
+          internships={internships}
+          appliedIds={new Set(applications.map((a) => a.internshipId))}
+          bookmarkedIds={bookmarkedIds}
+          onToggleBookmark={handleToggleBookmark}
+          onApply={handleApply}
+          selectedInternship={selectedInternship}
+          onSelectInternship={setSelectedInternship}
+        />
+      )}
+      {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} />}
       {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => handleNavigate('Dashboard')} />}
       {activeView === 'Dashboard' && (
-        <StudentDashboard 
-          onNavigate={handleNavigate} 
-          onOpenProgress={setSelectedApp} 
+        <StudentDashboard
+          internships={internships}
+          applications={applications}
+          onNavigate={handleNavigate}
+          onOpenProgress={openProgress} 
           onFilterApplications={(filter) => {
             setApplicationFilter(filter)
             onNavigate('Applications') // Use raw onNavigate so we don't reset
@@ -217,7 +324,13 @@ function StudentPortal({
       )}
       
       {selectedApp && (
-        <ProgressModal application={selectedApp} onClose={() => setSelectedApp(null)} />
+        <ProgressModal
+          application={selectedApp}
+          internships={internships}
+          userId={userId}
+          onSubmitted={() => refresh().catch(() => {})}
+          onClose={() => setSelectedAppId(null)}
+        />
       )}
     </>
   )
@@ -237,16 +350,25 @@ const matchThresholds: Record<string, number> = {
 const matchOrder = ['90+', '80+', '70+', '60+', 'All']
 
 function BrowseInternships({
+  internships,
+  appliedIds,
+  bookmarkedIds,
+  onToggleBookmark,
+  onApply,
   selectedInternship,
   onSelectInternship
 }: {
-  selectedInternship: Internship | null 
-  onSelectInternship: (internship: Internship | null) => void 
+  internships: Internship[]
+  appliedIds: Set<string>
+  bookmarkedIds: Set<string>
+  onToggleBookmark: (listingId: string) => void
+  onApply: (listingId: string, coverLetter: string) => Promise<void>
+  selectedInternship: Internship | null
+  onSelectInternship: (internship: Internship | null) => void
 }) {
   const [query, setQuery] = useState('')
   const [matchFilter, setMatchFilter] = useState('All')
   const [showApplyModal, setShowApplyModal] = useState(false)
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set())
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
 
   const filtered = useMemo(() => {
@@ -261,16 +383,11 @@ function BrowseInternships({
       const matchesBookmarks = !showBookmarksOnly || bookmarkedIds.has(internship.id)
       return matchesQuery && matchesScore && matchesBookmarks
     })
-  }, [query, matchFilter, showBookmarksOnly, bookmarkedIds])
+  }, [internships, query, matchFilter, showBookmarksOnly, bookmarkedIds])
 
-  const toggleBookmark = (id: number, e: React.MouseEvent) => {
+  const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setBookmarkedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    onToggleBookmark(id)
   }
 
   // Detail view — full internship page
@@ -278,6 +395,7 @@ function BrowseInternships({
     return (
       <InternshipDetailView
         internship={selectedInternship}
+        alreadyApplied={appliedIds.has(selectedInternship.id)}
         onBack={() => onSelectInternship(null)}
         onApply={() => setShowApplyModal(true)}
       />
@@ -290,11 +408,13 @@ function BrowseInternships({
       <>
         <InternshipDetailView
           internship={selectedInternship}
+          alreadyApplied={appliedIds.has(selectedInternship.id)}
           onBack={() => onSelectInternship(null)}
           onApply={() => setShowApplyModal(true)}
         />
         <ApplyModal
           internship={selectedInternship}
+          onSubmit={(coverLetter) => onApply(selectedInternship.id, coverLetter)}
           onClose={() => setShowApplyModal(false)}
         />
       </>
@@ -404,8 +524,20 @@ function ApplicationStrip({ application, onClick }: { application: Application; 
   )
 }
 
-function ProgressModal({ application, onClose }: { application: Application; onClose: () => void }) {
-  const internship = useMemo(() => internships.find(i => i.id === application.internshipId), [application.internshipId])
+function ProgressModal({
+  application,
+  internships,
+  userId,
+  onSubmitted,
+  onClose,
+}: {
+  application: Application
+  internships: Internship[]
+  userId?: string
+  onSubmitted?: () => void
+  onClose: () => void
+}) {
+  const internship = useMemo(() => internships.find(i => i.id === application.internshipId), [internships, application.internshipId])
   
   const steps = [
     { label: 'Application Submitted', active: true, done: true },
@@ -480,6 +612,18 @@ function ProgressModal({ application, onClose }: { application: Application; onC
             <div className="strip-match-track" style={{ width: '100%', marginTop: '12px' }}>
               <div className="strip-match-progress" style={{ width: `${Math.round(((application.approvedRequirements || 0) / application.requirements.length) * 100)}%` }} />
             </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+              {application.requirements.map((req) => (
+                <RequirementSubmitRow
+                  applicationId={application.id}
+                  key={req.id}
+                  onSubmitted={onSubmitted}
+                  requirement={req}
+                  userId={userId}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -487,11 +631,119 @@ function ProgressModal({ application, onClose }: { application: Application; onC
   )
 }
 
-function StudentApplications({ 
+/** One pre-employment requirement with its review state and submit controls. */
+function RequirementSubmitRow({
+  applicationId,
+  requirement,
+  userId,
+  onSubmitted,
+}: {
+  applicationId: string
+  requirement: PreEmploymentRequirement
+  userId?: string
+  onSubmitted?: () => void
+}) {
+  const [text, setText] = useState(requirement.submittedText ?? '')
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const status = requirement.submissionStatus ?? 'not_submitted'
+  const statusLabel =
+    status === 'approved'
+      ? 'Approved'
+      : status === 'rejected'
+        ? 'Needs revision'
+        : status === 'pending'
+          ? 'Submitted — awaiting review'
+          : 'Not submitted'
+  const statusColor =
+    status === 'approved'
+      ? '#3fb950'
+      : status === 'rejected'
+        ? 'var(--brand-crimson)'
+        : status === 'pending'
+          ? 'var(--brand-orange)'
+          : 'var(--text-light)'
+  const canSubmit = status !== 'approved' && status !== 'pending'
+
+  const submit = async () => {
+    if (!userId) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (requirement.type === 'file') {
+        if (!file) throw new Error('Choose a file first.')
+        await submitRequirementFile(userId, applicationId, requirement.id, file)
+      } else {
+        if (!text.trim()) throw new Error('Enter your response first.')
+        await submitRequirementText(applicationId, requirement.id, text)
+      }
+      setFile(null)
+      onSubmitted?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+        <div>
+          <p style={{ margin: 0, fontWeight: 500, fontSize: '14px' }}>{requirement.name}</p>
+          <p className="muted" style={{ margin: '2px 0 0 0', fontSize: '12px' }}>
+            {requirement.type === 'file' ? 'File upload' : 'Text response'}
+            {requirement.isPrintable && ' · Needs to be printed'}
+          </p>
+        </div>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: statusColor, whiteSpace: 'nowrap' }}>
+          {statusLabel}
+        </span>
+      </div>
+
+      {canSubmit && (
+        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {requirement.type === 'file' ? (
+            <input
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              style={{ fontSize: '12px' }}
+              type="file"
+            />
+          ) : (
+            <textarea
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Type your response…"
+              rows={2}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', resize: 'vertical', fontSize: '13px', color: 'var(--text)' }}
+              value={text}
+            />
+          )}
+          {error && <p className="muted" style={{ margin: 0, fontSize: '12px', color: 'var(--brand-crimson)' }}>{error}</p>}
+          <button
+            className="primary"
+            disabled={busy || (requirement.type === 'file' ? !file : !text.trim())}
+            onClick={submit}
+            style={{ alignSelf: 'flex-start', padding: '6px 14px', fontSize: '13px' }}
+            type="button"
+          >
+            {busy ? 'Submitting…' : status === 'rejected' ? 'Resubmit' : 'Submit'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function StudentApplications({
+  applications,
   onOpenProgress,
   filter,
   onFilterChange
-}: { 
+}: {
+  applications: Application[]
   onOpenProgress: (app: Application) => void
   filter: string
   onFilterChange: (filter: string) => void
@@ -599,10 +851,12 @@ function InternshipStrip({
 
 function InternshipDetailView({
   internship,
+  alreadyApplied,
   onBack,
   onApply,
 }: {
   internship: Internship
+  alreadyApplied?: boolean
   onBack: () => void
   onApply: () => void
 }) {
@@ -665,8 +919,8 @@ function InternshipDetailView({
       </div>
 
       <div className="detail-actions">
-        <button className="primary detail-apply-btn" onClick={onApply} type="button">
-          Apply Now
+        <button className="primary detail-apply-btn" disabled={alreadyApplied} onClick={onApply} type="button">
+          {alreadyApplied ? 'Already Applied' : 'Apply Now'}
         </button>
       </div>
     </div>
@@ -675,20 +929,35 @@ function InternshipDetailView({
 
 function ApplyModal({
   internship,
+  onSubmit,
   onClose,
 }: {
   internship: Internship
+  onSubmit: (coverLetter: string) => Promise<void>
   onClose: () => void
 }) {
-  const [resumeFile, setResumeFile] = useState<File | null>(null)
-  const [coverLetterFile, setCoverLetterFile] = useState<File | null>(null)
+  const { profile } = useAuth()
+  const [coverLetter, setCoverLetter] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const handleSubmit = () => {
-    setSubmitted(true)
-    setTimeout(() => {
-      onClose()
-    }, 2000)
+  const hasResume = Boolean(profile?.resume_url)
+
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      await onSubmit(coverLetter)
+      setSubmitted(true)
+      setTimeout(() => {
+        onClose()
+      }, 2000)
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to submit the application.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -723,78 +992,55 @@ function ApplyModal({
               </div>
             </div>
 
-            {/* File attachments */}
+            {/* Resume from profile + cover letter */}
             <div className="modal-uploads">
               <div className="modal-upload-field">
-                <label htmlFor="resume-upload">
+                <label>
                   Resume <span className="required">*</span>
                 </label>
-                <div className={`upload-zone ${resumeFile ? 'has-file' : ''}`}>
-                  {resumeFile ? (
+                {hasResume ? (
+                  <div className="upload-zone has-file">
                     <div className="upload-file-info">
                       <span className="upload-file-icon">📄</span>
                       <div>
-                        <p className="upload-file-name">{resumeFile.name}</p>
-                        <p className="muted">{(resumeFile.size / 1024).toFixed(1)} KB</p>
+                        <p className="upload-file-name">Your profile resume will be shared</p>
+                        <p className="muted">Update it anytime from your profile.</p>
                       </div>
-                      <button className="upload-remove" onClick={() => setResumeFile(null)} type="button">✕</button>
                     </div>
-                  ) : (
-                    <div className="upload-placeholder">
-                      <span className="upload-icon">↑</span>
-                      <p>Drop your resume here or <strong>browse</strong></p>
-                      <p className="muted">PDF, DOC, or DOCX (max 5 MB)</p>
-                    </div>
-                  )}
-                  <input
-                    accept=".pdf,.doc,.docx"
-                    id="resume-upload"
-                    onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
-                    type="file"
-                  />
-                </div>
+                  </div>
+                ) : (
+                  <p className="muted">
+                    No resume on your profile yet — upload one from your profile before applying.
+                  </p>
+                )}
               </div>
 
               <div className="modal-upload-field">
-                <label htmlFor="cover-letter-upload">
+                <label htmlFor="cover-letter-text">
                   Cover Letter <span className="optional">(optional)</span>
                 </label>
-                <div className={`upload-zone ${coverLetterFile ? 'has-file' : ''}`}>
-                  {coverLetterFile ? (
-                    <div className="upload-file-info">
-                      <span className="upload-file-icon">📄</span>
-                      <div>
-                        <p className="upload-file-name">{coverLetterFile.name}</p>
-                        <p className="muted">{(coverLetterFile.size / 1024).toFixed(1)} KB</p>
-                      </div>
-                      <button className="upload-remove" onClick={() => setCoverLetterFile(null)} type="button">✕</button>
-                    </div>
-                  ) : (
-                    <div className="upload-placeholder">
-                      <span className="upload-icon">↑</span>
-                      <p>Drop your cover letter here or <strong>browse</strong></p>
-                      <p className="muted">PDF, DOC, or DOCX (max 5 MB)</p>
-                    </div>
-                  )}
-                  <input
-                    accept=".pdf,.doc,.docx"
-                    id="cover-letter-upload"
-                    onChange={(e) => setCoverLetterFile(e.target.files?.[0] ?? null)}
-                    type="file"
-                  />
-                </div>
+                <textarea
+                  id="cover-letter-text"
+                  onChange={(e) => setCoverLetter(e.target.value)}
+                  placeholder={`Tell ${internship.company} why you're a great fit…`}
+                  rows={5}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', resize: 'vertical', color: 'var(--text)' }}
+                  value={coverLetter}
+                />
               </div>
             </div>
+
+            {submitError && <p className="muted" style={{ color: 'var(--brand-crimson)' }}>{submitError}</p>}
 
             <div className="modal-footer">
               <button onClick={onClose} type="button">Cancel</button>
               <button
                 className="primary"
-                disabled={!resumeFile}
+                disabled={!hasResume || submitting}
                 onClick={handleSubmit}
                 type="button"
               >
-                Submit Application
+                {submitting ? 'Submitting…' : 'Submit Application'}
               </button>
             </div>
           </>

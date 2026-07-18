@@ -6,14 +6,15 @@ import type { AdminListing, AdminListingStatus } from './adminData'
 /** UC-A04 — Oversee internship listings platform-wide (flag / unflag). */
 export function AdminInternships({
   listings,
-  setListings,
+  onSetFlagged,
 }: {
   listings: AdminListing[]
-  setListings: React.Dispatch<React.SetStateAction<AdminListing[]>>
+  onSetFlagged: (id: string, flagged: boolean) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | AdminListingStatus>('all')
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const filtered = useMemo(
     () =>
@@ -26,8 +27,12 @@ export function AdminInternships({
     [listings, search, filter],
   )
 
-  const setStatus = (id: number, status: AdminListingStatus) =>
-    setListings((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)))
+  const setFlagged = (id: string, flagged: boolean) => {
+    setActionError(null)
+    onSetFlagged(id, flagged).catch((err) =>
+      setActionError(err instanceof Error ? err.message : 'Action failed.'),
+    )
+  }
 
   return (
     <div className="ad-page">
@@ -51,6 +56,8 @@ export function AdminInternships({
           <option value="flagged">Flagged</option>
         </select>
       </div>
+
+      {actionError && <div className="ad-card ad-empty">{actionError}</div>}
 
       <div className="ad-rows">
         {filtered.length === 0 ? (
@@ -94,7 +101,7 @@ export function AdminInternships({
                     {l.status === 'open' && (
                       <button
                         className="ad-secondary"
-                        onClick={() => setStatus(l.id, 'flagged')}
+                        onClick={() => setFlagged(l.id, true)}
                         type="button"
                       >
                         <AlertCircle size={12} /> Flag
@@ -103,7 +110,7 @@ export function AdminInternships({
                     {l.status === 'flagged' && (
                       <button
                         className="ad-secondary"
-                        onClick={() => setStatus(l.id, 'open')}
+                        onClick={() => setFlagged(l.id, false)}
                         type="button"
                       >
                         <RefreshCw size={12} /> Unflag

@@ -1,0 +1,262 @@
+import { supabase } from '../lib/supabase'
+import { computeMatch, formatDate } from '../lib/listingsApi'
+import type {
+  ApplicantStatus,
+  CompanyApplicant,
+  CompanyListing,
+  PreEmploymentRequirement,
+  SubmittedRequirement,
+} from './companyData'
+
+/**
+ * Company-portal data layer (UC-C02..C05). All reads/writes are scoped by RLS
+ * to the signed-in owner's company row.
+ */
+
+const LISTING_STATUS_TO_DB: Record<CompanyListing['status'], string> = {
+  Open: 'open',
+  Draft: 'draft',
+  Closed: 'closed',
+}
+
+const LISTING_STATUS_FROM_DB: Record<string, CompanyListing['status']> = {
+  open: 'Open',
+  draft: 'Draft',
+  closed: 'Closed',
+}
+
+const APPLICANT_STATUS_FROM_DB: Record<string, ApplicantStatus> = {
+  pending: 'Pending',
+  under_review: 'Reviewed',
+  shortlisted: 'Reviewed',
+  interview_scheduled: 'Reviewed',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+}
+
+const APPLICANT_STATUS_TO_DB: Record<ApplicantStatus, string> = {
+  Pending: 'pending',
+  Reviewed: 'under_review',
+  Accepted: 'accepted',
+  Rejected: 'rejected',
+}
+
+/** The company row owned by the signed-in user. */
+export async function fetchMyCompany(): Promise<{
+  id: string
+  name: string
+  verification: 'pending' | 'verified' | 'rejected'
+} | null> {
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id, name, verification')
+    .eq('owner_id', (await supabase.auth.getUser()).data.user?.id ?? '')
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data as { id: string; name: string; verification: 'pending' | 'verified' | 'rejected' } | null
+}
+
+type CompanyListingRow = {
+  id: string
+  title: string
+  status: string
+  slots: number
+  deadline: string | null
+  department: string | null
+  skills: string[]
+  description: string | null
+  listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
+}
+
+export async function fetchCompanyListings(companyId: string): Promise<CompanyListing[]> {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('id, title, status, slots, deadline, department, skills, description, listing_requirements(id, name, kind, is_printable)')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as unknown as CompanyListingRow[]).map((r) => ({
+    id: r.id,
+    title: r.title,
+    status: LISTING_STATUS_FROM_DB[r.status] ?? 'Draft',
+    slots: r.slots,
+    deadline: formatDate(r.deadline),
+    department: r.department ?? '—',
+    skills: r.skills ?? [],
+    description: r.description ?? '',
+    requirements: (r.listing_requirements ?? []).map((q) => ({
+      id: q.id,
+      name: q.name,
+      type: q.kind === 'file' ? ('file' as const) : ('text' as const),
+      isPrintable: q.is_printable,
+    })),
+  }))
+}
+
+export type NewListingInput = {
+  title: string
+  department: string
+  slots: number
+  deadline: string // yyyy-mm-dd or ''
+  skills: string[]
+  description: string
+  publish: boolean
+  requirements: Omit<PreEmploymentRequirement, 'id'>[]
+}
+
+export async function createListing(companyId: string, input: NewListingInput): Promise<void> {
+  const { data, error } = await supabase
+    .from('listings')
+    .insert({
+      company_id: companyId,
+      title: input.title,
+      department: input.department || null,
+      slots: input.slots,
+      deadline: input.deadline || null,
+      skills: input.skills,
+      description: input.description,
+      status: input.publish ? 'open' : 'draft',
+    })
+    .select('id')
+    .single()
+  if (error) {
+    if (error.code === '42501')
+      throw new Error('Your company must be verified by the NLO before posting listings.')
+    throw new Error(error.message)
+  }
+  if (input.requirements.length) {
+    const { error: reqError } = await supabase.from('listing_requirements').insert(
+      input.requirements.map((r) => ({
+        listing_id: data.id,
+        name: r.name,
+        kind: r.type,
+        is_printable: r.isPrintable,
+      })),
+    )
+    if (reqError) throw new Error(reqError.message)
+  }
+}
+
+export async function setListingStatus(
+  listingId: string,
+  status: CompanyListing['status'],
+): Promise<void> {
+  const { error } = await supabase
+    .from('listings')
+    .update({ status: LISTING_STATUS_TO_DB[status] })
+    .eq('id', listingId)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteListing(listingId: string): Promise<void> {
+  const { error } = await supabase.from('listings').delete().eq('id', listingId)
+  if (error) throw new Error(error.message)
+}
+
+type ApplicantRow = {
+  id: string
+  listing_id: string
+  status: string
+  cover_letter: string | null
+  feedback: string | null
+  created_at: string
+  profiles: {
+    full_name: string | null
+    email: string
+    skills: string[]
+    specializations: string[]
+    resume_url: string | null
+    portfolio_link: string | null
+    portfolio_file_url: string | null
+  } | null
+  listings: {
+    title: string
+    skills: string[]
+    listing_requirements: { id: string; name: string }[]
+  } | null
+  requirement_submissions: {
+    id: string
+    requirement_id: string
+    status: string
+    file_path: string | null
+    text_value: string | null
+  }[]
+}
+
+export async function fetchApplicants(companyId: string): Promise<CompanyApplicant[]> {
+  const { data, error } = await supabase
+    .from('applications')
+    .select(
+      'id, listing_id, status, cover_letter, feedback, created_at, ' +
+        'profiles:student_id(full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url), ' +
+        'listings!inner(title, skills, company_id, listing_requirements(id, name)), ' +
+        'requirement_submissions(id, requirement_id, status, file_path, text_value)',
+    )
+    .eq('listings.company_id', companyId)
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as unknown as ApplicantRow[]).map((r) => {
+    const submitted: SubmittedRequirement[] = (r.listings?.listing_requirements ?? []).map((q) => {
+      const sub = (r.requirement_submissions ?? []).find((s) => s.requirement_id === q.id)
+      return {
+        id: q.id,
+        name: q.name,
+        submissionId: sub?.id,
+        status: !sub
+          ? 'Awaiting submission'
+          : sub.status === 'approved'
+            ? 'Approved'
+            : sub.status === 'rejected'
+              ? 'Needs Revision'
+              : 'Pending',
+        fileUrl: sub?.file_path ?? undefined,
+      }
+    })
+    return {
+      id: r.id,
+      name: r.profiles?.full_name || r.profiles?.email || 'Unknown student',
+      email: r.profiles?.email ?? '—',
+      listingId: r.listing_id,
+      role: r.listings?.title ?? '—',
+      match: computeMatch(r.profiles?.skills ?? [], r.listings?.skills ?? []),
+      status: APPLICANT_STATUS_FROM_DB[r.status] ?? 'Pending',
+      applied: formatDate(r.created_at),
+      skills: r.profiles?.skills ?? [],
+      specializations: r.profiles?.specializations ?? [],
+      resume: r.profiles?.resume_url ?? '',
+      portfolioLink: r.profiles?.portfolio_link ?? undefined,
+      portfolioFile: r.profiles?.portfolio_file_url ?? undefined,
+      coverLetter: r.cover_letter ?? '',
+      feedback: r.feedback ?? undefined,
+      submittedRequirements: submitted,
+    }
+  })
+}
+
+/** Accept / reject / mark-reviewed an application (UC-C05). */
+export async function updateApplicationStatus(
+  applicationId: string,
+  status: ApplicantStatus,
+  feedback?: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('applications')
+    .update({
+      status: APPLICANT_STATUS_TO_DB[status],
+      feedback: feedback ?? null,
+    })
+    .eq('id', applicationId)
+  if (error) throw new Error(error.message)
+}
+
+/** Approve or send back a student's requirement submission. */
+export async function reviewSubmission(
+  submissionId: string,
+  approve: boolean,
+): Promise<void> {
+  const { error } = await supabase
+    .from('requirement_submissions')
+    .update({ status: approve ? 'approved' : 'rejected', reviewed_at: new Date().toISOString() })
+    .eq('id', submissionId)
+  if (error) throw new Error(error.message)
+}

@@ -1,5 +1,12 @@
 import { supabase } from '../lib/supabase'
-import type { AdminCompany, AdminStudent, StudentStatus, VerifStatus } from './adminData'
+import type {
+  AdminAppStats,
+  AdminCompany,
+  AdminListing,
+  AdminStudent,
+  StudentStatus,
+  VerifStatus,
+} from './adminData'
 
 /**
  * Live admin data (UC-A01 / UC-A02). Reads go through the `admin_list_*`
@@ -106,6 +113,90 @@ export async function setCompanyVerification(
     .update({ verification: status })
     .eq('id', companyId)
   if (error) throw new Error(error.message)
+}
+
+type AdminListingRow = {
+  id: string
+  title: string
+  status: string
+  is_flagged: boolean
+  deadline: string | null
+  created_at: string
+  companies: { name: string; description: string | null } | null
+  applications: { count: number }[]
+}
+
+/** All listings platform-wide with applicant counts (UC-A04). */
+export async function fetchAdminListings(): Promise<AdminListing[]> {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('id, title, status, is_flagged, deadline, created_at, companies(name, description), applications(count)')
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as unknown as AdminListingRow[]).map((r) => ({
+    id: r.id,
+    title: r.title,
+    company: r.companies?.name ?? '—',
+    companyDescription: r.companies?.description ?? undefined,
+    status: r.is_flagged ? 'flagged' : r.status === 'open' ? 'open' : 'closed',
+    applicants: r.applications?.[0]?.count ?? 0,
+    posted: monthYear(r.created_at),
+    deadline: r.deadline ? monthYear(r.deadline) : '—',
+  }))
+}
+
+/** Flag / unflag a listing (UC-A04); only is_admin() may change is_flagged. */
+export async function setListingFlagged(listingId: string, flagged: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('listings')
+    .update({ is_flagged: flagged })
+    .eq('id', listingId)
+  if (error) throw new Error(error.message)
+}
+
+const BREAKDOWN_STYLES: { name: string; statuses: string[]; color: string }[] = [
+  { name: 'Accepted', statuses: ['accepted'], color: 'var(--brand-orange)' },
+  {
+    name: 'In progress',
+    statuses: ['pending', 'under_review', 'shortlisted', 'interview_scheduled'],
+    color: 'var(--brand-orange-soft)',
+  },
+  { name: 'Rejected', statuses: ['rejected'], color: 'var(--brand-crimson)' },
+]
+
+/** Platform-wide application stats for the dashboard charts and reports. */
+export async function fetchAppStats(): Promise<AdminAppStats> {
+  const { data, error } = await supabase.from('applications').select('status, created_at')
+  if (error) throw new Error(error.message)
+  const rows = (data ?? []) as { status: string; created_at: string }[]
+
+  const byMonth = new Map<string, number>()
+  for (const r of rows) {
+    const key = monthYear(r.created_at)
+    byMonth.set(key, (byMonth.get(key) ?? 0) + 1)
+  }
+  const monthly = [...byMonth.entries()]
+    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+    .map(([month, apps]) => ({ month: month.split(' ')[0], apps }))
+
+  const total = rows.length
+  const count = (statuses: string[]) => rows.filter((r) => statuses.includes(r.status)).length
+  const breakdown = total
+    ? BREAKDOWN_STYLES.map((b) => ({
+        name: b.name,
+        value: Math.round((count(b.statuses) / total) * 100),
+        color: b.color,
+      })).filter((b) => b.value > 0)
+    : []
+
+  return {
+    monthly,
+    breakdown,
+    total,
+    accepted: count(['accepted']),
+    rejected: count(['rejected']),
+    pending: total - count(['accepted']) - count(['rejected']),
+  }
 }
 
 /** Remove a student from the roster (only meaningful before they register). */

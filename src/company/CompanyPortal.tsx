@@ -1,16 +1,27 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { CompanyDashboard } from './CompanyDashboard'
 import { CompanyListings } from './CompanyListings'
 import { CompanyApplicants } from './CompanyApplicants'
 import { CompanyProfileView } from './CompanyProfileView'
-import { SEED_COMPANY_LISTINGS } from './companyData'
 import type { CompanyApplicant, CompanyListing } from './companyData'
+import {
+  createListing,
+  deleteListing,
+  fetchApplicants,
+  fetchCompanyListings,
+  fetchMyCompany,
+  reviewSubmission,
+  setListingStatus,
+  updateApplicationStatus,
+} from './companyQueries'
+import type { NewListingInput } from './companyQueries'
+import type { ApplicantStatus } from './companyData'
 import './company.css'
 
 /**
  * Company portal views, rendered inside the shared workspace shell.
- * Applicant/listing state lives here so dashboard counts stay in sync with
- * actions taken on the Applications view.
+ * Listings + applicants load live from Supabase; actions write through
+ * companyQueries and refresh so dashboard counts stay in sync.
  */
 export function CompanyPortal({
   activeView,
@@ -19,18 +30,102 @@ export function CompanyPortal({
   activeView: string
   onNavigate: (view: string) => void
 }) {
-  const [listings, setListings] = useState<CompanyListing[]>(SEED_COMPANY_LISTINGS)
+  const [companyId, setCompanyId] = useState<string | null>(null)
+  const [verification, setVerification] = useState<'pending' | 'verified' | 'rejected'>('pending')
+  const [listings, setListings] = useState<CompanyListing[]>([])
   const [applicants, setApplicants] = useState<CompanyApplicant[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const refresh = useCallback(async (id: string) => {
+    const [l, a] = await Promise.all([fetchCompanyListings(id), fetchApplicants(id)])
+    setListings(l)
+    setApplicants(a)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setLoadError(null)
+      try {
+        const company = await fetchMyCompany()
+        if (!company) throw new Error('No company account found for this user.')
+        if (cancelled) return
+        setCompanyId(company.id)
+        setVerification(company.verification)
+        await refresh(company.id)
+      } catch (err) {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load company data.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [refresh])
+
+  const withRefresh = useCallback(
+    async (action: () => Promise<void>) => {
+      await action()
+      if (companyId) await refresh(companyId)
+    },
+    [companyId, refresh],
+  )
+
+  const handleCreate = useCallback(
+    (input: NewListingInput) => {
+      if (!companyId) return Promise.reject(new Error('Company not loaded yet.'))
+      return withRefresh(() => createListing(companyId, input))
+    },
+    [companyId, withRefresh],
+  )
+  const handleSetStatus = useCallback(
+    (id: string, status: CompanyListing['status']) => withRefresh(() => setListingStatus(id, status)),
+    [withRefresh],
+  )
+  const handleDelete = useCallback(
+    (id: string) => withRefresh(() => deleteListing(id)),
+    [withRefresh],
+  )
+  const handleApplicantStatus = useCallback(
+    (id: string, status: ApplicantStatus, feedback?: string) =>
+      withRefresh(() => updateApplicationStatus(id, status, feedback)),
+    [withRefresh],
+  )
+  const handleReviewSubmission = useCallback(
+    (submissionId: string, approve: boolean) =>
+      withRefresh(() => reviewSubmission(submissionId, approve)),
+    [withRefresh],
+  )
+
+  if (loading) {
+    return <div className="cp-root"><div className="cp-card cp-empty">Loading company workspace…</div></div>
+  }
+  if (loadError) {
+    return <div className="cp-root"><div className="cp-card cp-empty">{loadError}</div></div>
+  }
 
   if (activeView === 'Listings') {
-    return <CompanyListings applicants={applicants} listings={listings} setListings={setListings} />
+    return (
+      <CompanyListings
+        applicants={applicants}
+        listings={listings}
+        verification={verification}
+        onCreate={handleCreate}
+        onSetStatus={handleSetStatus}
+        onDelete={handleDelete}
+      />
+    )
   }
   if (activeView === 'Applicants') {
     return (
       <CompanyApplicants
         applicants={applicants}
         listings={listings}
-        setApplicants={setApplicants}
+        onSetStatus={handleApplicantStatus}
+        onReviewSubmission={handleReviewSubmission}
       />
     )
   }

@@ -1,34 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { BarChart3, Download } from 'lucide-react'
+import type { AdminAppStats, AdminCompany, AdminListing, AdminStudent } from './adminData'
 
 type ReportType = 'applications' | 'postings' | 'placement' | 'participation'
-
-const REPORT_DATA: Record<ReportType, { label: string; value: string | number }[]> = {
-  applications: [
-    { label: 'Total Applications', value: 871 },
-    { label: 'Accepted', value: 296 },
-    { label: 'Pending', value: 392 },
-    { label: 'Rejected', value: 183 },
-  ],
-  postings: [
-    { label: 'Total Listings', value: 5 },
-    { label: 'Open', value: 4 },
-    { label: 'Closed', value: 1 },
-    { label: 'Companies Active', value: 4 },
-  ],
-  placement: [
-    { label: 'Placed Students', value: 296 },
-    { label: 'Avg. Match Score', value: '84%' },
-    { label: 'Top Industry', value: 'Software' },
-    { label: 'Completion Rate', value: '91%' },
-  ],
-  participation: [
-    { label: 'Active Students', value: 5 },
-    { label: 'Applied Once+', value: 5 },
-    { label: 'Bookmarks Created', value: 42 },
-    { label: 'Profiles Complete', value: '68%' },
-  ],
-}
 
 const REPORT_TITLES: Record<ReportType, string> = {
   applications: 'Applications Report',
@@ -37,8 +11,60 @@ const REPORT_TITLES: Record<ReportType, string> = {
   participation: 'Student Participation Report',
 }
 
-/** UC-A06 — Generate and export platform reports. */
-export function AdminReports() {
+/** UC-A06 — Generate and export platform reports (live data). */
+export function AdminReports({
+  students,
+  companies,
+  listings,
+  appStats,
+}: {
+  students: AdminStudent[]
+  companies: AdminCompany[]
+  listings: AdminListing[]
+  appStats: AdminAppStats
+}) {
+  const REPORT_DATA: Record<ReportType, { label: string; value: string | number }[]> = useMemo(() => {
+    const activeStudents = students.filter((s) => s.status === 'active').length
+    const appliedOnce = students.filter((s) => s.applications > 0).length
+    const activeCompanies = new Set(
+      listings.filter((l) => l.status === 'open').map((l) => l.company),
+    ).size
+    return {
+      applications: [
+        { label: 'Total Applications', value: appStats.total },
+        { label: 'Accepted', value: appStats.accepted },
+        { label: 'Pending', value: appStats.pending },
+        { label: 'Rejected', value: appStats.rejected },
+      ],
+      postings: [
+        { label: 'Total Listings', value: listings.length },
+        { label: 'Open', value: listings.filter((l) => l.status === 'open').length },
+        { label: 'Closed', value: listings.filter((l) => l.status === 'closed').length },
+        { label: 'Companies Active', value: activeCompanies },
+      ],
+      placement: [
+        { label: 'Placed Students', value: appStats.accepted },
+        {
+          label: 'Acceptance Rate',
+          value: appStats.total ? `${Math.round((appStats.accepted / appStats.total) * 100)}%` : '—',
+        },
+        { label: 'Verified Companies', value: companies.filter((c) => c.verification === 'verified').length },
+        { label: 'Flagged Listings', value: listings.filter((l) => l.status === 'flagged').length },
+      ],
+      participation: [
+        { label: 'Active Students', value: activeStudents },
+        { label: 'Applied Once+', value: appliedOnce },
+        { label: 'Rostered Students', value: students.length },
+        {
+          label: 'Registered',
+          value: students.length
+            ? `${Math.round((students.filter((s) => s.registered).length / students.length) * 100)}%`
+            : '—',
+        },
+      ],
+    }
+  }, [students, companies, listings, appStats])
+
   const [reportType, setReportType] = useState<ReportType>('applications')
   const [industry, setIndustry] = useState('all')
   const [dateFrom, setDateFrom] = useState('2026-06-01')

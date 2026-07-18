@@ -18,9 +18,15 @@ import { AdminStudents } from './AdminStudents'
 import { AdminCompanies } from './AdminCompanies'
 import { AdminInternships } from './AdminInternships'
 import { AdminReports } from './AdminReports'
-import { SEED_ADMIN_LISTINGS } from './adminData'
-import type { AdminCompany, AdminListing, AdminStudent } from './adminData'
-import { fetchCompanies, fetchStudents } from './adminQueries'
+import { EMPTY_APP_STATS } from './adminData'
+import type { AdminAppStats, AdminCompany, AdminListing, AdminStudent } from './adminData'
+import {
+  fetchAdminListings,
+  fetchAppStats,
+  fetchCompanies,
+  fetchStudents,
+  setListingFlagged,
+} from './adminQueries'
 import './admin.css'
 
 const NAV = [
@@ -40,11 +46,11 @@ export function AdminApp() {
   const [active, setActive] = useState(0)
   const [collapsed, toggleCollapsed] = useSidebarCollapsed()
 
-  // Students and companies are live from Supabase; listings remain seed data
-  // until that slice lands.
+  // Students, companies, listings, and application stats — all live.
   const [students, setStudents] = useState<AdminStudent[]>([])
   const [companies, setCompanies] = useState<AdminCompany[]>([])
-  const [listings, setListings] = useState<AdminListing[]>(SEED_ADMIN_LISTINGS)
+  const [listings, setListings] = useState<AdminListing[]>([])
+  const [appStats, setAppStats] = useState<AdminAppStats>(EMPTY_APP_STATS)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -54,6 +60,17 @@ export function AdminApp() {
   const refreshCompanies = useCallback(async () => {
     setCompanies(await fetchCompanies())
   }, [])
+  const refreshListings = useCallback(async () => {
+    setListings(await fetchAdminListings())
+  }, [])
+
+  const handleSetFlagged = useCallback(
+    async (id: string, flagged: boolean) => {
+      await setListingFlagged(id, flagged)
+      await refreshListings()
+    },
+    [refreshListings],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -61,10 +78,17 @@ export function AdminApp() {
       setLoading(true)
       setLoadError(null)
       try {
-        const [s, c] = await Promise.all([fetchStudents(), fetchCompanies()])
+        const [s, c, l, stats] = await Promise.all([
+          fetchStudents(),
+          fetchCompanies(),
+          fetchAdminListings(),
+          fetchAppStats(),
+        ])
         if (!cancelled) {
           setStudents(s)
           setCompanies(c)
+          setListings(l)
+          setAppStats(stats)
         }
       } catch (err) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load admin data.')
@@ -134,6 +158,7 @@ export function AdminApp() {
       <main className="ad-main">
         {active === 0 && (
           <AdminDashboard
+            appStats={appStats}
             companies={companies}
             listings={listings}
             onNav={setActive}
@@ -156,8 +181,15 @@ export function AdminApp() {
             onRefresh={refreshCompanies}
           />
         )}
-        {active === 3 && <AdminInternships listings={listings} setListings={setListings} />}
-        {active === 4 && <AdminReports />}
+        {active === 3 && <AdminInternships listings={listings} onSetFlagged={handleSetFlagged} />}
+        {active === 4 && (
+          <AdminReports
+            appStats={appStats}
+            companies={companies}
+            listings={listings}
+            students={students}
+          />
+        )}
       </main>
     </div>
   )

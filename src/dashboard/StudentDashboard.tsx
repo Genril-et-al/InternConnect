@@ -8,10 +8,9 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useAuth } from '../auth/context'
-import { applications, internships } from '../lib/mockData'
-import type { Application } from '../lib/mockData'
+import type { Application, Internship } from '../lib/mockData'
 import { NotificationBell } from '../components/NotificationBell'
-import { useState } from 'react'
+import { useNotifications } from '../components/useNotifications'
 import './dashboard.css'
 
 /**
@@ -19,49 +18,30 @@ import './dashboard.css'
  * AI-matched internships, and recent applications.
  * Note: Internship Duty Hours is intentionally not part of this dashboard.
  */
-let globalStudentNotifications: {
-  id: string
-  message: string
-  date: string
-  read: boolean
-  navOffset: string
-}[] = []
 
 export function StudentDashboard({
+  internships,
+  applications,
   onNavigate,
   onOpenProgress,
   onFilterApplications,
   onOpenInternship,
 }: {
+  internships: Internship[]
+  applications: Application[]
   onNavigate: (view: string) => void
   onOpenProgress?: (app: Application) => void
   onFilterApplications?: (filter: string) => void
-  onOpenInternship?: (id: number) => void
+  onOpenInternship?: (id: string) => void
 }) {
   const { profile } = useAuth()
 
   const accepted = applications.filter((a) => a.status === 'Accepted').length
 
-  // Map the global notifications to include the dynamic onClick handler
-  const [notifications, setNotifications] = useState(
-    globalStudentNotifications.map(n => ({
-      ...n,
-      onClick: () => {
-        if (n.navOffset === 'Pending') onFilterApplications?.('Pending')
-        else onNavigate(n.navOffset)
-      }
-    }))
-  )
-
-  const handleMarkRead = (id: string) => {
-    globalStudentNotifications = globalStudentNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-  }
-
-  const handleMarkAllRead = () => {
-    globalStudentNotifications = globalStudentNotifications.map((n) => ({ ...n, read: true }))
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-  }
+  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications((hint) => {
+    if (hint === 'Pending') onFilterApplications?.('Pending')
+    else onNavigate(hint)
+  })
   const rejected = applications.filter((a) => a.status === 'Rejected').length
   const pending = applications.length - accepted - rejected
 

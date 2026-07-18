@@ -1,21 +1,34 @@
 import { useMemo, useState } from 'react'
 import { Plus, Search, Trash2, X } from 'lucide-react'
 import type { CompanyApplicant, CompanyListing, PreEmploymentRequirement } from './companyData'
+import type { NewListingInput } from './companyQueries'
 
 /** UC-C03 — view and search the company's listings with applicant counts. */
 export function CompanyListings({
   listings,
   applicants,
-  setListings
+  verification,
+  onCreate,
+  onSetStatus,
+  onDelete,
 }: {
   listings: CompanyListing[]
   applicants: CompanyApplicant[]
-  setListings?: (listings: CompanyListing[]) => void
+  verification: 'pending' | 'verified' | 'rejected'
+  onCreate: (input: NewListingInput) => Promise<void>
+  onSetStatus: (id: string, status: CompanyListing['status']) => Promise<void>
+  onDelete: (id: string) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [isPosting, setIsPosting] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [previewListing, setPreviewListing] = useState<CompanyListing | null>(null)
+
+  const run = (action: () => Promise<void>) => {
+    setActionError(null)
+    action().catch((err) => setActionError(err instanceof Error ? err.message : 'Action failed.'))
+  }
 
   const filtered = useMemo(
     () => listings.filter((l) => {
@@ -28,7 +41,7 @@ export function CompanyListings({
 
   const countFor = (listing: CompanyListing, status?: string) =>
     applicants.filter(
-      (a) => a.role === listing.title && (!status || a.status === status),
+      (a) => a.listingId === listing.id && (!status || a.status === status),
     ).length
 
   return (
@@ -42,6 +55,14 @@ export function CompanyListings({
           <Plus size={14} /> Post New Listing
         </button>
       </div>
+
+      {verification !== 'verified' && (
+        <p className="cp-notice rejected">
+          Your company is not yet verified by the NLO — new listings cannot be posted until
+          verification is approved.
+        </p>
+      )}
+      {actionError && <p className="cp-notice rejected">{actionError}</p>}
 
       <div className="cp-toolbar" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
         <div className="cp-search" style={{ flex: 1 }}>
@@ -117,11 +138,11 @@ export function CompanyListings({
                     type="button" 
                     onClick={() => {
                       if (l.status === 'Open') {
-                        setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Draft' } : listing))
+                        run(() => onSetStatus(l.id, 'Draft'))
                       } else {
                         setIsPosting(true)
                       }
-                    }} 
+                    }}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
@@ -132,7 +153,7 @@ export function CompanyListings({
                 {l.status === 'Closed' && (
                   <button 
                     type="button" 
-                    onClick={() => setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Open' } : listing))} 
+                    onClick={() => run(() => onSetStatus(l.id, 'Open'))}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -143,7 +164,7 @@ export function CompanyListings({
                 {l.status !== 'Closed' && (
                   <button 
                     type="button" 
-                    onClick={() => setListings?.(listings.map(listing => listing.id === l.id ? { ...listing, status: 'Closed' } : listing))} 
+                    onClick={() => run(() => onSetStatus(l.id, 'Closed'))}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: 'none', background: 'var(--brand-crimson)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
@@ -154,7 +175,7 @@ export function CompanyListings({
                 {l.status === 'Closed' && (
                   <button 
                     type="button" 
-                    onClick={() => setListings?.(listings.filter(listing => listing.id !== l.id))} 
+                    onClick={() => run(() => onDelete(l.id))}
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--brand-crimson)', padding: '6px 12px', fontSize: '13px', fontWeight: 500 }}
                   >
                     Delete
@@ -166,7 +187,7 @@ export function CompanyListings({
         )}
       </div>
 
-      {isPosting && <PostListingModal onClose={() => setIsPosting(false)} setListings={setListings} listings={listings} />}
+      {isPosting && <PostListingModal onClose={() => setIsPosting(false)} onCreate={onCreate} />}
       {previewListing && !isPosting && (
         <PreviewListingView
           listing={previewListing}
@@ -281,14 +302,16 @@ function newRequirementId(): string {
   return Math.random().toString(36).slice(2)
 }
 
-function PostListingModal({ onClose, setListings, listings }: { onClose: () => void; setListings?: (listings: CompanyListing[]) => void; listings?: CompanyListing[] }) {
+function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate: (input: NewListingInput) => Promise<void> }) {
   const [title, setTitle] = useState('')
   const [department, setDepartment] = useState('')
   const [slots, setSlots] = useState('1')
   const [deadline, setDeadline] = useState('')
   const [skills, setSkills] = useState('')
   const [description, setDescription] = useState('')
-  
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   const [publishImmediately, setPublishImmediately] = useState(true)
   // Lazy initializer keeps the impure id generation out of render.
   const [requirements, setRequirements] = useState<PreEmploymentRequirement[]>(() => [
@@ -310,30 +333,29 @@ function PostListingModal({ onClose, setListings, listings }: { onClose: () => v
     setRequirements(requirements.filter(req => req.id !== id))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Make sure we have setListings passed in
-    if (!setListings || !listings) {
-      console.error("setListings or listings is undefined")
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await onCreate({
+        title,
+        department,
+        slots: parseInt(slots) || 1,
+        deadline,
+        skills: skills.split(',').map(s => s.trim()).filter(Boolean),
+        description,
+        publish: publishImmediately,
+        requirements: requirements
+          .filter(r => r.name.trim() !== '')
+          .map(r => ({ name: r.name.trim(), type: r.type, isPrintable: r.isPrintable })),
+      })
       onClose()
-      return
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save the listing.')
+    } finally {
+      setSaving(false)
     }
-    
-    const newListing: CompanyListing = {
-      id: Math.max(...listings.map(l => l.id), 0) + 1,
-      title,
-      department,
-      slots: parseInt(slots) || 1,
-      deadline,
-      skills: skills.split(',').map(s => s.trim()).filter(Boolean),
-      description,
-      status: publishImmediately ? 'Open' : 'Draft',
-      requirements: requirements.filter(r => r.name.trim() !== '')
-    }
-    
-    setListings([...listings, newListing])
-    onClose()
   }
 
   return (
@@ -446,9 +468,10 @@ function PostListingModal({ onClose, setListings, listings }: { onClose: () => v
             </label>
           </div>
           
+          {saveError && <p className="cp-notice rejected" style={{ margin: 0 }}>{saveError}</p>}
           <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end', paddingTop: '16px' }}>
             <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontWeight: 500 }}>Discard</button>
-            <button type="submit" style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button type="submit" disabled={saving} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 600, cursor: saving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: saving ? 0.7 : 1 }}>
               {publishImmediately ? (
                 <>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>

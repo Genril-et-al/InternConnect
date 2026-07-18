@@ -2,16 +2,9 @@ import { Briefcase, CheckCircle2, Clock, Users } from 'lucide-react'
 import { MatchBar, StatusBadge } from './CompanyApplicants'
 import type { CompanyApplicant, CompanyListing } from './companyData'
 import { NotificationBell } from '../components/NotificationBell'
-import { useState } from 'react'
+import { useNotifications } from '../components/useNotifications'
 
 /** UC-C06 — recruitment activity at a glance. */
-let globalCompanyNotifications: {
-  id: string
-  message: string
-  date: string
-  read: boolean
-  navOffset: string
-}[] = []
 
 export function CompanyDashboard({
   listings,
@@ -29,22 +22,7 @@ export function CompanyDashboard({
     .filter((a) => a.status === 'Pending')
     .sort((a, b) => b.match - a.match)
 
-  const [notifications, setNotifications] = useState(
-    globalCompanyNotifications.map(n => ({
-      ...n,
-      onClick: () => onNavigate(n.navOffset)
-    }))
-  )
-
-  const handleMarkRead = (id: string) => {
-    globalCompanyNotifications = globalCompanyNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-  }
-
-  const handleMarkAllRead = () => {
-    globalCompanyNotifications = globalCompanyNotifications.map((n) => ({ ...n, read: true }))
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-  }
+  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications(onNavigate)
 
   return (
     <div className="cp-root">

@@ -15,6 +15,7 @@ import type {
   CompanyApplicant,
   CompanyListing,
 } from './companyData'
+import { signedDocumentUrl } from '../lib/profile'
 
 /**
  * UC-C04 / UC-C05 — review applications, open an applicant's profile
@@ -23,18 +24,20 @@ import type {
  */
 export function CompanyApplicants({
   applicants,
-  setApplicants,
   listings,
+  onSetStatus,
+  onReviewSubmission,
 }: {
   applicants: CompanyApplicant[]
-  setApplicants: React.Dispatch<React.SetStateAction<CompanyApplicant[]>>
   listings: CompanyListing[]
+  onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onReviewSubmission: (submissionId: string, approve: boolean) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
   const [listingFilter, setListingFilter] = useState('All listings')
   const [statusFilter, setStatusFilter] = useState<'All' | ApplicantStatus>('All')
   const [matchFilter, setMatchFilter] = useState('Any match %')
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const filtered = useMemo(() => {
     const minMatch = MATCH_FILTERS[matchFilter] ?? 0
@@ -53,13 +56,9 @@ export function CompanyApplicants({
     return (
       <ApplicantDetail
         applicant={selected}
-        listings={listings}
         onBack={() => setSelectedId(null)}
-        onUpdate={(patch) =>
-          setApplicants((prev) =>
-            prev.map((a) => (a.id === selected.id ? { ...a, ...patch } : a)),
-          )
-        }
+        onSetStatus={onSetStatus}
+        onReviewSubmission={onReviewSubmission}
       />
     )
   }
@@ -146,15 +145,21 @@ export function CompanyApplicants({
 function ApplicantDetail({
   applicant,
   onBack,
-  onUpdate,
-  listings
+  onSetStatus,
+  onReviewSubmission,
 }: {
   applicant: CompanyApplicant
   onBack: () => void
-  onUpdate: (patch: Partial<CompanyApplicant>) => void
-  listings?: CompanyListing[]
+  onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onReviewSubmission: (submissionId: string, approve: boolean) => Promise<void>
 }) {
   const [rejectOpen, setRejectOpen] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const run = (action: () => Promise<void>) => {
+    setActionError(null)
+    action().catch((err) => setActionError(err instanceof Error ? err.message : 'Action failed.'))
+  }
 
   return (
     <div className="cp-root">
@@ -179,19 +184,9 @@ function ApplicantDetail({
 
       <div className="cp-detail-actions" style={{ marginTop: 18 }}>
         {applicant.status !== 'Accepted' && (
-          <button 
-            className="cp-accept" 
-            onClick={() => {
-              // Find the corresponding listing to get its requirements
-              const listing = listings?.find(l => l.title === applicant.role);
-              const submittedRequirements = listing?.requirements?.map(r => ({
-                id: r.id,
-                name: r.name,
-                status: 'Pending' as const
-              })) || [];
-              
-              onUpdate({ status: 'Accepted', submittedRequirements });
-            }} 
+          <button
+            className="cp-accept"
+            onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
             type="button"
           >
             <CheckCircle2 size={13} /> Accept
@@ -205,13 +200,14 @@ function ApplicantDetail({
         {applicant.status === 'Pending' && (
           <button
             className="cp-secondary"
-            onClick={() => onUpdate({ status: 'Reviewed' })}
+            onClick={() => run(() => onSetStatus(applicant.id, 'Reviewed'))}
             type="button"
           >
             <Eye size={13} /> Mark reviewed
           </button>
         )}
       </div>
+      {actionError && <p className="cp-notice rejected" style={{ marginTop: 12 }}>{actionError}</p>}
     </section>
 
     {applicant.status === 'Rejected' && applicant.feedback && (
@@ -227,7 +223,7 @@ function ApplicantDetail({
           <p className="cp-muted">No requirements were set for this listing.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {applicant.submittedRequirements.map((req, idx) => (
+            {applicant.submittedRequirements.map((req) => (
               <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                 <div>
                   <p style={{ margin: '0 0 4px 0', fontWeight: 500, fontSize: '14px', color: 'var(--text)' }}>{req.name}</p>
@@ -239,8 +235,8 @@ function ApplicantDetail({
                     }}>
                       {req.status}
                     </span>
-                    {req.status === 'Pending' && (
-                      <button type="button" onClick={() => downloadDemoFile(req.name, applicant.name)} style={{ background: 'transparent', border: 'none', color: 'var(--brand-orange)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {req.fileUrl && (
+                      <button type="button" onClick={() => openDocument(req.fileUrl!)} style={{ background: 'transparent', border: 'none', color: 'var(--brand-orange)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Download size={12} /> View Submission
                       </button>
                     )}
@@ -248,31 +244,29 @@ function ApplicantDetail({
                 </div>
                 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {req.status !== 'Approved' && (
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        const newReqs = [...applicant.submittedRequirements!];
-                        newReqs[idx] = { ...newReqs[idx], status: 'Approved' };
-                        onUpdate({ submittedRequirements: newReqs });
-                      }}
-                      style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
-                    >
-                      Approve
-                    </button>
-                  )}
-                  {req.status !== 'Needs Revision' && (
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        const newReqs = [...applicant.submittedRequirements!];
-                        newReqs[idx] = { ...newReqs[idx], status: 'Needs Revision' };
-                        onUpdate({ submittedRequirements: newReqs });
-                      }}
-                      style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
-                    >
-                      Needs Revision
-                    </button>
+                  {req.submissionId ? (
+                    <>
+                      {req.status !== 'Approved' && (
+                        <button
+                          type="button"
+                          onClick={() => run(() => onReviewSubmission(req.submissionId!, true))}
+                          style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
+                        >
+                          Approve
+                        </button>
+                      )}
+                      {req.status !== 'Needs Revision' && (
+                        <button
+                          type="button"
+                          onClick={() => run(() => onReviewSubmission(req.submissionId!, false))}
+                          style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
+                        >
+                          Needs Revision
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <span className="cp-muted" style={{ fontSize: '12px' }}>Awaiting submission</span>
                   )}
                 </div>
               </div>
@@ -307,13 +301,17 @@ function ApplicantDetail({
         {/* Resume + portfolio (UC-C04: company must see these) */}
         <section className="cp-card">
           <p className="cp-section-label">Resume / CV</p>
-          <div className="cp-doc">
-            <FileText size={14} />
-            <span className="cp-doc-name">{applicant.resume}</span>
-            <button onClick={() => downloadDemoFile(applicant.resume, applicant.name)} type="button">
-              <Download size={12} /> Download
-            </button>
-          </div>
+          {applicant.resume ? (
+            <div className="cp-doc">
+              <FileText size={14} />
+              <span className="cp-doc-name">{baseName(applicant.resume)}</span>
+              <button onClick={() => openDocument(applicant.resume)} type="button">
+                <Download size={12} /> View
+              </button>
+            </div>
+          ) : (
+            <p className="cp-muted">No resume uploaded.</p>
+          )}
 
           <p className="cp-section-label" style={{ marginTop: 16 }}>
             Portfolio
@@ -330,12 +328,12 @@ function ApplicantDetail({
           {applicant.portfolioFile && (
             <div className="cp-doc">
               <FileText size={14} />
-              <span className="cp-doc-name">{applicant.portfolioFile}</span>
+              <span className="cp-doc-name">{baseName(applicant.portfolioFile)}</span>
               <button
-                onClick={() => downloadDemoFile(applicant.portfolioFile!, applicant.name)}
+                onClick={() => openDocument(applicant.portfolioFile!)}
                 type="button"
               >
-                <Download size={12} /> Download
+                <Download size={12} /> View
               </button>
             </div>
           )}
@@ -355,7 +353,7 @@ function ApplicantDetail({
           name={applicant.name}
           onClose={() => setRejectOpen(false)}
           onSubmit={(feedback) => {
-            onUpdate({ status: 'Rejected', feedback })
+            run(() => onSetStatus(applicant.id, 'Rejected', feedback))
             setRejectOpen(false)
           }}
         />
@@ -465,16 +463,13 @@ function initials(name: string): string {
     .toUpperCase()
 }
 
-/** Demo download — real files come from Supabase Storage later. */
-function downloadDemoFile(filename: string, applicant: string) {
-  const blob = new Blob(
-    [`Demo file placeholder\n\nFile: ${filename}\nApplicant: ${applicant}\n\nReal documents are served from Supabase Storage once connected.`],
-    { type: 'text/plain;charset=utf-8' },
-  )
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+function baseName(path: string): string {
+  return path.split('/').pop() || path
+}
+
+/** Open a private document from the documents bucket via a signed URL. */
+function openDocument(path: string) {
+  signedDocumentUrl(path)
+    .then((url) => window.open(url, '_blank', 'noopener'))
+    .catch(() => window.alert('Could not open the document. Please try again.'))
 }
