@@ -70,10 +70,10 @@ export function ProfileSetup({
   } | null>(
     profile?.resume_status === 'no_skills_found'
       ? {
-          fileName: 'your current resume',
-          message: NO_SKILLS_MESSAGE,
-          suggestion: profile?.resume_ai_suggestion ?? null,
-        }
+        fileName: 'your current resume',
+        message: NO_SKILLS_MESSAGE,
+        suggestion: profile?.resume_ai_suggestion ?? null,
+      }
       : null,
   )
 
@@ -216,233 +216,233 @@ export function ProfileSetup({
   }
 
   const formCard = (
-      <form className={`profile-card${isEdit ? ' embedded' : ''}`} onSubmit={handleSubmit}>
-        <div className="profile-head">
-          <h1>{isEdit ? 'My Profile' : 'Set up your profile'}</h1>
-          <p>
-            {isEdit
-              ? 'Keep your skills, documents, and portfolio up to date — changes feed the AI matching system.'
-              : 'Complete your profile so companies and the AI matching system can see your qualifications.'}
-          </p>
-        </div>
+    <form className={`profile-card${isEdit ? ' embedded' : ''}`} onSubmit={handleSubmit}>
+      <div className="profile-head">
+        <h1>{isEdit ? 'My Profile' : 'Set up your profile'}</h1>
+        <p>
+          {isEdit
+            ? 'Keep your skills, documents, and portfolio up to date — changes feed the AI matching system.'
+            : 'Complete your profile so companies and the AI matching system can see your qualifications.'}
+        </p>
+      </div>
 
-        {!isSupabaseConfigured && (
-          <p className="profile-info">
-            Demo preview — Supabase isn't connected, so uploads and saving won't
-            persist yet.
+      {!isSupabaseConfigured && (
+        <p className="profile-info">
+          Demo preview — Supabase isn't connected, so uploads and saving won't
+          persist yet.
+        </p>
+      )}
+
+      {/* Read-only name (from registration / database) */}
+      <section className="profile-section">
+        <div className="profile-section-head">
+          <h2>Name</h2>
+          <span className="profile-locked">Locked · from your account</span>
+        </div>
+        <div className="profile-name-grid">
+          <label>
+            First name
+            <input readOnly value={first} />
+          </label>
+          <label>
+            M.I.
+            <input readOnly value={mi} />
+          </label>
+          <label>
+            Last name
+            <input readOnly value={last} />
+          </label>
+          <label>
+            Suffix
+            <input readOnly value={suffix} />
+          </label>
+        </div>
+      </section>
+
+      {/* Personal details — filled here, not during sign-up */}
+      <section className="profile-section">
+        <div className="profile-section-head">
+          <h2>Personal information</h2>
+          <span className="profile-optional">Optional · editable anytime</span>
+        </div>
+        <div className="profile-personal-grid">
+          <label>
+            Age
+            <input
+              inputMode="numeric"
+              min={0}
+              onChange={(e) => setAge(e.target.value)}
+              type="number"
+              value={age}
+            />
+          </label>
+          <label>
+            Gender
+            <input
+              onChange={(e) => setGender(e.target.value)}
+              placeholder="e.g. Male, Female, Non-binary"
+              value={gender}
+            />
+          </label>
+          <label className="profile-field-span">
+            Address
+            <input
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Street, City, Province"
+              value={address}
+            />
+          </label>
+          <label>
+            Personal email address
+            <input
+              onChange={(e) => setPersonalEmail(e.target.value)}
+              placeholder="you@example.com"
+              type="email"
+              value={personalEmail}
+            />
+          </label>
+          <label>
+            Contact number
+            <input
+              onChange={(e) => setContactNumber(e.target.value)}
+              placeholder="09XX XXX XXXX"
+              type="tel"
+              value={contactNumber}
+            />
+          </label>
+        </div>
+      </section>
+
+      {/* Photo — required */}
+      <section className="profile-section">
+        <div className="profile-section-head">
+          <h2>Formal photo</h2>
+          <span className="profile-required">Required</span>
+        </div>
+        <div className="profile-photo-row">
+          <span className="profile-avatar">
+            {photoPreview ? (
+              <img alt="Profile preview" src={photoPreview} />
+            ) : (
+              initials
+            )}
+          </span>
+          <label className="profile-upload">
+            <input
+              accept="image/*"
+              hidden
+              onChange={(e) => handlePhoto(e.target.files?.[0] ?? null)}
+              type="file"
+            />
+            {photo ? 'Change photo' : 'Upload photo'}
+          </label>
+          {photo && <span className="profile-filename">{photo.name}</span>}
+        </div>
+      </section>
+
+      {/* Skills — optional */}
+      <section className="profile-section">
+        <div className="profile-section-head">
+          <h2>Skills</h2>
+          <span className="profile-optional">Optional</span>
+        </div>
+        <TagInput
+          onChange={setSkills}
+          placeholder="Type a skill and press Enter (e.g. React, SQL, Figma)"
+          tags={skills}
+        />
+      </section>
+
+      {/* Specializations — optional */}
+      <section className="profile-section">
+        <div className="profile-section-head">
+          <h2>Specializations</h2>
+          <span className="profile-optional">Optional</span>
+        </div>
+        <TagInput
+          onChange={setSpecializations}
+          placeholder="e.g. Marketing, Frontend, Backend, Software Dev"
+          tags={specializations}
+        />
+      </section>
+
+      {/* Resume — upload */}
+      <section className="profile-section">
+        <div className="profile-section-head">
+          <h2>Resume / CV</h2>
+          <span className="profile-optional">PDF or DOCX</span>
+        </div>
+        <label className="profile-upload block">
+          <input
+            accept=".pdf,.doc,.docx"
+            hidden
+            onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+            type="file"
+          />
+          {resume
+            ? resume.name
+            : resumeRejected
+              ? 'Upload a new resume'
+              : 'Upload resume'}
+        </label>
+        {!resume && resumeRejected && (
+          <p className="profile-resume-rejected" role="alert">
+            <strong>{resumeRejected.message}</strong>{' '}
+            The resume you submitted ({resumeRejected.fileName}) could not be
+            matched — please upload a new one.
+            {resumeRejected.suggestion && (
+              <>
+                {' '}
+                <em>Recommendation: {resumeRejected.suggestion}</em>
+              </>
+            )}
           </p>
         )}
+        <p className="profile-info">
+          Your resume is read by our AI (in the cloud) to auto-fill your
+          skills and specializations for matching.
+        </p>
+      </section>
 
-        {/* Read-only name (from registration / database) */}
-        <section className="profile-section">
-          <div className="profile-section-head">
-            <h2>Name</h2>
-            <span className="profile-locked">Locked · from your account</span>
-          </div>
-          <div className="profile-name-grid">
-            <label>
-              First name
-              <input readOnly value={first} />
-            </label>
-            <label>
-              M.I.
-              <input readOnly value={mi} />
-            </label>
-            <label>
-              Last name
-              <input readOnly value={last} />
-            </label>
-            <label>
-              Suffix
-              <input readOnly value={suffix} />
-            </label>
-          </div>
-        </section>
-
-        {/* Personal details — filled here, not during sign-up */}
-        <section className="profile-section">
-          <div className="profile-section-head">
-            <h2>Personal information</h2>
-            <span className="profile-optional">Optional · editable anytime</span>
-          </div>
-          <div className="profile-personal-grid">
-            <label>
-              Age
-              <input
-                inputMode="numeric"
-                min={0}
-                onChange={(e) => setAge(e.target.value)}
-                type="number"
-                value={age}
-              />
-            </label>
-            <label>
-              Gender
-              <input
-                onChange={(e) => setGender(e.target.value)}
-                placeholder="e.g. Male, Female, Non-binary"
-                value={gender}
-              />
-            </label>
-            <label className="profile-field-span">
-              Address
-              <input
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Street, City, Province"
-                value={address}
-              />
-            </label>
-            <label>
-              Personal email address
-              <input
-                onChange={(e) => setPersonalEmail(e.target.value)}
-                placeholder="you@example.com"
-                type="email"
-                value={personalEmail}
-              />
-            </label>
-            <label>
-              Contact number
-              <input
-                onChange={(e) => setContactNumber(e.target.value)}
-                placeholder="09XX XXX XXXX"
-                type="tel"
-                value={contactNumber}
-              />
-            </label>
-          </div>
-        </section>
-
-        {/* Photo — required */}
-        <section className="profile-section">
-          <div className="profile-section-head">
-            <h2>Formal photo</h2>
-            <span className="profile-required">Required</span>
-          </div>
-          <div className="profile-photo-row">
-            <span className="profile-avatar">
-              {photoPreview ? (
-                <img alt="Profile preview" src={photoPreview} />
-              ) : (
-                initials
-              )}
-            </span>
-            <label className="profile-upload">
-              <input
-                accept="image/*"
-                hidden
-                onChange={(e) => handlePhoto(e.target.files?.[0] ?? null)}
-                type="file"
-              />
-              {photo ? 'Change photo' : 'Upload photo'}
-            </label>
-            {photo && <span className="profile-filename">{photo.name}</span>}
-          </div>
-        </section>
-
-        {/* Skills — optional */}
-        <section className="profile-section">
-          <div className="profile-section-head">
-            <h2>Skills</h2>
-            <span className="profile-optional">Optional</span>
-          </div>
-          <TagInput
-            onChange={setSkills}
-            placeholder="Type a skill and press Enter (e.g. React, SQL, Figma)"
-            tags={skills}
+      {/* Portfolio — link OR file */}
+      <section className="profile-section">
+        <div className="profile-section-head">
+          <h2>Portfolio</h2>
+          <span className="profile-optional">Link or file</span>
+        </div>
+        <label className="profile-field-label">
+          Portfolio link
+          <input
+            onChange={(e) => setPortfolioLink(e.target.value)}
+            placeholder="https://your-portfolio.com"
+            type="url"
+            value={portfolioLink}
           />
-        </section>
-
-        {/* Specializations — optional */}
-        <section className="profile-section">
-          <div className="profile-section-head">
-            <h2>Specializations</h2>
-            <span className="profile-optional">Optional</span>
-          </div>
-          <TagInput
-            onChange={setSpecializations}
-            placeholder="e.g. Marketing, Frontend, Backend, Software Dev"
-            tags={specializations}
+        </label>
+        <div className="profile-or">or</div>
+        <label className="profile-upload block">
+          <input
+            accept=".pdf,.zip,.doc,.docx"
+            hidden
+            onChange={(e) => setPortfolioFile(e.target.files?.[0] ?? null)}
+            type="file"
           />
-        </section>
+          {portfolioFile ? portfolioFile.name : 'Upload portfolio file'}
+        </label>
+      </section>
 
-        {/* Resume — upload */}
-        <section className="profile-section">
-          <div className="profile-section-head">
-            <h2>Resume / CV</h2>
-            <span className="profile-optional">PDF or DOCX</span>
-          </div>
-          <label className="profile-upload block">
-            <input
-              accept=".pdf,.doc,.docx"
-              hidden
-              onChange={(e) => setResume(e.target.files?.[0] ?? null)}
-              type="file"
-            />
-            {resume
-              ? resume.name
-              : resumeRejected
-                ? 'Upload a new resume'
-                : 'Upload resume'}
-          </label>
-          {!resume && resumeRejected && (
-            <p className="profile-resume-rejected" role="alert">
-              <strong>{resumeRejected.message}</strong>{' '}
-              The resume you submitted ({resumeRejected.fileName}) could not be
-              matched — please upload a new one.
-              {resumeRejected.suggestion && (
-                <>
-                  {' '}
-                  <em>Recommendation: {resumeRejected.suggestion}</em>
-                </>
-              )}
-            </p>
-          )}
-          <p className="profile-info">
-            Your resume is read by our AI (in the cloud) to auto-fill your
-            skills and specializations for matching.
-          </p>
-        </section>
+      {error && <p className="profile-error">{error}</p>}
 
-        {/* Portfolio — link OR file */}
-        <section className="profile-section">
-          <div className="profile-section-head">
-            <h2>Portfolio</h2>
-            <span className="profile-optional">Link or file</span>
-          </div>
-          <label className="profile-field-label">
-            Portfolio link
-            <input
-              onChange={(e) => setPortfolioLink(e.target.value)}
-              placeholder="https://your-portfolio.com"
-              type="url"
-              value={portfolioLink}
-            />
-          </label>
-          <div className="profile-or">or</div>
-          <label className="profile-upload block">
-            <input
-              accept=".pdf,.zip,.doc,.docx"
-              hidden
-              onChange={(e) => setPortfolioFile(e.target.files?.[0] ?? null)}
-              type="file"
-            />
-            {portfolioFile ? portfolioFile.name : 'Upload portfolio file'}
-          </label>
-        </section>
-
-        {error && <p className="profile-error">{error}</p>}
-
-        <button className="profile-submit" disabled={busy} type="submit">
-          {analyzing
-            ? 'Analyzing your resume…'
-            : busy
-              ? 'Saving…'
-              : isEdit
-                ? 'Save changes'
-                : 'Save and continue'}
-        </button>
-      </form>
+      <button className="profile-submit" disabled={busy} type="submit">
+        {analyzing
+          ? 'Analyzing your resume…'
+          : busy
+            ? 'Saving…'
+            : isEdit
+              ? 'Save changes'
+              : 'Save and continue'}
+      </button>
+    </form>
   )
 
   // Edit mode renders inside the workspace; setup mode is a full page.
@@ -452,7 +452,7 @@ export function ProfileSetup({
     <div className="profile-page">
       <header className="profile-topbar">
         <div className="profile-brand">
-          <span className="profile-logo">IC</span>
+          <img className="profile-logo" src="/logo.png" alt="InternConnect" />
           <span className="profile-brand-name">InternConnect</span>
         </div>
         <SignOutButton className="profile-signout">

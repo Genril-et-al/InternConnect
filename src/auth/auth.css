@@ -41,16 +41,13 @@
 }
 
 .auth-logo {
-  align-items: center;
-  background: var(--brand-orange);
   border-radius: 12px;
-  color: #ffffff;
-  display: flex;
-  font-family: var(--font-display);
-  font-weight: 700;
-  height: 44px;
-  justify-content: center;
-  width: 44px;
+  display: block;
+  flex-shrink: 0;
+  height: 68px;
+  object-fit: contain;
+  width: 68px;
+  filter: drop-shadow(1px 1px 0 white) drop-shadow(-1px -1px 0 white) drop-shadow(1px -1px 0 white) drop-shadow(-1px 1px 0 white);
 }
 
 .auth-brand-name {
@@ -420,6 +417,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -443,15 +441,17 @@
 
 /* Gently pulse the status text so it reads as "in progress". Scoped to the
    spinner's sibling so the (non-loading) deactivated message never pulses. */
-.ic-spinner ~ p {
+.ic-spinner~p {
   animation: ic-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes ic-pulse {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.55;
   }
@@ -461,7 +461,8 @@
   .ic-spinner {
     animation-duration: 2.4s;
   }
-  .ic-spinner ~ p {
+
+  .ic-spinner~p {
     animation: none;
   }
 }
@@ -484,6 +485,7 @@
   .auth-shell {
     grid-template-columns: 1fr;
   }
+
   .auth-hero {
     /* Stacked layout: let the panel size to its content instead of pinning a
        full screen of red above the form. */
@@ -491,6 +493,7 @@
     height: auto;
     padding: 40px 32px;
   }
+
   .auth-hero h1 {
     font-size: 30px;
   }
@@ -500,14 +503,20 @@
   .auth-name-grid {
     grid-template-columns: 1fr 60px;
   }
+
   .auth-name-grid label:nth-child(3),
   .auth-name-grid label:nth-child(4) {
     grid-column: 1 / -1;
   }
+
   .auth-details-grid {
     grid-template-columns: 1fr;
   }
+<<<<<<< Updated upstream
   .auth-role-choices {
     grid-template-columns: 1fr;
   }
 }
+=======
+}
+>>>>>>> Stashed changes

@@ -685,13 +685,25 @@ button.primary {
 }
 
 @keyframes modal-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes modal-slide-up {
-  from { opacity: 0; transform: translateY(16px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .modal-panel {
@@ -1189,6 +1201,7 @@ label {
   margin: 0 auto;
   max-width: 1040px;
 }
+
 .applications-header h2 {
   color: var(--brand-dark-red);
   font-family: var(--font-display);
@@ -1196,15 +1209,18 @@ label {
   font-weight: 800;
   margin: 0;
 }
+
 .applications-subtitle {
   color: var(--text-muted);
   margin-top: 4px;
 }
+
 .applications-filters {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
+
 .app-filter-pill {
   background: transparent;
   border: 1px solid var(--border);
@@ -1219,20 +1235,24 @@ label {
     background var(--dur-1) var(--ease-out),
     color var(--dur-1) var(--ease-out);
 }
+
 .app-filter-pill:hover {
   border-color: var(--brand-orange);
   color: var(--brand-orange);
 }
+
 .app-filter-pill.active {
   background: var(--brand-orange);
   border-color: var(--brand-orange);
   color: white;
 }
+
 .application-strips {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
+
 .application-strip {
   align-items: center;
   background: white;
@@ -1247,10 +1267,12 @@ label {
     box-shadow var(--dur-2) var(--ease-out),
     transform var(--dur-2) var(--ease-out);
 }
+
 .application-strip:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
+
 .strip-edit-btn {
   align-items: center;
   background: transparent;
@@ -1268,6 +1290,7 @@ label {
     border-color var(--dur-1) var(--ease-out),
     color var(--dur-1) var(--ease-out);
 }
+
 .strip-edit-btn:hover {
   background: var(--surface-strong);
 }
@@ -1281,42 +1304,53 @@ label {
   flex-direction: column;
   gap: 16px;
 }
-.progress-header-card, .progress-stepper-card, .progress-reqs-card {
+
+.progress-header-card,
+.progress-stepper-card,
+.progress-reqs-card {
   background: white;
   border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 24px;
 }
+
 .progress-header-card {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
 }
+
 .progress-header-main h2 {
   font-size: 20px;
   font-weight: 800;
   margin: 0;
 }
+
 .progress-header-main p {
   color: var(--text-strong);
   margin: 4px 0 12px;
 }
+
 .progress-header-meta {
   display: flex;
   gap: 16px;
   color: var(--text-muted);
   font-size: 13px;
 }
-.progress-stepper-card h3, .progress-reqs-header h3 {
+
+.progress-stepper-card h3,
+.progress-reqs-header h3 {
   font-size: 15px;
   font-weight: 700;
   margin: 0 0 24px;
 }
+
 .progress-stepper {
   display: flex;
   justify-content: space-between;
   position: relative;
 }
+
 .progress-stepper::before {
   content: '';
   position: absolute;
@@ -1327,6 +1361,7 @@ label {
   background: var(--border-light);
   z-index: 1;
 }
+
 .stepper-item {
   display: flex;
   flex-direction: column;
@@ -1337,6 +1372,7 @@ label {
   width: 100px;
   text-align: center;
 }
+
 .stepper-circle {
   background: white;
   border-radius: 50%;
@@ -1350,30 +1386,37 @@ label {
   font-size: 12px;
   font-weight: 700;
 }
+
 .stepper-item.done .stepper-circle {
   background: white;
   border-color: transparent;
   color: var(--green);
 }
+
 .stepper-item.active .stepper-circle {
   border-color: var(--brand-orange-soft);
   border-width: 4px;
 }
+
 .stepper-item.active .dot {
   width: 12px;
   height: 12px;
   background: var(--brand-orange);
   border-radius: 50%;
 }
+
 .stepper-label {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
   line-height: 1.3;
 }
-.stepper-item.done .stepper-label, .stepper-item.active .stepper-label {
+
+.stepper-item.done .stepper-label,
+.stepper-item.active .stepper-label {
   color: var(--brand-orange);
 }
+
 .stepper-item.done .stepper-label {
   color: var(--text-strong);
 }
@@ -1383,10 +1426,12 @@ label {
   justify-content: space-between;
   align-items: flex-end;
 }
+
 .progress-reqs-header p {
   margin: 4px 0 0;
   font-size: 13px;
 }
+
 .progress-pct {
   color: var(--brand-orange);
   font-size: 24px;
@@ -1394,6 +1439,7 @@ label {
 }
 
 @media (max-width: 1100px) {
+
   .content-grid,
   .card-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1407,6 +1453,7 @@ label {
     flex-direction: column;
     gap: 16px;
   }
+
   .strip-right {
     align-self: flex-start;
   }
@@ -1429,6 +1476,7 @@ label {
 }
 
 @media (max-width: 720px) {
+
   .workspace,
   .sidebar {
     padding: 18px;
@@ -1501,24 +1549,29 @@ label {
   .progress-modal {
     padding: 16px !important;
   }
+
   .progress-header-card,
   .progress-stepper-card,
   .progress-reqs-card {
     padding: 16px;
   }
+
   .progress-header-card {
     flex-direction: column;
     gap: 12px;
   }
+
   .progress-stepper::before {
     left: 16px;
     right: 16px;
   }
+
   .stepper-item {
     width: auto;
     flex: 1;
     min-width: 0;
   }
+
   .stepper-label {
     font-size: 10px;
   }
@@ -1573,7 +1626,7 @@ label {
   background: white;
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   z-index: 100;
   overflow: hidden;
   display: flex;
@@ -1640,6 +1693,21 @@ label {
 
 .nb-item.unread {
   background: #fffcfb;
+}
+
+.nb-item-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.nb-unread-dot {
+  background: var(--brand-dark-red);
+  border-radius: 50%;
+  flex-shrink: 0;
+  height: 8px;
+  margin-top: 5px;
+  width: 8px;
 }
 
 .nb-item.unread .nb-message {

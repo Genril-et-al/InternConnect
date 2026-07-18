@@ -112,7 +112,7 @@ function App() {
     <main className={`app-shell${collapsed ? ' sb-collapsed' : ''}`}>
       <aside className="ad-sidebar" aria-label="Main navigation">
         <div className="ad-brand">
-          <span className="ad-logo">IC</span>
+          <img className="ad-logo" src="/logo.png" alt="InternConnect" />
           <div className="ad-brand-text">
             <div className="ad-brand-name">InternConnect</div>
             <div className="ad-brand-sub">{portalLabel}</div>
