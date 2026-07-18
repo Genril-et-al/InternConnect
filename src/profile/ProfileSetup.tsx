@@ -11,7 +11,7 @@ import { formatMiddleInitial } from '../lib/name'
 import { useAuth } from '../auth/context'
 import { SignOutButton } from '../components/SignOutButton'
 import { TagInput } from './TagInput'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2, X } from 'lucide-react'
 import './profile.css'
 
 /** Case-insensitive union of manually typed and AI-extracted tags. */
@@ -52,12 +52,13 @@ export function ProfileSetup({
   )
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(profile?.photo_url ?? null)
+  const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [resume, setResume] = useState<File | null>(null)
   const [portfolioLink, setPortfolioLink] = useState(profile?.portfolio_link ?? '')
   const [portfolioFile, setPortfolioFile] = useState<File | null>(null)
   // Personal details — filled here on the profile (not during sign-up).
   const [age, setAge] = useState(profile?.age != null ? String(profile.age) : '')
-  const [gender, setGender] = useState(profile?.gender ?? '')
+  const [sex, setSex] = useState(profile?.gender ?? '')
   const [address, setAddress] = useState(profile?.address ?? '')
   const [personalEmail, setPersonalEmail] = useState(profile?.personal_email ?? '')
   const [contactNumber, setContactNumber] = useState(profile?.contact_number ?? '')
@@ -151,8 +152,8 @@ export function ProfileSetup({
         resume_url: resume ? resume.name : profile?.resume_url ?? null,
         portfolio_link: portfolioLink.trim() || null,
         portfolio_file_url: portfolioFile ? portfolioFile.name : profile?.portfolio_file_url ?? null,
-        age: age.trim() ? Number(age) : null,
-        gender: gender.trim() || null,
+        age: Number.parseInt(age, 10) || null,
+        gender: sex.trim() || null,
         address: address.trim() || null,
         personal_email: personalEmail.trim() || null,
         contact_number: contactNumber.trim() || null,
@@ -234,7 +235,7 @@ export function ProfileSetup({
         portfolioLink: portfolioLink.trim() || null,
         portfolioFilePath,
         age: age.trim() ? Number(age) : null,
-        gender: gender.trim() || null,
+        gender: sex.trim() || null,
         address: address.trim() || null,
         personalEmail: personalEmail.trim() || null,
         contactNumber: contactNumber.trim() || null,
@@ -249,7 +250,26 @@ export function ProfileSetup({
   }
 
   const formCard = (
-    <form className={`profile-card${isEdit ? ' embedded' : ''}`} onSubmit={handleSubmit}>
+    <>
+      {showPhotoModal && photoPreview && (
+        <div 
+          className="photo-modal-overlay"
+          onClick={() => setShowPhotoModal(false)}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <button 
+              onClick={() => setShowPhotoModal(false)}
+              style={{ position: 'absolute', top: '-40px', right: 0, background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}
+              type="button"
+            >
+              <X size={32} />
+            </button>
+            <img src={photoPreview} alt="Profile" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }} />
+          </div>
+        </div>
+      )}
+      <form className={`profile-card${isEdit ? ' embedded' : ''}`} onSubmit={handleSubmit}>
       <div className="profile-head">
         <h1>{isEdit ? 'My Profile' : 'Set up your profile'}</h1>
         <p>
@@ -276,22 +296,36 @@ export function ProfileSetup({
           Upload a recent 2×2 ID photo with a white background and a formal, front-facing pose.
         </p>
         <div className="profile-photo-row">
-          <span className="profile-avatar">
-            {photoPreview ? (
-              <img alt="Profile preview" src={photoPreview} />
-            ) : (
-              initials
-            )}
-          </span>
-          <label className="profile-upload">
-            <input
-              accept="image/*"
-              hidden
-              onChange={(e) => handlePhoto(e.target.files?.[0] ?? null)}
-              type="file"
-            />
-            {photo ? 'Change photo' : 'Upload photo'}
-          </label>
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <span 
+              className="profile-avatar" 
+              onClick={() => { if (photoPreview) setShowPhotoModal(true) }}
+              style={{ cursor: photoPreview ? 'pointer' : 'default' }}
+            >
+              {photoPreview ? (
+                <img alt="Profile preview" src={photoPreview} />
+              ) : (
+                initials
+              )}
+            </span>
+            <label 
+              style={{ 
+                position: 'absolute', bottom: '0px', right: '-8px', background: 'var(--brand-orange)', 
+                color: 'white', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', 
+                alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid white',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+              title="Edit photo"
+            >
+              <Pencil size={14} />
+              <input
+                accept="image/*"
+                hidden
+                onChange={(e) => handlePhoto(e.target.files?.[0] ?? null)}
+                type="file"
+              />
+            </label>
+          </div>
           {photoPreview && (
             <button
               className="profile-delete-btn"
@@ -350,12 +384,17 @@ export function ProfileSetup({
             />
           </label>
           <label>
-            Gender
-            <input
-              onChange={(e) => setGender(e.target.value)}
-              placeholder="e.g. Male, Female, Non-binary"
-              value={gender}
-            />
+            Sex
+            <select
+              onChange={(e) => setSex(e.target.value)}
+              required
+              value={sex}
+            >
+              <option value="" disabled>Select...</option>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Prefer not to say">Prefer not to say</option>
+            </select>
           </label>
           <label className="profile-field-span">
             Address
@@ -543,6 +582,7 @@ export function ProfileSetup({
               : 'Save and continue'}
       </button>
     </form>
+    </>
   )
 
   // Edit mode renders inside the workspace; setup mode is a full page.

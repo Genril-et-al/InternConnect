@@ -312,7 +312,12 @@ function SignupFlow({
         )
         return
       }
-      await requestSignupCode(email, { firstName, middleInitial, lastName, suffix })
+      await requestSignupCode(email, { 
+        firstName: accountType === 'company' ? '' : firstName, 
+        middleInitial: accountType === 'company' ? '' : middleInitial, 
+        lastName: accountType === 'company' ? '' : lastName, 
+        suffix: accountType === 'company' ? '' : suffix 
+      })
       setAttempts(0)
       setInfo(`We sent a 6-digit code to ${email}. It expires in 5 minutes.`)
       setStep('verify')
@@ -349,7 +354,12 @@ function SignupFlow({
     setInfo('')
     setBusy(true)
     try {
-      await requestSignupCode(email, { firstName, middleInitial, lastName, suffix })
+      await requestSignupCode(email, { 
+        firstName: accountType === 'company' ? '' : firstName, 
+        middleInitial: accountType === 'company' ? '' : middleInitial, 
+        lastName: accountType === 'company' ? '' : lastName, 
+        suffix: accountType === 'company' ? '' : suffix 
+      })
       setAttempts(0)
       setCode('')
       setInfo('A new code has been sent.')
@@ -497,43 +507,45 @@ function SignupFlow({
         Step 2 of 4 · Your details ·{' '}
         {accountType === 'company' ? 'Company account' : 'Student account'}
       </p>
-      <div className="auth-name-grid">
-        <label>
-          First name
-          <input
-            onChange={(e) => setFirstName(e.target.value)}
-            placeholder="Genril"
-            required
-            value={firstName}
-          />
-        </label>
-        <label>
-          M.I.
-          <input
-            maxLength={4}
-            onChange={(e) => setMiddleInitial(e.target.value)}
-            placeholder="T"
-            value={middleInitial}
-          />
-        </label>
-        <label>
-          Last name
-          <input
-            onChange={(e) => setLastName(e.target.value)}
-            placeholder="Sorono"
-            required
-            value={lastName}
-          />
-        </label>
-        <label>
-          Suffix
-          <input
-            onChange={(e) => setSuffix(e.target.value)}
-            placeholder="Jr., III, etc."
-            value={suffix}
-          />
-        </label>
-      </div>
+      {accountType !== 'company' && (
+        <div className="auth-name-grid">
+          <label>
+            First name
+            <input
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Genril"
+              required={accountType !== 'company'}
+              value={firstName}
+            />
+          </label>
+          <label>
+            M.I.
+            <input
+              maxLength={4}
+              onChange={(e) => setMiddleInitial(e.target.value)}
+              placeholder="T"
+              value={middleInitial}
+            />
+          </label>
+          <label>
+            Last name
+            <input
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Sorono"
+              required={accountType !== 'company'}
+              value={lastName}
+            />
+          </label>
+          <label>
+            Suffix
+            <input
+              onChange={(e) => setSuffix(e.target.value)}
+              placeholder="Jr., III, etc."
+              value={suffix}
+            />
+          </label>
+        </div>
+      )}
       <label>
         {accountType === 'company' ? 'Work email' : 'University email'}
         <input

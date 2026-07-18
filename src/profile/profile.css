@@ -53,9 +53,13 @@
 
 /* Embedded variant — rendered inside the workspace (student Profile tab) */
 .profile-card.embedded {
+  max-width: none;
   margin: 0;
-  max-width: 760px;
   width: 100%;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
 }
 
 /* Card */

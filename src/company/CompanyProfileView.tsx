@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle2, FileText, Upload } from 'lucide-react'
+import { CheckCircle2, FileText, Upload, Pencil, X } from 'lucide-react'
 import { TagInput } from '../profile/TagInput'
 
 /**
@@ -11,6 +11,7 @@ export function CompanyProfileView() {
   const [industry, setIndustry] = useState('Software')
   const [size, setSize] = useState('51-200')
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [description, setDescription] = useState(
     'A Cebu-based software studio building internal tools and dashboards for growing companies.',
   )
@@ -52,28 +53,61 @@ export function CompanyProfileView() {
         </p>
       )}
 
+      {showPhotoModal && logoPreview && (
+        <div 
+          className="photo-modal-overlay"
+          onClick={() => setShowPhotoModal(false)}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <button 
+              onClick={() => setShowPhotoModal(false)}
+              style={{ position: 'absolute', top: '-40px', right: 0, background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}
+              type="button"
+            >
+              <X size={32} />
+            </button>
+            <img src={logoPreview} alt="Company logo" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }} />
+          </div>
+        </div>
+      )}
+
       <section className="cp-card">
         <div className="cp-detail-head" style={{ marginBottom: 18 }}>
-          <span className="cp-detail-avatar" style={{ overflow: 'hidden' }}>
-            {logoPreview ? (
-              <img src={logoPreview} alt="Company logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              name.slice(0, 2).toUpperCase()
-            )}
-          </span>
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <span 
+              className="cp-detail-avatar" 
+              onClick={() => { if (logoPreview) setShowPhotoModal(true) }}
+              style={{ overflow: 'hidden', cursor: logoPreview ? 'pointer' : 'default' }}
+            >
+              {logoPreview ? (
+                <img src={logoPreview} alt="Company logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                name.slice(0, 2).toUpperCase()
+              )}
+            </span>
+            <label 
+              style={{ 
+                position: 'absolute', bottom: '0px', right: '-8px', background: 'var(--brand-orange)', 
+                color: 'white', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', 
+                alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid white',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+              title="Edit logo"
+            >
+              <Pencil size={14} />
+              <input 
+                hidden 
+                type="file" 
+                accept="image/*" 
+                onChange={(e) => handleLogo(e.target.files?.[0] ?? null)} 
+              />
+            </label>
+          </div>
           <div className="cp-detail-main">
             <h2 className="cp-detail-name">{name}</h2>
             <span className="cp-badge success">Verified</span>
           </div>
-          <label className="cp-secondary" style={{ display: 'inline-flex', cursor: 'pointer', alignItems: 'center', gap: '6px' }}>
-            <Upload size={12} /> Upload logo
-            <input 
-              hidden 
-              type="file" 
-              accept="image/*" 
-              onChange={(e) => handleLogo(e.target.files?.[0] ?? null)} 
-            />
-          </label>
         </div>
 
         <div className="cp-form-grid">
