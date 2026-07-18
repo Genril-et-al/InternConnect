@@ -1,21 +1,36 @@
 import { useMemo, useState } from 'react'
-import { Eye, UserCheck, UserX, Plus, Upload, X } from 'lucide-react'
+import { Eye, UserCheck, UserX, Plus, Upload, X, Trash2 } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
-import type { AdminCompany, AdminStudent } from './adminData'
+import type { AdminStudent } from './adminData'
+import {
+  addApprovedStudent,
+  addApprovedStudents,
+  addApprovedCompanies,
+  parseStudentsCsv,
+  parseCompaniesCsv,
+  splitName,
+} from './allowlist'
+import { removeApprovedStudent, setStudentActive } from './adminQueries'
 
-/** UC-A01 — Manage Student Accounts: search, activate, deactivate. */
+/** UC-A01 — Manage Student Accounts: roster, activate, deactivate. */
 export function AdminStudents({
   students,
-  setStudents,
+  loading,
+  loadError,
+  onRefresh,
 }: {
   students: AdminStudent[]
-  setStudents: React.Dispatch<React.SetStateAction<AdminStudent[]>>
+  loading: boolean
+  loadError: string | null
+  onRefresh: () => Promise<void>
 }) {
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminStudent | null>(null)
   const [deactivateTarget, setDeactivateTarget] = useState<AdminStudent | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const filtered = useMemo(
     () =>
@@ -27,46 +42,45 @@ export function AdminStudents({
     [students, search],
   )
 
-  // Reactivating clears the recorded reason; deactivating requires one, so it
-  // goes through the modal instead of toggling immediately.
-  const activate = (id: number) =>
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, status: 'active', deactivationReason: undefined, deactivatedAt: undefined }
-          : s,
-      ),
-    )
+  async function runAction(id: string, fn: () => Promise<void>) {
+    setBusyId(id)
+    setActionError(null)
+    try {
+      await fn()
+      await onRefresh()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Action failed.')
+    } finally {
+      setBusyId(null)
+    }
+  }
 
-  const deactivate = (id: number, reason: string) =>
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              status: 'inactive',
-              deactivationReason: reason,
-              deactivatedAt: new Date().toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              }),
-            }
-          : s,
-      ),
-    )
+  const activate = (s: AdminStudent) =>
+    s.profileId && runAction(s.id, () => setStudentActive(s.profileId!, true))
+
+  const remove = (s: AdminStudent) =>
+    runAction(s.id, () => removeApprovedStudent(s.email))
 
   const handleToggle = (s: AdminStudent) => {
     if (s.status === 'active') setDeactivateTarget(s)
-    else activate(s.id)
+    else if (s.status === 'inactive') activate(s)
   }
+
+  const statusBadge = (s: AdminStudent) =>
+    s.status === 'active'
+      ? { text: 'Active', variant: 'success' as const }
+      : s.status === 'inactive'
+        ? { text: 'Inactive', variant: 'neutral' as const }
+        : { text: 'Not registered', variant: 'pending' as const }
 
   return (
     <div className="ad-page">
       <div className="ad-page-head">
         <div>
           <h1 className="ad-title">Manage Students</h1>
-          <p className="ad-subtitle">{students.length} registered students</p>
+          <p className="ad-subtitle">
+            {students.length} student{students.length === 1 ? '' : 's'} on the roster
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button className="ad-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -82,6 +96,10 @@ export function AdminStudents({
         <AdSearch onChange={setSearch} placeholder="Search by name or email…" value={search} />
       </div>
 
+      {actionError && (
+        <p style={{ margin: '0 0 12px', color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{actionError}</p>
+      )}
+
       <div className="ad-table-wrap">
         <table className="ad-table">
           <thead>
@@ -92,55 +110,56 @@ export function AdminStudents({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s) => (
-              <tr key={s.id}>
-                <td>
-                  <div className="ad-cell-person">
-                    <span className="ad-cell-mark">
-                      {s.name
-                        .split(' ')
-                        .filter(Boolean)
-                        .slice(0, 2)
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()}
-                    </span>
-                    {s.name}
-                  </div>
-                </td>
-                <td className="ad-muted">{s.email}</td>
-                <td>
-                  <AdBadge
-                    text={s.status === 'active' ? 'Active' : 'Inactive'}
-                    variant={s.status === 'active' ? 'success' : 'neutral'}
-                  />
-                </td>
-                <td>{s.applications}</td>
-                <td className="ad-muted">{s.joined}</td>
-                <td>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="ad-secondary" onClick={() => setViewTarget(s)} type="button">
-                      <Eye size={12} /> View
-                    </button>
-                    <button className="ad-secondary" onClick={() => handleToggle(s)} type="button">
-                      {s.status === 'active' ? (
-                        <>
-                          <UserX size={12} /> Deactivate
-                        </>
+            {filtered.map((s) => {
+              const badge = statusBadge(s)
+              const busy = busyId === s.id
+              return (
+                <tr key={s.id}>
+                  <td>
+                    <div className="ad-cell-person">
+                      <span className="ad-cell-mark">
+                        {s.name
+                          .split(' ')
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()}
+                      </span>
+                      {s.name}
+                    </div>
+                  </td>
+                  <td className="ad-muted">{s.email}</td>
+                  <td><AdBadge text={badge.text} variant={badge.variant} /></td>
+                  <td>{s.applications}</td>
+                  <td className="ad-muted">{s.joined}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="ad-secondary" onClick={() => setViewTarget(s)} type="button">
+                        <Eye size={12} /> View
+                      </button>
+                      {s.registered ? (
+                        <button className="ad-secondary" onClick={() => handleToggle(s)} type="button" disabled={busy}>
+                          {s.status === 'active' ? (
+                            <><UserX size={12} /> Deactivate</>
+                          ) : (
+                            <><UserCheck size={12} /> Activate</>
+                          )}
+                        </button>
                       ) : (
-                        <>
-                          <UserCheck size={12} /> Activate
-                        </>
+                        <button className="ad-secondary" onClick={() => remove(s)} type="button" disabled={busy}>
+                          <Trash2 size={12} /> {busy ? 'Removing…' : 'Remove'}
+                        </button>
                       )}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td className="ad-empty" colSpan={6}>
-                  No students found
+                  {loading ? 'Loading students…' : loadError ? `Could not load students: ${loadError}` : 'No students found'}
                 </td>
               </tr>
             )}
@@ -148,15 +167,19 @@ export function AdminStudents({
         </table>
       </div>
 
-      {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} setStudents={setStudents} />}
-      {showBulkModal && <BulkUploadModal type="student" onClose={() => setShowBulkModal(false)} setStudents={setStudents} />}
+      {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={onRefresh} />}
+      {showBulkModal && <BulkUploadModal type="student" onClose={() => setShowBulkModal(false)} onDone={onRefresh} />}
       {viewTarget && <ViewStudentModal student={viewTarget} onClose={() => setViewTarget(null)} />}
       {deactivateTarget && (
         <DeactivateStudentModal
           student={deactivateTarget}
+          busy={busyId === deactivateTarget.id}
           onClose={() => setDeactivateTarget(null)}
-          onConfirm={(reason) => {
-            deactivate(deactivateTarget.id, reason)
+          onConfirm={async (reason) => {
+            const target = deactivateTarget
+            if (target.profileId) {
+              await runAction(target.id, () => setStudentActive(target.profileId!, false, reason))
+            }
             setDeactivateTarget(null)
           }}
         />
@@ -198,8 +221,8 @@ function ViewStudentModal({ student, onClose }: { student: AdminStudent; onClose
             <div>
               <p className="ad-view-name">{student.name}</p>
               <AdBadge
-                text={student.status === 'active' ? 'Active' : 'Inactive'}
-                variant={student.status === 'active' ? 'success' : 'neutral'}
+                text={student.status === 'active' ? 'Active' : student.status === 'inactive' ? 'Inactive' : 'Not registered'}
+                variant={student.status === 'active' ? 'success' : student.status === 'inactive' ? 'neutral' : 'pending'}
               />
             </div>
           </div>
@@ -235,25 +258,27 @@ function DeactivateStudentModal({
   student,
   onConfirm,
   onClose,
+  busy,
 }: {
   student: AdminStudent
   onConfirm: (reason: string) => void
   onClose: () => void
+  busy: boolean
 }) {
   const [reason, setReason] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!reason.trim()) return
+    if (!reason.trim() || busy) return
     onConfirm(reason.trim())
   }
 
   return (
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose() }}>
       <div className="modal-panel" style={{ width: '420px' }}>
         <div className="modal-header">
           <h3>Deactivate Account</h3>
-          <button className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
+          <button className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
           <p className="ad-muted" style={{ margin: 0 }}>
@@ -272,9 +297,9 @@ function DeactivateStudentModal({
             />
           </label>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <button className="ad-secondary" type="button" onClick={onClose}>Cancel</button>
-            <button className="ad-danger" type="submit" disabled={!reason.trim()}>
-              <UserX size={12} /> Deactivate
+            <button className="ad-secondary" type="button" onClick={onClose} disabled={busy}>Cancel</button>
+            <button className="ad-danger" type="submit" disabled={!reason.trim() || busy}>
+              <UserX size={12} /> {busy ? 'Deactivating…' : 'Deactivate'}
             </button>
           </div>
         </form>
@@ -283,44 +308,58 @@ function DeactivateStudentModal({
   )
 }
 
-function AddStudentModal({ onClose, setStudents }: { onClose: () => void, setStudents: React.Dispatch<React.SetStateAction<AdminStudent[]>> }) {
+function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: () => Promise<void> }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [studentNumber, setStudentNumber] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name || !email) return
-    const newStudent: AdminStudent = {
-      id: Date.now(),
-      name,
-      email,
-      status: 'active',
-      applications: 0,
-      joined: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+    if (!name || !email || busy) return
+    setBusy(true)
+    setError(null)
+    const { firstName, lastName } = splitName(name)
+    try {
+      // Pre-clears the email so the student can self-register (UC-A03).
+      await addApprovedStudent({ email, firstName, lastName, studentNumber })
+      await onAdded() // reload from the roster so the new row shows accurately
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add the student.')
+    } finally {
+      setBusy(false)
     }
-    setStudents(prev => [newStudent, ...prev])
-    onClose()
   }
 
   return (
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose() }}>
       <div className="modal-panel" style={{ width: '400px' }}>
         <div className="modal-header">
           <h3>Add New Student</h3>
-          <button className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
+          <button className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+          <p className="ad-muted" style={{ margin: 0 }}>
+            This clears the student to self-register. They finish creating their account from the sign-up page.
+          </p>
           <label className="cp-modal-label">
             Full Name *
             <input className="ad-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Juan Dela Cruz" required />
           </label>
           <label className="cp-modal-label">
             Email Address *
-            <input className="ad-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. juan@student.edu.ph" required />
+            <input className="ad-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. juan.delacruz@cit.edu" required />
           </label>
+          <label className="cp-modal-label">
+            Student Number
+            <input className="ad-input" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} placeholder="e.g. 21-1234-567 (optional)" />
+          </label>
+          {error && <p className="ad-form-error" style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
-            <button className="ad-secondary" type="button" onClick={onClose}>Cancel</button>
-            <button className="ad-primary" type="submit">Add Student</button>
+            <button className="ad-secondary" type="button" onClick={onClose} disabled={busy}>Cancel</button>
+            <button className="ad-primary" type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add Student'}</button>
           </div>
         </form>
       </div>
@@ -328,48 +367,80 @@ function AddStudentModal({ onClose, setStudents }: { onClose: () => void, setStu
   )
 }
 
-export function BulkUploadModal({ type, onClose, setStudents, setCompanies }: { type: 'student' | 'company', onClose: () => void, setStudents?: React.Dispatch<React.SetStateAction<AdminStudent[]>>, setCompanies?: React.Dispatch<React.SetStateAction<AdminCompany[]>> }) {
+export function BulkUploadModal({ type, onClose, onDone }: { type: 'student' | 'company', onClose: () => void, onDone: () => Promise<void> }) {
   const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
 
-  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files?.length) return
+  const columns = type === 'student'
+    ? 'email (required), first_name, last_name, student_number'
+    : 'company_name (required), contact_email (required), identifier'
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setError(null)
+    setDone(null)
+
+    if (/\.xlsx?$/i.test(file.name)) {
+      setError('Please save the sheet as CSV (File → Save As → CSV) and upload that. Excel files aren’t supported directly.')
+      e.target.value = ''
+      return
+    }
+
     setUploading(true)
-    setTimeout(() => {
-      if (type === 'student' && setStudents) {
-        setStudents(prev => [
-          { id: Date.now() + 1, name: 'Dummy Student 1', email: 'dummy1@school.edu.ph', status: 'active', applications: 0, joined: 'Just now' },
-          { id: Date.now() + 2, name: 'Dummy Student 2', email: 'dummy2@school.edu.ph', status: 'active', applications: 0, joined: 'Just now' },
-          ...prev
-        ])
-      } else if (type === 'company' && setCompanies) {
-        setCompanies(prev => [
-          { id: Date.now() + 1, name: 'Dummy Company Inc.', industry: 'Various', verification: 'pending', docs: 1, listings: 0, submitted: 'Just now' },
-          { id: Date.now() + 2, name: 'Bulk Tech LLC', industry: 'Technology', verification: 'verified', docs: 2, listings: 0, submitted: 'Just now' },
-          ...prev
-        ])
+    try {
+      const text = await file.text()
+      if (type === 'student') {
+        const parsed = parseStudentsCsv(text)
+        if (parsed.length === 0) throw new Error('No valid rows found. The file needs a header row with an "email" column.')
+        const added = await addApprovedStudents(parsed)
+        setDone(`Added ${added} student${added === 1 ? '' : 's'} to the roster${added < parsed.length ? ` (${parsed.length - added} already existed)` : ''}.`)
+      } else {
+        const parsed = parseCompaniesCsv(text)
+        if (parsed.length === 0) throw new Error('No valid rows found. The file needs a header row with "company_name" and "contact_email" columns.')
+        const added = await addApprovedCompanies(parsed)
+        setDone(`Added ${added} compan${added === 1 ? 'y' : 'ies'} to the allowlist${added < parsed.length ? ` (${parsed.length - added} already existed)` : ''}.`)
       }
+      await onDone() // reload from the database so new rows appear
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed.')
+    } finally {
       setUploading(false)
-      onClose()
-    }, 1500)
+      e.target.value = ''
+    }
   }
 
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget && !uploading) onClose() }}>
-      <div className="modal-panel" style={{ width: '400px' }}>
+      <div className="modal-panel" style={{ width: '420px' }}>
         <div className="modal-header">
           <h3>Add in Bulk</h3>
           <button className="modal-close" onClick={onClose} disabled={uploading} type="button"><X size={16} /></button>
         </div>
         <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <p className="ad-muted" style={{ margin: 0 }}>
-            Upload an Excel (`.xlsx`) or CSV file containing a list of {type === 'student' ? 'students' : 'companies'}.
+            Upload a CSV of {type === 'student' ? 'students' : 'companies'}. The first row must be a header
+            with these columns: <code>{columns}</code>. Existing emails are skipped.
           </p>
-          <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px', border: '2px dashed var(--border)', borderRadius: '8px', cursor: uploading ? 'wait' : 'pointer', background: 'var(--bg-subtle)' }}>
-            <Upload size={24} style={{ color: 'var(--text-light)', marginBottom: '8px' }} />
-            <span style={{ fontWeight: 500 }}>{uploading ? 'Uploading...' : 'Click to select file'}</span>
-            {!uploading && <span style={{ fontSize: '12px', color: 'var(--text-light)', marginTop: '4px' }}>Supported formats: .xlsx, .csv</span>}
-            <input type="file" hidden accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" onChange={handleUpload} disabled={uploading} />
-          </label>
+          {done
+            ? (
+              <>
+                <p style={{ margin: 0, color: 'var(--brand-green, #2e7d32)', fontSize: '14px', fontWeight: 500 }}>{done}</p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button className="ad-primary" type="button" onClick={onClose}>Done</button>
+                </div>
+              </>
+            )
+            : (
+              <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px', border: '2px dashed var(--border)', borderRadius: '8px', cursor: uploading ? 'wait' : 'pointer', background: 'var(--bg-subtle)' }}>
+                <Upload size={24} style={{ color: 'var(--text-light)', marginBottom: '8px' }} />
+                <span style={{ fontWeight: 500 }}>{uploading ? 'Uploading…' : 'Click to select a CSV file'}</span>
+                {!uploading && <span style={{ fontSize: '12px', color: 'var(--text-light)', marginTop: '4px' }}>Supported format: .csv</span>}
+                <input type="file" hidden accept=".csv,text/csv" onChange={handleUpload} disabled={uploading} />
+              </label>
+            )}
+          {error && <p style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}
         </div>
       </div>
     </div>

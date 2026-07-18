@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   BarChart3,
   Briefcase,
@@ -17,12 +17,9 @@ import { AdminStudents } from './AdminStudents'
 import { AdminCompanies } from './AdminCompanies'
 import { AdminInternships } from './AdminInternships'
 import { AdminReports } from './AdminReports'
-import {
-  SEED_ADMIN_COMPANIES,
-  SEED_ADMIN_LISTINGS,
-  SEED_ADMIN_STUDENTS,
-} from './adminData'
+import { SEED_ADMIN_LISTINGS } from './adminData'
 import type { AdminCompany, AdminListing, AdminStudent } from './adminData'
+import { fetchCompanies, fetchStudents } from './adminQueries'
 import './admin.css'
 
 const NAV = [
@@ -42,10 +39,40 @@ export function AdminApp() {
   const [active, setActive] = useState(0)
   const [collapsed, toggleCollapsed] = useSidebarCollapsed()
 
-  // Admin-managed records (seed data until the Supabase slice lands).
-  const [students, setStudents] = useState<AdminStudent[]>(SEED_ADMIN_STUDENTS)
-  const [companies, setCompanies] = useState<AdminCompany[]>(SEED_ADMIN_COMPANIES)
+  // Students and companies are live from Supabase; listings remain seed data
+  // until that slice lands.
+  const [students, setStudents] = useState<AdminStudent[]>([])
+  const [companies, setCompanies] = useState<AdminCompany[]>([])
   const [listings, setListings] = useState<AdminListing[]>(SEED_ADMIN_LISTINGS)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const refreshStudents = useCallback(async () => {
+    setStudents(await fetchStudents())
+  }, [])
+  const refreshCompanies = useCallback(async () => {
+    setCompanies(await fetchCompanies())
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setLoadError(null)
+      try {
+        const [s, c] = await Promise.all([fetchStudents(), fetchCompanies()])
+        if (!cancelled) {
+          setStudents(s)
+          setCompanies(c)
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load admin data.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   const name = profile?.full_name?.trim() || profile?.email || 'NLO Admin'
   const initials =
@@ -114,8 +141,22 @@ export function AdminApp() {
             students={students}
           />
         )}
-        {active === 1 && <AdminStudents setStudents={setStudents} students={students} />}
-        {active === 2 && <AdminCompanies companies={companies} setCompanies={setCompanies} />}
+        {active === 1 && (
+          <AdminStudents
+            students={students}
+            loading={loading}
+            loadError={loadError}
+            onRefresh={refreshStudents}
+          />
+        )}
+        {active === 2 && (
+          <AdminCompanies
+            companies={companies}
+            loading={loading}
+            loadError={loadError}
+            onRefresh={refreshCompanies}
+          />
+        )}
         {active === 3 && <AdminInternships listings={listings} setListings={setListings} />}
         {active === 4 && <AdminReports />}
       </main>
