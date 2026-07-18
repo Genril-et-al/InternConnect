@@ -6,6 +6,7 @@ import {
   uploadDocument,
 } from '../lib/profile'
 import { analyzeResume, NO_SKILLS_MESSAGE } from '../lib/resumeAnalysis'
+import { formatMiddleInitial } from '../lib/name'
 import { useAuth } from '../auth/context'
 import { SignOutButton } from '../components/SignOutButton'
 import { TagInput } from './TagInput'
@@ -80,7 +81,7 @@ export function ProfileSetup({
 
   const userId = session?.user.id
   const first = profile?.first_name ?? ''
-  const mi = profile?.middle_initial ?? ''
+  const mi = formatMiddleInitial(profile?.middle_initial)
   const last = profile?.last_name ?? ''
   const suffix = profile?.suffix ?? ''
   const initials = `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase() || 'IC'

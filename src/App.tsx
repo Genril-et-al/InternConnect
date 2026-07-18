@@ -4,7 +4,6 @@ import {
   Bookmark,
   CheckCircle2,
   ChevronLeft,
-  ChevronRight,
   Menu,
   FileText,
   LayoutDashboard,
@@ -224,10 +223,23 @@ function StudentPortal({
   )
 }
 
-function BrowseInternships({ 
-  selectedInternship, 
-  onSelectInternship 
-}: { 
+// Minimum match thresholds. Module-scope so the object identity is stable —
+// as a component-body literal it was a new object every render, which the
+// filter useMemo below cannot list as a dependency without re-running always.
+const matchThresholds: Record<string, number> = {
+  'All': 0,
+  '60+': 60,
+  '70+': 70,
+  '80+': 80,
+  '90+': 90,
+}
+
+const matchOrder = ['90+', '80+', '70+', '60+', 'All']
+
+function BrowseInternships({
+  selectedInternship,
+  onSelectInternship
+}: {
   selectedInternship: Internship | null 
   onSelectInternship: (internship: Internship | null) => void 
 }) {
@@ -236,17 +248,6 @@ function BrowseInternships({
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set())
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
-
-  // Minimum match thresholds
-  const matchThresholds: Record<string, number> = {
-    'All': 0,
-    '60+': 60,
-    '70+': 70,
-    '80+': 80,
-    '90+': 90,
-  }
-
-  const matchOrder = ['90+', '80+', '70+', '60+', 'All']
 
   const filtered = useMemo(() => {
     const pillMin = matchThresholds[matchFilter] ?? 0

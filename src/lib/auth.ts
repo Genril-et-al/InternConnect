@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Profile } from './supabase'
+import { formatMiddleInitial } from './name'
 
 /**
  * Auth service for InternConnect (UC-S01 — Register & Login).
@@ -51,7 +52,7 @@ export async function requestSignupCode(email: string, name: SignupName) {
       shouldCreateUser: true,
       data: {
         first_name: name.firstName.trim(),
-        middle_initial: name.middleInitial.trim(),
+        middle_initial: formatMiddleInitial(name.middleInitial),
         last_name: name.lastName.trim(),
         suffix: name.suffix.trim(),
       },

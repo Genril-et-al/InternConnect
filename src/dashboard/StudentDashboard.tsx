@@ -19,29 +19,13 @@ import './dashboard.css'
  * AI-matched internships, and recent applications.
  * Note: Internship Duty Hours is intentionally not part of this dashboard.
  */
-let globalStudentNotifications = [
-  {
-    id: '1',
-    message: 'Your application for Frontend Engineer at TechCorp is under review.',
-    date: '2 hours ago',
-    read: false,
-    navOffset: 'Pending'
-  },
-  {
-    id: '2',
-    message: 'You have a new AI-matched internship for your skills.',
-    date: '1 day ago',
-    read: false,
-    navOffset: 'Browse Internships'
-  },
-  {
-    id: '3',
-    message: 'Welcome to InternConnect! Complete your profile to get started.',
-    date: '3 days ago',
-    read: true,
-    navOffset: 'Profile'
-  },
-]
+let globalStudentNotifications: {
+  id: string
+  message: string
+  date: string
+  read: boolean
+  navOffset: string
+}[] = []
 
 export function StudentDashboard({
   onNavigate,

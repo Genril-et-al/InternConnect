@@ -13,29 +13,13 @@ import type { AdminCompany, AdminListing, AdminStudent } from './adminData'
 import { NotificationBell } from '../components/NotificationBell'
 import { useState } from 'react'
 
-let globalAdminNotifications = [
-  {
-    id: '1',
-    message: '2 new companies are awaiting verification.',
-    date: '10 mins ago',
-    read: false,
-    navOffset: 2
-  },
-  {
-    id: '2',
-    message: 'Monthly system report has been generated.',
-    date: '5 hours ago',
-    read: false,
-    navOffset: 4
-  },
-  {
-    id: '3',
-    message: '10 new student registrations today.',
-    date: '1 day ago',
-    read: true,
-    navOffset: 1
-  },
-]
+let globalAdminNotifications: {
+  id: string
+  message: string
+  date: string
+  read: boolean
+  navOffset: number
+}[] = []
 
 export function AdminDashboard({
   students,

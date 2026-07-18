@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { formatMiddleInitial } from '../lib/name'
 
 /**
  * Admin allowlist data-access (UC-A03).
@@ -45,7 +46,7 @@ function studentRow(s: NewApprovedStudent) {
   return {
     email: s.email.trim().toLowerCase(),
     first_name: clean(s.firstName),
-    middle_initial: clean(s.middleInitial),
+    middle_initial: formatMiddleInitial(s.middleInitial) || null,
     last_name: clean(s.lastName),
     student_number: clean(s.studentNumber),
   }

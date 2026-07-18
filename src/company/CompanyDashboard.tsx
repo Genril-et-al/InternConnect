@@ -5,15 +5,13 @@ import { NotificationBell } from '../components/NotificationBell'
 import { useState } from 'react'
 
 /** UC-C06 — recruitment activity at a glance. */
-let globalCompanyNotifications = [
-  {
-    id: '2',
-    message: 'NLO Admin has verified your company profile.',
-    date: '2 days ago',
-    read: true,
-    navOffset: 'Profile'
-  },
-]
+let globalCompanyNotifications: {
+  id: string
+  message: string
+  date: string
+  read: boolean
+  navOffset: string
+}[] = []
 
 export function CompanyDashboard({
   listings,

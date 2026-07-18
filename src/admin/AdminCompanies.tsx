@@ -184,6 +184,7 @@ function ViewCompanyModal({
     website: string
   } | null>(null)
   const [docsList, setDocsList] = useState<{ id: string; name: string; file_path: string }[]>([])
+  const [downloadError, setDownloadError] = useState<{ docId: string; message: string } | null>(null)
 
   const initials = company.name.slice(0, 2).toUpperCase()
 
@@ -261,25 +262,33 @@ function ViewCompanyModal({
     ['Website / LinkedIn', displayDetails.website],
   ]
 
-  const handleDownload = async (docName: string, filePath: string) => {
+  const handleDownload = async (docId: string, docName: string, filePath: string) => {
+    setDownloadError(null)
     try {
       const { data, error } = await supabase.storage.from('documents').download(filePath)
       if (error || !data) {
         throw new Error(error?.message || 'File not found')
       }
       const url = URL.createObjectURL(data)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = docName
-      a.click()
+      try {
+        const a = document.createElement('a')
+        a.href = url
+        a.download = docName
+        a.click()
+      } finally {
+        // The click hands the blob to the browser synchronously, so the URL can
+        // be released immediately — without this each download leaks the blob
+        // for the lifetime of the page.
+        URL.revokeObjectURL(url)
+      }
     } catch (err) {
-      // Fallback dummy file
-      const blob = new Blob([`Mock file content for ${docName}`], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = docName
-      a.click()
+      // A failed download must be visible: silently substituting a placeholder
+      // file makes a permissions or missing-file problem look like a success.
+      console.error(err)
+      setDownloadError({
+        docId,
+        message: err instanceof Error ? err.message : 'Download failed.',
+      })
     }
   }
 
@@ -344,28 +353,35 @@ function ViewCompanyModal({
                     className="cp-doc"
                     style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
+                      flexDirection: 'column',
+                      gap: '6px',
                       padding: '8px 12px',
                       background: 'var(--surface-strong)',
                       border: '1px solid var(--border)',
                       borderRadius: '8px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FileText size={16} className="ad-muted" />
-                      <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-strong)' }}>
-                        {doc.name}
-                      </span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText size={16} className="ad-muted" />
+                        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-strong)' }}>
+                          {doc.name}
+                        </span>
+                      </div>
+                      <button
+                        className="ad-secondary"
+                        onClick={() => handleDownload(doc.id, doc.name, doc.file_path)}
+                        type="button"
+                        style={{ minHeight: '28px', padding: '2px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Download size={12} /> Download
+                      </button>
                     </div>
-                    <button
-                      className="ad-secondary"
-                      onClick={() => handleDownload(doc.name, doc.file_path)}
-                      type="button"
-                      style={{ minHeight: '28px', padding: '2px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <Download size={12} /> Download
-                    </button>
+                    {downloadError?.docId === doc.id && (
+                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--brand-crimson)' }}>
+                        Couldn't download this file: {downloadError.message}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
