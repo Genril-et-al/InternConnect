@@ -242,6 +242,46 @@ export function ProfileSetup({
         </p>
       )}
 
+      {/* Photo — required */}
+      <section className="profile-section">
+        <div className="profile-section-head">
+          <h2>Formal photo</h2>
+          <span className="profile-required">Required</span>
+        </div>
+        <p className="profile-subtext">
+          Upload a recent 2×2 ID photo with a white background and a formal, front-facing pose.
+        </p>
+        <div className="profile-photo-row">
+          <span className="profile-avatar">
+            {photoPreview ? (
+              <img alt="Profile preview" src={photoPreview} />
+            ) : (
+              initials
+            )}
+          </span>
+          <label className="profile-upload">
+            <input
+              accept="image/*"
+              hidden
+              onChange={(e) => handlePhoto(e.target.files?.[0] ?? null)}
+              type="file"
+            />
+            {photo ? 'Change photo' : 'Upload photo'}
+          </label>
+          {photoPreview && (
+            <button
+              className="profile-delete-btn"
+              onClick={handleDeletePhoto}
+              title="Delete photo"
+              type="button"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+          {photo && <span className="profile-filename">{photo.name}</span>}
+        </div>
+      </section>
+
       {/* Read-only name (from registration / database) */}
       <section className="profile-section">
         <div className="profile-section-head">
@@ -319,46 +359,6 @@ export function ProfileSetup({
               value={contactNumber}
             />
           </label>
-        </div>
-      </section>
-
-      {/* Photo — required */}
-      <section className="profile-section">
-        <div className="profile-section-head">
-          <h2>Formal photo</h2>
-          <span className="profile-required">Required</span>
-        </div>
-        <p className="profile-subtext">
-          Upload a recent 2×2 ID photo with a white background and a formal, front-facing pose.
-        </p>
-        <div className="profile-photo-row">
-          <span className="profile-avatar">
-            {photoPreview ? (
-              <img alt="Profile preview" src={photoPreview} />
-            ) : (
-              initials
-            )}
-          </span>
-          <label className="profile-upload">
-            <input
-              accept="image/*"
-              hidden
-              onChange={(e) => handlePhoto(e.target.files?.[0] ?? null)}
-              type="file"
-            />
-            {photo ? 'Change photo' : 'Upload photo'}
-          </label>
-          {photoPreview && (
-            <button
-              className="profile-delete-btn"
-              onClick={handleDeletePhoto}
-              title="Delete photo"
-              type="button"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-          {photo && <span className="profile-filename">{photo.name}</span>}
         </div>
       </section>
 
