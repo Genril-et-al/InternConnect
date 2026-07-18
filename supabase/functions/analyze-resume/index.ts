@@ -16,9 +16,12 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-const GEMINI_MODEL = 'gemini-2.5-flash'
-const GEMINI_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+// Tried in order. A model can 404 if the key's project lacks access to it, so
+// falling back keeps analysis working instead of failing the whole request.
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']
+
+const geminiUrl = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -151,39 +154,65 @@ Deno.serve(async (req) => {
     }
     const base64 = btoa(binary)
 
-    // 4. Ask Gemini for a structured extraction.
-    const geminiRes = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: PROMPT },
-            { inline_data: { mime_type: 'application/pdf', data: base64 } },
-          ],
-        }],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: 'application/json',
-          responseSchema: EXTRACTION_SCHEMA,
-        },
-      }),
+    // 4. Ask Gemini for a structured extraction, trying each model in turn.
+    const requestBody = JSON.stringify({
+      contents: [{
+        parts: [
+          { text: PROMPT },
+          { inline_data: { mime_type: 'application/pdf', data: base64 } },
+        ],
+      }],
+      generationConfig: {
+        temperature: 0,
+        responseMimeType: 'application/json',
+        responseSchema: EXTRACTION_SCHEMA,
+      },
     })
-    if (!geminiRes.ok) {
-      const detail = await geminiRes.text()
-      console.error('Gemini error', geminiRes.status, detail)
-      // Persist the failure so the team can diagnose without console access.
+
+    let geminiBody: Record<string, unknown> | null = null
+    const attempts: string[] = []
+
+    for (const model of GEMINI_MODELS) {
+      let res: Response
+      try {
+        res = await fetch(geminiUrl(model), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
+          body: requestBody,
+        })
+      } catch (err) {
+        // Network/DNS failure reaching Google at all.
+        attempts.push(`${model}: fetch failed — ${err instanceof Error ? err.message : String(err)}`)
+        continue
+      }
+      if (res.ok) {
+        geminiBody = await res.json()
+        break
+      }
+      // Capture Google's own message; this is what actually explains a failure
+      // (bad key, API not enabled, quota exhausted, model not available).
+      const detail = await res.text()
+      attempts.push(`${model}: HTTP ${res.status} — ${detail.slice(0, 600)}`)
+      console.error('Gemini error', model, res.status, detail)
+    }
+
+    if (!geminiBody) {
+      const summary = attempts.join(' | ')
       await admin.from('edge_function_errors').insert({
         fn: 'analyze-resume',
-        detail: `Gemini ${geminiRes.status}: ${detail.slice(0, 2000)}`,
+        detail: summary.slice(0, 4000),
       })
+      // `detail` is surfaced so the failure is diagnosable from the UI instead
+      // of only from logs the team cannot read.
       return json(
-        { error: `AI analysis failed (Gemini ${geminiRes.status}). Please try again shortly.` },
+        { error: 'AI analysis failed. Please try again shortly.', detail: summary.slice(0, 500) },
         502,
       )
     }
-    const geminiBody = await geminiRes.json()
-    const text = geminiBody?.candidates?.[0]?.content?.parts?.[0]?.text
+
+    const text = (geminiBody as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[]
+    })?.candidates?.[0]?.content?.parts?.[0]?.text
     if (!text) {
       await admin.from('edge_function_errors').insert({
         fn: 'analyze-resume',

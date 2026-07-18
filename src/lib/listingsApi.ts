@@ -164,9 +164,12 @@ export function formatDate(iso: string | null): string {
  * Development" specialization covers a "Frontend" listing skill and vice versa).
  * Close domain relationships receive variable partial credit based on confidence.
  */
-export function computeMatch(studentPool: string[], listingSkills: string[]): number {
-  if (!listingSkills.length) return 0
+export function computeMatch(studentPool: string[], listingSkills: string[]): number | null {
   const mine = studentPool.map(normalizeSkill).filter(Boolean)
+  // Nothing to score against — either the resume could not be read for skills
+  // and none were added by hand, or the listing lists no required skills.
+  // "Unknown" is the honest answer here; 0% would read as a genuine bad match.
+  if (!mine.length || !listingSkills.length) return null
   const covered = listingSkills.reduce((sum, skill) => sum + skillCoverageScore(mine, skill), 0)
   return Math.round((covered / listingSkills.length) * 100)
 }
@@ -223,7 +226,9 @@ export async function fetchOpenListings(profileSkills: string[]): Promise<Intern
       skills: r.skills ?? [],
       summary: r.description ?? '',
     }))
-    .sort((a, b) => b.match - a.match)
+    // Unscored listings (no skill data to match on) sort last rather than
+    // being treated as 0%.
+    .sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
 }
 
 type ApplicationRow = {

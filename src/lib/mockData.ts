@@ -22,7 +22,8 @@ export type Internship = {
   deadline: string
   duration: string
   slots: number
-  match: number
+  /** null when there is no skill data to score against — render as "—". */
+  match: number | null
   status: 'Open' | 'Closing soon' | 'Closed'
   skills: string[]
   summary: string

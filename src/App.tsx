@@ -383,11 +383,16 @@ function BrowseInternships({
         .join(' ')
         .toLowerCase()
         .includes(query.toLowerCase())
-      const matchesScore = internship.match >= pillMin
+      // An unscored listing can only satisfy the "All" pill.
+      const matchesScore = internship.match === null ? pillMin === 0 : internship.match >= pillMin
       const matchesBookmarks = !showBookmarksOnly || bookmarkedIds.has(internship.id)
       return matchesQuery && matchesScore && matchesBookmarks
     })
   }, [internships, query, matchFilter, showBookmarksOnly, bookmarkedIds])
+
+  // Nothing could be scored — the profile carries no skills the AI or the
+  // student has supplied.
+  const unscored = internships.length > 0 && internships.every((i) => i.match === null)
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -430,8 +435,18 @@ function BrowseInternships({
       {/* Heading */}
       <div className="browse-heading">
         <h2 className="browse-title">Browse Internships</h2>
-        <p className="browse-subtitle">AI-ranked by your resume skills</p>
+        <p className="browse-subtitle">
+          {unscored ? 'Ranked once your skills are on file' : 'Ranked by how well your skills match'}
+        </p>
       </div>
+
+      {unscored && (
+        <p className="browse-unscored" role="status">
+          No match scores yet — we could not read any skills from your resume. Add skills and
+          specializations on your profile, or upload a resume the AI can read, and the
+          percentages will appear here automatically.
+        </p>
+      )}
 
       {/* Search + dropdowns row */}
       <div className="browse-search-row">
@@ -825,13 +840,19 @@ function InternshipStrip({
         </div>
         <div className="strip-right">
           <div className="strip-match-container">
-            <span className="strip-match-label">AI Match</span>
-            <div className="strip-match-bar">
-              <div className="strip-match-track">
-                <div className="strip-match-progress" style={{ width: `${internship.match}%` }} />
+            <span className="strip-match-label">Skill Match</span>
+            {internship.match === null ? (
+              <span className="strip-match-text muted" title="Add skills to your profile, or upload a resume the AI can read, to see a match score.">
+                Not available
+              </span>
+            ) : (
+              <div className="strip-match-bar">
+                <div className="strip-match-track">
+                  <div className="strip-match-progress" style={{ width: `${internship.match}%` }} />
+                </div>
+                <span className="strip-match-text">{internship.match}%</span>
               </div>
-              <span className="strip-match-text">{internship.match}%</span>
-            </div>
+            )}
           </div>
           <button
             aria-label="Bookmark"
@@ -907,8 +928,10 @@ function InternshipDetailView({
             <span className="detail-info-value">{internship.slots}</span>
           </div>
           <div className="detail-info-item">
-            <span className="detail-info-label">AI Match Score</span>
-            <span className="detail-info-value detail-match">{internship.match}%</span>
+            <span className="detail-info-label">Skill Match Score</span>
+            <span className="detail-info-value detail-match">
+              {internship.match === null ? '—' : `${internship.match}%`}
+            </span>
           </div>
         </div>
 
@@ -992,7 +1015,9 @@ function ApplyModal({
               <div className="modal-preview-details">
                 <span><strong>Duration:</strong> {internship.duration}</span>
                 <span><strong>Deadline:</strong> {internship.deadline}</span>
-                <span><strong>Match:</strong> {internship.match}%</span>
+                <span>
+                  <strong>Match:</strong> {internship.match === null ? '—' : `${internship.match}%`}
+                </span>
               </div>
             </div>
 

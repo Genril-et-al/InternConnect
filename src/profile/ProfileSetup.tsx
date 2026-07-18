@@ -3,6 +3,8 @@ import { isSupabaseConfigured } from '../lib/supabase'
 import {
   completeProfile,
   markResumeReplaced,
+  removeAvatar,
+  removeDocument,
   uploadAvatar,
   uploadDocument,
   signedDocumentUrl,
@@ -123,6 +125,38 @@ export function ProfileSetup({
   }
 
   /**
+   * Re-run the AI over the resume already on file. Without this, analysis only
+   * ever ran on a fresh upload, so a resume stored before the AI worked could
+   * never get a status without re-uploading the same document.
+   */
+  async function handleAnalyzeExisting() {
+    if (!profile?.resume_url || demo) return
+    setAnalyzing(true)
+    setError('')
+    try {
+      const result = await analyzeResume(profile.resume_url)
+      if (result.status === 'no_skills_found') {
+        setResumeRejected({
+          fileName: displayResumeName ?? 'your current resume',
+          message: result.message || NO_SKILLS_MESSAGE,
+          suggestion: result.suggestion ?? null,
+        })
+      } else if (result.status === 'unsupported_format') {
+        setError(result.message)
+      } else {
+        setSkills((prev) => mergeTags(prev, result.skills))
+        setSpecializations((prev) => mergeTags(prev, result.specializations))
+        setResumeRejected(null)
+      }
+      await refreshProfile()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  /**
    * Picking a new resume clears the previous AI rejection straight away — that
    * banner described the old file, so leaving it up makes a fresh upload look
    * rejected before it has even been analyzed.
@@ -133,6 +167,7 @@ export function ProfileSetup({
       setResumeRejected(null)
       setError('')
     }
+
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -178,13 +213,17 @@ export function ProfileSetup({
     }
 
     setBusy(true)
+    // Captured up front so the files being replaced can be cleaned up *after*
+    // the profile row commits, never before.
+    const prevPhotoUrl = profile?.photo_url ?? null
+    const prevResumePath = profile?.resume_url ?? null
+    const prevPortfolioPath = profile?.portfolio_file_url ?? null
     try {
-      const photoUrl = photo 
-        ? await uploadAvatar(userId, photo, profile?.photo_url) 
+      const photoUrl = photo
+        ? await uploadAvatar(userId, photo)
         : (photoPreview ? profile?.photo_url : null)
-      // Pass the old path so the replaced file is removed rather than orphaned.
       const resumePath = resume
-        ? await uploadDocument(userId, 'resume', resume, profile?.resume_url)
+        ? await uploadDocument(userId, 'resume', resume)
         : profile?.resume_url ?? null
 
       // A new resume invalidates the previous AI verdict immediately, so a
@@ -245,7 +284,7 @@ export function ProfileSetup({
       }
 
       const portfolioFilePath = portfolioFile
-        ? await uploadDocument(userId, 'portfolio', portfolioFile, profile?.portfolio_file_url)
+        ? await uploadDocument(userId, 'portfolio', portfolioFile)
         : profile?.portfolio_file_url ?? null
 
       await completeProfile(userId, {
@@ -262,6 +301,17 @@ export function ProfileSetup({
         contactNumber: contactNumber.trim() || null,
       })
       await refreshProfile()
+
+      // The row now points at the new files, so the replaced ones are safe to
+      // drop. Best-effort: an orphaned file is harmless, a missing one is not.
+      try {
+        if (resumePath !== prevResumePath) await removeDocument(userId, prevResumePath)
+        if (portfolioFilePath !== prevPortfolioPath) await removeDocument(userId, prevPortfolioPath)
+        if (photoUrl !== prevPhotoUrl) await removeAvatar(userId, prevPhotoUrl)
+      } catch {
+        /* cleanup failure must not fail the save */
+      }
+
       onDone?.() // Redirect to the dashboard after saving.
     } catch (err) {
       setError(errorMessage(err))
@@ -295,8 +345,8 @@ export function ProfileSetup({
         <h1>{isEdit ? 'My Profile' : 'Set up your profile'}</h1>
         <p>
           {isEdit
-            ? 'Keep your skills, documents, and portfolio up to date — changes feed the AI matching system.'
-            : 'Complete your profile so companies and the AI matching system can see your qualifications.'}
+            ? 'Keep your skills, documents, and portfolio up to date — changes feed the matching system.'
+            : 'Complete your profile so companies and the matching system can see your qualifications.'}
         </p>
       </div>
 
@@ -480,7 +530,8 @@ export function ProfileSetup({
         </div>
         <div>
           {resume || profile?.resume_url ? (
-            <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', cursor: 'default' }}>
+            <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'default' }}>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -494,22 +545,54 @@ export function ProfileSetup({
               >
                 {displayResumeName}
               </button>
-              <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
-                Change
-                <input
-                  accept=".pdf,.doc,.docx"
-                  hidden
-                  onChange={(e) => handlePickResume(e.target.files?.[0] ?? null)}
-                  type="file"
-                />
-              </label>
+              {/*
+                The display name is derived from the surname, so picking a new
+                file of the same type produces an identical label and the card
+                looks unchanged. Name the pending file explicitly.
+              */}
+              {resume && (
+                <span style={{ fontSize: '12px', color: 'var(--brand-orange)', fontWeight: 500 }}>
+                  New file selected: {resume.name} — save to apply
+                </span>
+              )}
+              </span>
+              <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {!resume && profile?.resume_url && !demo && (
+                  <button
+                    disabled={analyzing || busy}
+                    onClick={handleAnalyzeExisting}
+                    style={{ cursor: analyzing ? 'wait' : 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}
+                    title="Run the AI over the resume already on file"
+                    type="button"
+                  >
+                    {analyzing ? 'Analyzing…' : 'Analyze with AI'}
+                  </button>
+                )}
+                <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
+                  Change
+                  <input
+                    accept=".pdf,.doc,.docx"
+                    hidden
+                    onChange={(e) => {
+                      handlePickResume(e.target.files?.[0] ?? null)
+                      // Clearing the value lets re-selecting the SAME filename
+                      // fire change again; otherwise the picker looks dead.
+                      e.target.value = ''
+                    }}
+                    type="file"
+                  />
+                </label>
+              </span>
             </div>
           ) : (
             <label className="profile-upload block">
               <input
                 accept=".pdf,.doc,.docx"
                 hidden
-                onChange={(e) => handlePickResume(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  handlePickResume(e.target.files?.[0] ?? null)
+                  e.target.value = ''
+                }}
                 type="file"
               />
               {resumeRejected ? 'Upload a new resume' : 'Upload resume'}

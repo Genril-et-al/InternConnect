@@ -27,11 +27,7 @@ export type ProfileSetupInput = {
  * URL on every upload, so a replaced photo kept rendering from cache. Pass
  * `previousUrl` (the stored photo_url) so the old image is cleaned up.
  */
-export async function uploadAvatar(
-  userId: string,
-  file: File,
-  previousUrl?: string | null,
-): Promise<string> {
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
   const ext = fileExt(file)
   const path = `${userId}/photo-${Date.now()}.${ext}`
   const { error } = await supabase.storage
@@ -39,11 +35,6 @@ export async function uploadAvatar(
     .upload(path, file, { contentType: file.type, cacheControl: '0' })
   if (error) throw error
   const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-
-  const previous = previousUrl ? avatarPathFromPublicUrl(previousUrl, userId) : null
-  if (previous && previous !== path) {
-    await supabase.storage.from('avatars').remove([previous])
-  }
   return data.publicUrl
 }
 
@@ -74,7 +65,6 @@ export async function uploadDocument(
   userId: string,
   kind: 'resume' | 'portfolio',
   file: File,
-  previousPath?: string | null,
 ): Promise<string> {
   const ext = fileExt(file)
   const path = `${userId}/${kind}-${Date.now()}.${ext}`
@@ -82,13 +72,25 @@ export async function uploadDocument(
     .from('documents')
     .upload(path, file, { contentType: file.type, cacheControl: '0' })
   if (error) throw error
-
-  // Best-effort cleanup; a failure here must not fail the upload. The prefix
-  // check keeps this from ever touching another user's folder.
-  if (previousPath && previousPath !== path && previousPath.startsWith(`${userId}/`)) {
-    await supabase.storage.from('documents').remove([previousPath])
-  }
   return path
+}
+
+/**
+ * Delete a document the profile no longer references. Call this only AFTER the
+ * profile row points at the replacement — the save path can bail out between
+ * upload and commit (a rejected resume, for example), and deleting earlier
+ * would strand resume_url on a file that no longer exists.
+ */
+export async function removeDocument(userId: string, path?: string | null): Promise<void> {
+  if (!path || !path.startsWith(`${userId}/`)) return
+  await supabase.storage.from('documents').remove([path])
+}
+
+/** Same ordering rule as removeDocument, for the public avatars bucket. */
+export async function removeAvatar(userId: string, publicUrl?: string | null): Promise<void> {
+  const path = publicUrl ? avatarPathFromPublicUrl(publicUrl, userId) : null
+  if (!path) return
+  await supabase.storage.from('avatars').remove([path])
 }
 
 /**

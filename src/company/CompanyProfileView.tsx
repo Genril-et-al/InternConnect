@@ -151,7 +151,7 @@ export function CompanyProfileView() {
         <h3>Job specialty / fields</h3>
         <p className="cp-muted" style={{ marginBottom: 10 }}>
           The fields your company hires interns for (e.g. Marketing, Frontend, Backend,
-          Software Dev). These improve AI matching with student specializations.
+          Software Dev). These improve matching with student specializations.
         </p>
         <TagInput
           onChange={setSpecialties}

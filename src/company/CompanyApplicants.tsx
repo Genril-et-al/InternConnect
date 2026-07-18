@@ -46,7 +46,8 @@ export function CompanyApplicants({
         a.name.toLowerCase().includes(search.toLowerCase()) &&
         (listingFilter === 'All listings' || a.role === listingFilter) &&
         (statusFilter === 'All' || a.status === statusFilter) &&
-        a.match >= minMatch,
+        // Unscored applicants only pass the "Any match %" option.
+        (a.match === null ? minMatch === 0 : a.match >= minMatch),
     )
   }, [applicants, search, listingFilter, statusFilter, matchFilter])
 
@@ -434,7 +435,11 @@ function RejectModal({
 
 /* ── Shared bits ─────────────────────────────────────────────────────── */
 
-export function MatchBar({ value }: { value: number }) {
+export function MatchBar({ value }: { value: number | null }) {
+  // No skill data on the applicant's profile — show nothing rather than 0%.
+  if (value === null) {
+    return <span className="cp-match-value cp-muted">—</span>
+  }
   const color =
     value >= 90
       ? 'var(--brand-orange)'

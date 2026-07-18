@@ -46,7 +46,8 @@ export type CompanyApplicant = {
   email: string
   listingId: string
   role: string
-  match: number
+  /** null when the applicant has no skill data to score against. */
+  match: number | null
   status: ApplicantStatus
   applied: string
   skills: string[]
