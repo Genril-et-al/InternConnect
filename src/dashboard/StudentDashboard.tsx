@@ -11,6 +11,7 @@ import { useAuth } from '../auth/context'
 import { applications, internships } from '../lib/mockData'
 import type { Application } from '../lib/mockData'
 import { NotificationBell } from '../components/NotificationBell'
+import { useState } from 'react'
 import './dashboard.css'
 
 /**
@@ -18,12 +19,36 @@ import './dashboard.css'
  * AI-matched internships, and recent applications.
  * Note: Internship Duty Hours is intentionally not part of this dashboard.
  */
-export function StudentDashboard({ 
-  onNavigate, 
+let globalStudentNotifications = [
+  {
+    id: '1',
+    message: 'Your application for Frontend Engineer at TechCorp is under review.',
+    date: '2 hours ago',
+    read: false,
+    navOffset: 'Pending'
+  },
+  {
+    id: '2',
+    message: 'You have a new AI-matched internship for your skills.',
+    date: '1 day ago',
+    read: false,
+    navOffset: 'Browse Internships'
+  },
+  {
+    id: '3',
+    message: 'Welcome to InternConnect! Complete your profile to get started.',
+    date: '3 days ago',
+    read: true,
+    navOffset: 'Profile'
+  },
+]
+
+export function StudentDashboard({
+  onNavigate,
   onOpenProgress,
   onFilterApplications,
   onOpenInternship,
-}: { 
+}: {
   onNavigate: (view: string) => void
   onOpenProgress?: (app: Application) => void
   onFilterApplications?: (filter: string) => void
@@ -33,35 +58,26 @@ export function StudentDashboard({
 
   const accepted = applications.filter((a) => a.status === 'Accepted').length
 
-  const mockNotifications = [
-    { 
-      id: '1', 
-      message: 'Your application for Frontend Engineer at TechCorp is under review.', 
-      date: '2 hours ago', 
-      read: false,
+  // Map the global notifications to include the dynamic onClick handler
+  const [notifications, setNotifications] = useState(
+    globalStudentNotifications.map(n => ({
+      ...n,
       onClick: () => {
-        onFilterApplications?.('Pending')
+        if (n.navOffset === 'Pending') onFilterApplications?.('Pending')
+        else onNavigate(n.navOffset)
       }
-    },
-    { 
-      id: '2', 
-      message: 'You have a new AI-matched internship for your skills.', 
-      date: '1 day ago', 
-      read: false,
-      onClick: () => {
-        onNavigate('Browse Internships')
-      }
-    },
-    { 
-      id: '3', 
-      message: 'Welcome to InternConnect! Complete your profile to get started.', 
-      date: '3 days ago', 
-      read: true,
-      onClick: () => {
-        onNavigate('Profile')
-      }
-    },
-  ]
+    }))
+  )
+
+  const handleMarkRead = (id: string) => {
+    globalStudentNotifications = globalStudentNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  }
+
+  const handleMarkAllRead = () => {
+    globalStudentNotifications = globalStudentNotifications.map((n) => ({ ...n, read: true }))
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  }
   const rejected = applications.filter((a) => a.status === 'Rejected').length
   const pending = applications.length - accepted - rejected
 
@@ -101,7 +117,11 @@ export function StudentDashboard({
           <button className="sd-primary" onClick={() => onNavigate('Browse Internships')} type="button">
             <Search size={14} /> Browse Internships
           </button>
-          <NotificationBell notifications={mockNotifications} />
+          <NotificationBell
+            notifications={notifications}
+            onMarkRead={handleMarkRead}
+            onMarkAllRead={handleMarkAllRead}
+          />
         </div>
       </div>
 
@@ -159,11 +179,11 @@ export function StudentDashboard({
                 </p>
               </div>
               <MatchBar value={job.match} />
-              <button 
-                className="sd-primary sm" 
+              <button
+                className="sd-primary sm"
                 onClick={() => {
                   onOpenInternship?.(job.id)
-                }} 
+                }}
                 type="button"
               >
                 Learn More
@@ -186,9 +206,9 @@ export function StudentDashboard({
             <p className="sd-muted sd-empty">No applications yet.</p>
           ) : (
             applications.slice(0, 3).map((app) => (
-              <div 
-                className="sd-list-row clickable" 
-                key={app.id} 
+              <div
+                className="sd-list-row clickable"
+                key={app.id}
                 onClick={() => onOpenProgress && onOpenProgress(app)}
                 role="button"
                 tabIndex={0}
@@ -224,7 +244,7 @@ function StatCard({
   onClick?: () => void
 }) {
   return (
-    <div 
+    <div
       className={`sd-stat ${onClick ? 'clickable' : ''}`}
       onClick={onClick}
       role={onClick ? 'button' : undefined}

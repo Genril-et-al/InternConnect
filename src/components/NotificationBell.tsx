@@ -12,9 +12,10 @@ export interface Notification {
 interface NotificationBellProps {
   notifications: Notification[]
   onMarkAllRead?: () => void
+  onMarkRead?: (id: string) => void
 }
 
-export function NotificationBell({ notifications, onMarkAllRead }: NotificationBellProps) {
+export function NotificationBell({ notifications, onMarkAllRead, onMarkRead }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -36,10 +37,10 @@ export function NotificationBell({ notifications, onMarkAllRead }: NotificationB
 
   return (
     <div className="nb-container" ref={containerRef}>
-      <button 
-        className="nb-trigger" 
-        onClick={() => setIsOpen(!isOpen)} 
-        type="button" 
+      <button
+        className="nb-trigger"
+        onClick={() => setIsOpen(!isOpen)}
+        type="button"
         aria-label="Notifications"
       >
         <Bell size={20} />
@@ -63,10 +64,11 @@ export function NotificationBell({ notifications, onMarkAllRead }: NotificationB
               <p className="nb-empty">No new notifications</p>
             ) : (
               notifications.map((n) => (
-                <div 
-                  key={n.id} 
+                <div
+                  key={n.id}
                   className={`nb-item ${n.read ? 'read' : 'unread'} ${n.onClick ? 'clickable' : ''}`}
                   onClick={() => {
+                    if (onMarkRead) onMarkRead(n.id)
                     if (n.onClick) {
                       n.onClick()
                       setIsOpen(false)
@@ -75,8 +77,13 @@ export function NotificationBell({ notifications, onMarkAllRead }: NotificationB
                   role={n.onClick ? "button" : undefined}
                   tabIndex={n.onClick ? 0 : undefined}
                 >
-                  <p className="nb-message">{n.message}</p>
-                  <span className="nb-date">{n.date}</span>
+                  <div className="nb-item-content">
+                    {!n.read && <span className="nb-unread-dot" />}
+                    <div>
+                      <p className="nb-message">{n.message}</p>
+                      <span className="nb-date">{n.date}</span>
+                    </div>
+                  </div>
                 </div>
               ))
             )}

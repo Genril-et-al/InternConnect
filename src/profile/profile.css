@@ -19,16 +19,13 @@
 }
 
 .profile-logo {
-  align-items: center;
-  background: var(--brand-orange);
   border-radius: 10px;
-  color: #fff;
-  display: flex;
-  font-family: var(--font-display);
-  font-weight: 700;
-  height: 34px;
-  justify-content: center;
-  width: 34px;
+  display: block;
+  flex-shrink: 0;
+  height: 46px;
+  object-fit: contain;
+  width: 46px;
+  filter: drop-shadow(1px 1px 0 white) drop-shadow(-1px -1px 0 white) drop-shadow(1px -1px 0 white) drop-shadow(-1px 1px 0 white);
 }
 
 .profile-brand-name {
@@ -388,13 +385,16 @@
   .profile-name-grid {
     grid-template-columns: 1fr 60px;
   }
+
   .profile-name-grid label:nth-child(3),
   .profile-name-grid label:nth-child(4) {
     grid-column: 1 / -1;
   }
+
   .profile-personal-grid {
     grid-template-columns: 1fr;
   }
+
   .profile-card {
     padding: 24px;
   }

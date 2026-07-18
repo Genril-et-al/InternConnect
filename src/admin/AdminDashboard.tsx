@@ -11,6 +11,31 @@ import {
 } from './adminData'
 import type { AdminCompany, AdminListing, AdminStudent } from './adminData'
 import { NotificationBell } from '../components/NotificationBell'
+import { useState } from 'react'
+
+let globalAdminNotifications = [
+  {
+    id: '1',
+    message: '2 new companies are awaiting verification.',
+    date: '10 mins ago',
+    read: false,
+    navOffset: 2
+  },
+  {
+    id: '2',
+    message: 'Monthly system report has been generated.',
+    date: '5 hours ago',
+    read: false,
+    navOffset: 4
+  },
+  {
+    id: '3',
+    message: '10 new student registrations today.',
+    date: '1 day ago',
+    read: true,
+    navOffset: 1
+  },
+]
 
 export function AdminDashboard({
   students,
@@ -30,35 +55,22 @@ export function AdminDashboard({
   const totalApplications = MONTHLY_APPLICATIONS.reduce((sum, m) => sum + m.apps, 0)
   const maxApps = Math.max(...MONTHLY_APPLICATIONS.map((m) => m.apps))
 
-  const mockNotifications = [
-    { 
-      id: '1', 
-      message: '2 new companies are awaiting verification.', 
-      date: '10 mins ago', 
-      read: false,
-      onClick: () => {
-        onNav(2)
-      }
-    },
-    { 
-      id: '2', 
-      message: 'Monthly system report has been generated.', 
-      date: '5 hours ago', 
-      read: false,
-      onClick: () => {
-        onNav(4)
-      }
-    },
-    { 
-      id: '3', 
-      message: '10 new student registrations today.', 
-      date: '1 day ago', 
-      read: true,
-      onClick: () => {
-        onNav(1)
-      }
-    },
-  ]
+  const [notifications, setNotifications] = useState(
+    globalAdminNotifications.map(n => ({
+      ...n,
+      onClick: () => onNav(n.navOffset)
+    }))
+  )
+
+  const handleMarkRead = (id: string) => {
+    globalAdminNotifications = globalAdminNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  }
+
+  const handleMarkAllRead = () => {
+    globalAdminNotifications = globalAdminNotifications.map((n) => ({ ...n, read: true }))
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  }
 
   // Donut segments via conic-gradient (cumulative start/end stops).
   const stops = STATUS_BREAKDOWN.map((_, i) =>
@@ -79,7 +91,11 @@ export function AdminDashboard({
           <button className="ad-primary" onClick={() => onNav(4)} type="button">
             <BarChart3 size={14} /> Generate Report
           </button>
-          <NotificationBell notifications={mockNotifications} />
+          <NotificationBell
+            notifications={notifications}
+            onMarkRead={handleMarkRead}
+            onMarkAllRead={handleMarkAllRead}
+          />
         </div>
       </div>
 

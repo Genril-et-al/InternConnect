@@ -87,7 +87,7 @@ export function AdminApp() {
     <div className={`ad-shell${collapsed ? ' sb-collapsed' : ''}`}>
       <aside className="ad-sidebar">
         <div className="ad-brand">
-          <span className="ad-logo">IC</span>
+          <img className="ad-logo" src="/logo.png" alt="InternConnect" />
           <div className="ad-brand-text">
             <div className="ad-brand-name">InternConnect</div>
             <div className="ad-brand-sub">Admin Panel</div>

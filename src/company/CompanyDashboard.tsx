@@ -2,8 +2,19 @@ import { Briefcase, CheckCircle2, Clock, Users } from 'lucide-react'
 import { MatchBar, StatusBadge } from './CompanyApplicants'
 import type { CompanyApplicant, CompanyListing } from './companyData'
 import { NotificationBell } from '../components/NotificationBell'
+import { useState } from 'react'
 
 /** UC-C06 — recruitment activity at a glance. */
+let globalCompanyNotifications = [
+  {
+    id: '2',
+    message: 'NLO Admin has verified your company profile.',
+    date: '2 days ago',
+    read: true,
+    navOffset: 'Profile'
+  },
+]
+
 export function CompanyDashboard({
   listings,
   applicants,
@@ -20,17 +31,22 @@ export function CompanyDashboard({
     .filter((a) => a.status === 'Pending')
     .sort((a, b) => b.match - a.match)
 
-  const mockNotifications = [
-    {
-      id: '2',
-      message: 'NLO Admin has verified your company profile.', 
-      date: '2 days ago', 
-      read: true,
-      onClick: () => {
-        onNavigate('Profile')
-      }
-    },
-  ]
+  const [notifications, setNotifications] = useState(
+    globalCompanyNotifications.map(n => ({
+      ...n,
+      onClick: () => onNavigate(n.navOffset)
+    }))
+  )
+
+  const handleMarkRead = (id: string) => {
+    globalCompanyNotifications = globalCompanyNotifications.map((n) => (n.id === id ? { ...n, read: true } : n))
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  }
+
+  const handleMarkAllRead = () => {
+    globalCompanyNotifications = globalCompanyNotifications.map((n) => ({ ...n, read: true }))
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  }
 
   return (
     <div className="cp-root">
@@ -47,7 +63,11 @@ export function CompanyDashboard({
           <button className="cp-primary" onClick={() => onNavigate('Applicants')} type="button">
             <Users size={14} /> Review Applications
           </button>
-          <NotificationBell notifications={mockNotifications} />
+          <NotificationBell
+            notifications={notifications}
+            onMarkRead={handleMarkRead}
+            onMarkAllRead={handleMarkAllRead}
+          />
         </div>
       </div>
 

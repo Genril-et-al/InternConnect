@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="app-error">
-        <span className="app-error-logo">IC</span>
+        <img className="app-error-logo" src="/logo.png" alt="InternConnect" />
         <h1>Something went wrong</h1>
         <p>
           The page hit an unexpected error. Your data is safe — reloading usually

@@ -67,17 +67,13 @@
 }
 
 .ad-logo {
-  align-items: center;
-  background: var(--brand-orange);
   border-radius: 10px;
-  color: #fff;
-  display: flex;
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  height: 34px;
-  justify-content: center;
-  width: 34px;
+  display: block;
+  flex-shrink: 0;
+  height: 46px;
+  object-fit: contain;
+  width: 46px;
+  filter: drop-shadow(1px 1px 0 white) drop-shadow(-1px -1px 0 white) drop-shadow(1px -1px 0 white) drop-shadow(-1px 1px 0 white);
 }
 
 .ad-brand-name {
@@ -803,6 +799,7 @@
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1033,48 +1030,60 @@
 }
 
 @media (max-width: 760px) {
+
   /* On narrow screens the sidebar always shows as a compact icon rail. */
   .app-shell,
   .ad-shell {
     --sb-w: 72px;
   }
+
   .ad-brand {
     flex-direction: column;
     gap: 12px;
     padding: 18px 8px;
   }
+
   .ad-brand-text {
     display: none;
   }
+
   .ad-collapse {
     display: none;
   }
+
   .ad-nav {
     padding: 14px 10px;
   }
+
   .ad-nav button {
     justify-content: center;
     padding: 10px 0;
   }
+
   .ad-nav-label {
     display: none;
   }
+
   .ad-user {
     flex-direction: column;
     gap: 10px;
     padding: 14px 8px;
   }
+
   .ad-user-main {
     display: none;
   }
+
   .ad-user-trigger {
     justify-content: center;
     margin: 0;
     width: 100%;
   }
+
   .ad-main {
     padding: 20px;
   }
+
   .ad-form-grid {
     grid-template-columns: 1fr;
   }
