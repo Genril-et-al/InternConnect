@@ -53,7 +53,9 @@ export function AdminDashboard({
   const openListings = listings.filter((l) => l.status === 'open').length
   const flagged = listings.filter((l) => l.status === 'flagged').length
   const totalApplications = MONTHLY_APPLICATIONS.reduce((sum, m) => sum + m.apps, 0)
-  const maxApps = Math.max(...MONTHLY_APPLICATIONS.map((m) => m.apps))
+  // Guard the spread: Math.max() with no args is -Infinity, which would make
+  // every bar height NaN the moment a single data point arrives.
+  const maxApps = Math.max(1, ...MONTHLY_APPLICATIONS.map((m) => m.apps))
 
   const [notifications, setNotifications] = useState(
     globalAdminNotifications.map(n => ({
@@ -109,36 +111,46 @@ export function AdminDashboard({
       <div className="ad-charts">
         <section className="ad-card">
           <h3>Monthly Applications</h3>
-          <div className="ad-bars">
-            {MONTHLY_APPLICATIONS.map((m) => (
-              <div className="ad-bar-col" key={m.month}>
-                <span className="ad-bar-value">{m.apps}</span>
-                <div
-                  className="ad-bar"
-                  style={{ height: `${Math.round((m.apps / maxApps) * 100)}%` }}
-                />
-                <span className="ad-bar-label">{m.month}</span>
-              </div>
-            ))}
-          </div>
+          {MONTHLY_APPLICATIONS.length === 0 ? (
+            <p className="ad-empty">No application data yet</p>
+          ) : (
+            <div className="ad-bars">
+              {MONTHLY_APPLICATIONS.map((m) => (
+                <div className="ad-bar-col" key={m.month}>
+                  <span className="ad-bar-value">{m.apps}</span>
+                  <div
+                    className="ad-bar"
+                    style={{ height: `${Math.round((m.apps / maxApps) * 100)}%` }}
+                  />
+                  <span className="ad-bar-label">{m.month}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="ad-card">
           <h3>Application Status</h3>
-          <div className="ad-donut-wrap">
-            <div className="ad-donut" style={{ background: `conic-gradient(${segments})` }} />
-            <div className="ad-legend">
-              {STATUS_BREAKDOWN.map((s) => (
-                <div className="ad-legend-row" key={s.name}>
-                  <span className="ad-legend-name">
-                    <span className="ad-legend-dot" style={{ backgroundColor: s.color }} />
-                    {s.name}
-                  </span>
-                  <span className="ad-legend-value">{s.value}%</span>
-                </div>
-              ))}
+          {STATUS_BREAKDOWN.length === 0 ? (
+            // An empty segments string makes conic-gradient() invalid CSS, so
+            // the donut would render as a blank ring rather than nothing.
+            <p className="ad-empty">No application data yet</p>
+          ) : (
+            <div className="ad-donut-wrap">
+              <div className="ad-donut" style={{ background: `conic-gradient(${segments})` }} />
+              <div className="ad-legend">
+                {STATUS_BREAKDOWN.map((s) => (
+                  <div className="ad-legend-row" key={s.name}>
+                    <span className="ad-legend-name">
+                      <span className="ad-legend-dot" style={{ backgroundColor: s.color }} />
+                      {s.name}
+                    </span>
+                    <span className="ad-legend-value">{s.value}%</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </section>
       </div>
 

@@ -169,6 +169,9 @@ export function StudentDashboard({
           </button>
         </div>
         <div className="sd-list">
+          {internships.length === 0 && (
+            <p className="sd-muted sd-empty">No internships posted yet.</p>
+          )}
           {internships.slice(0, 3).map((job) => (
             <div className="sd-list-row" key={job.id}>
               <span className="sd-mark">{job.company.slice(0, 2).toUpperCase()}</span>

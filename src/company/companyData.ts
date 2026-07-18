@@ -60,62 +60,9 @@ export type CompanyApplicant = {
   submittedRequirements?: SubmittedRequirement[]
 }
 
-export const SEED_COMPANY_LISTINGS: CompanyListing[] = [
-  { 
-    id: 1, 
-    title: 'Frontend Developer Intern', 
-    status: 'Open', 
-    slots: 4, 
-    deadline: 'Jul 29',
-    department: 'Engineering',
-    skills: ['React', 'TypeScript', 'Figma', 'HTML/CSS'],
-    description: 'Build beautiful web interfaces using React and Figma.'
-  },
-  { 
-    id: 2, 
-    title: 'Technical Writer Intern', 
-    status: 'Draft', 
-    slots: 1, 
-    deadline: 'Aug 5',
-    department: 'Documentation',
-    skills: ['Markdown', 'Git', 'Technical Writing'],
-    description: 'Create and maintain API documentation and user guides for our core products.'
-  },
-  { 
-    id: 3, 
-    title: 'QA Automation Intern', 
-    status: 'Open', 
-    slots: 2, 
-    deadline: 'Aug 8',
-    department: 'Quality Assurance',
-    skills: ['Playwright', 'Testing', 'JavaScript'],
-    description: 'Write automated test scripts and ensure the quality of our weekly releases.'
-  },
-  { 
-    id: 4, 
-    title: 'Data Analyst Intern', 
-    status: 'Open', 
-    slots: 2, 
-    deadline: 'Aug 5',
-    department: 'Analytics',
-    skills: ['Python', 'SQL', 'Excel', 'Tableau'],
-    description: 'Analyze data and generate business insights.'
-  },
-  { 
-    id: 5, 
-    title: 'UI/UX Design Intern', 
-    status: 'Open', 
-    slots: 1, 
-    deadline: 'Aug 15',
-    department: 'Design',
-    skills: ['Figma', 'Prototyping', 'User Research'],
-    description: 'Help design the next generation of our mobile app.',
-    requirements: [
-      { id: 'req-portfolio', name: 'Final Portfolio PDF', type: 'file', isPrintable: false },
-      { id: 'req-contract', name: 'Internship Contract', type: 'file', isPrintable: true }
-    ]
-  },
-]
+// Seed listings removed — the portal starts empty and fills from real company
+// actions (and the Supabase listings table once that slice lands).
+export const SEED_COMPANY_LISTINGS: CompanyListing[] = []
 
 export const MATCH_FILTERS: Record<string, number> = {
   'Any match %': 0,
