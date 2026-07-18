@@ -45,6 +45,7 @@ export type AdminListing = {
   title: string
   company: string
   companyDescription?: string
+  description?: string
   status: AdminListingStatus
   applicants: number
   posted: string

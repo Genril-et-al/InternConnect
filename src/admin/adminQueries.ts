@@ -119,6 +119,7 @@ type AdminListingRow = {
   id: string
   title: string
   status: string
+  description: string | null
   is_flagged: boolean
   deadline: string | null
   created_at: string
@@ -130,7 +131,7 @@ type AdminListingRow = {
 export async function fetchAdminListings(): Promise<AdminListing[]> {
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, status, is_flagged, deadline, created_at, companies(name, description), applications(count)')
+    .select('id, title, status, description, is_flagged, deadline, created_at, companies(name, description), applications(count)')
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
   return ((data ?? []) as unknown as AdminListingRow[]).map((r) => ({
@@ -138,6 +139,7 @@ export async function fetchAdminListings(): Promise<AdminListing[]> {
     title: r.title,
     company: r.companies?.name ?? '—',
     companyDescription: r.companies?.description ?? undefined,
+    description: r.description ?? undefined,
     status: r.is_flagged ? 'flagged' : r.status === 'open' ? 'open' : 'closed',
     applicants: r.applications?.[0]?.count ?? 0,
     posted: monthYear(r.created_at),

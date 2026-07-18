@@ -123,9 +123,9 @@ export function AdminInternships({
                   <div className="ad-row-details" onClick={(e) => e.stopPropagation()}>
                     <div className="ad-details-content">
                       <div className="ad-details-section">
-                        <h4 className="ad-details-heading">About {l.company}</h4>
+                        <h4 className="ad-details-heading">About Internship</h4>
                         <p className="ad-details-description">
-                          {l.companyDescription || 'No company description available.'}
+                          {l.description || 'No internship description available.'}
                         </p>
                       </div>
                       <div className="ad-details-stat-card">
