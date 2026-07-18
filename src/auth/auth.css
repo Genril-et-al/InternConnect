@@ -512,11 +512,7 @@
   .auth-details-grid {
     grid-template-columns: 1fr;
   }
-<<<<<<< Updated upstream
   .auth-role-choices {
     grid-template-columns: 1fr;
   }
 }
-=======
-}
->>>>>>> Stashed changes

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Eye, UserCheck, UserX, Plus, Upload, X, Trash2 } from 'lucide-react'
+import { UserCheck, UserX, Plus, Upload, X, Trash2 } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
 import type { AdminStudent } from './adminData'
 import {
@@ -104,7 +104,7 @@ export function AdminStudents({
         <table className="ad-table">
           <thead>
             <tr>
-              {['Student', 'Email', 'Status', 'Applications', 'Joined', 'Actions'].map((h) => (
+              {['Student', 'Email', 'Status', 'Applications', 'Joined'].map((h) => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
@@ -112,9 +112,8 @@ export function AdminStudents({
           <tbody>
             {filtered.map((s) => {
               const badge = statusBadge(s)
-              const busy = busyId === s.id
               return (
-                <tr key={s.id}>
+                <tr key={s.id} onClick={() => setViewTarget(s)} style={{ cursor: 'pointer' }}>
                   <td>
                     <div className="ad-cell-person">
                       <span className="ad-cell-mark">
@@ -133,32 +132,12 @@ export function AdminStudents({
                   <td><AdBadge text={badge.text} variant={badge.variant} /></td>
                   <td>{s.applications}</td>
                   <td className="ad-muted">{s.joined}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button className="ad-secondary" onClick={() => setViewTarget(s)} type="button">
-                        <Eye size={12} /> View
-                      </button>
-                      {s.registered ? (
-                        <button className="ad-secondary" onClick={() => handleToggle(s)} type="button" disabled={busy}>
-                          {s.status === 'active' ? (
-                            <><UserX size={12} /> Deactivate</>
-                          ) : (
-                            <><UserCheck size={12} /> Activate</>
-                          )}
-                        </button>
-                      ) : (
-                        <button className="ad-secondary" onClick={() => remove(s)} type="button" disabled={busy}>
-                          <Trash2 size={12} /> {busy ? 'Removing…' : 'Remove'}
-                        </button>
-                      )}
-                    </div>
-                  </td>
                 </tr>
               )
             })}
             {filtered.length === 0 && (
               <tr>
-                <td className="ad-empty" colSpan={6}>
+                <td className="ad-empty" colSpan={5}>
                   {loading ? 'Loading students…' : loadError ? `Could not load students: ${loadError}` : 'No students found'}
                 </td>
               </tr>
@@ -169,7 +148,23 @@ export function AdminStudents({
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={onRefresh} />}
       {showBulkModal && <BulkUploadModal type="student" onClose={() => setShowBulkModal(false)} onDone={onRefresh} />}
-      {viewTarget && <ViewStudentModal student={viewTarget} onClose={() => setViewTarget(null)} />}
+      {viewTarget && (
+        <ViewStudentModal
+          student={students.find((s) => s.id === viewTarget.id) || viewTarget}
+          busy={busyId === viewTarget.id}
+          onClose={() => setViewTarget(null)}
+          onToggle={(s) => {
+            handleToggle(s)
+            if (s.status === 'active') {
+              setViewTarget(null)
+            }
+          }}
+          onRemove={(s) => {
+            remove(s)
+            setViewTarget(null)
+          }}
+        />
+      )}
       {deactivateTarget && (
         <DeactivateStudentModal
           student={deactivateTarget}
@@ -189,7 +184,19 @@ export function AdminStudents({
 }
 
 /** UC-A01 — read-only view of a student's account information. */
-function ViewStudentModal({ student, onClose }: { student: AdminStudent; onClose: () => void }) {
+function ViewStudentModal({
+  student,
+  busy,
+  onClose,
+  onToggle,
+  onRemove,
+}: {
+  student: AdminStudent
+  busy: boolean
+  onClose: () => void
+  onToggle: (s: AdminStudent) => void
+  onRemove: (s: AdminStudent) => void
+}) {
   const initials = student.name
     .split(' ')
     .filter(Boolean)
@@ -247,6 +254,34 @@ function ViewStudentModal({ student, onClose }: { student: AdminStudent; onClose
               )}
             </div>
           )}
+
+          <div className="ad-view-actions" style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+            {student.registered ? (
+              <button
+                className="ad-secondary"
+                onClick={() => onToggle(student)}
+                type="button"
+                disabled={busy}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {student.status === 'active' ? (
+                  <><UserX size={14} /> Deactivate</>
+                ) : (
+                  <><UserCheck size={14} /> Activate</>
+                )}
+              </button>
+            ) : (
+              <button
+                className="ad-danger"
+                onClick={() => onRemove(student)}
+                type="button"
+                disabled={busy}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <Trash2 size={14} /> {busy ? 'Removing…' : 'Remove'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
