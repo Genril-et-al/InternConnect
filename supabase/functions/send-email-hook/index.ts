@@ -25,9 +25,23 @@
 // This function must be deployed with JWT verification DISABLED — it is called
 // by Supabase's auth server (authenticated by the hook signature above), not by
 // a logged-in user:  supabase functions deploy send-email-hook --no-verify-jwt
+//
+// Timeout note: Supabase auth hooks have a hard, non-configurable 5s timeout.
+// A full Gmail SMTP session (connect → TLS → AUTH → send → close) on top of edge
+// cold start routinely blows past that, which surfaces to the user as
+// "Failed to reach hook within maximum time of 5.000000 seconds". To stay inside
+// the window we verify the signature synchronously (CPU-only, fast) and return
+// 200 immediately, then finish delivery in the background via
+// EdgeRuntime.waitUntil(). Supabase's timeout only measures time-to-response.
+// Trade-off: a delivery failure can no longer be reported back to the auth flow,
+// so it's logged here instead — watch the function logs if codes go missing.
 
 import { Webhook } from 'npm:standardwebhooks@1.0.0'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
+
+// Supabase edge runtime global for keeping the isolate alive past the response
+// so background work (the SMTP send) can complete.
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void }
 
 const GMAIL_USER = Deno.env.get('GMAIL_USER') ?? 'internconnect000@gmail.com'
 const FROM_NAME = Deno.env.get('EMAIL_FROM_NAME') ?? 'InternConnect'
@@ -153,19 +167,26 @@ Deno.serve(async (req) => {
     })
   }
 
-  // 2. Deliver the code Supabase generated via Gmail SMTP.
-  try {
-    const { subject, intro } = copyFor(email_data.email_action_type)
-    const text = `${intro}\n\n${email_data.token}\n\nThis code expires in 5 minutes.`
-    await sendEmail(user.email, subject, emailHtml(intro, email_data.token), text)
-  } catch (err) {
-    console.error('Email delivery failed', err)
-    return new Response(
-      JSON.stringify({ error: { http_code: 500, message: 'Could not send the verification email' } }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
+  // 2. Deliver the code Supabase generated via Gmail SMTP — in the BACKGROUND.
+  //    We schedule the send but do not await it, so the hook responds well within
+  //    the 5s timeout. EdgeRuntime.waitUntil keeps the isolate alive until the
+  //    send settles. Failures are logged (they can't be reported to the auth flow
+  //    once we've already returned 200).
+  const { subject, intro } = copyFor(email_data.email_action_type)
+  const text = `${intro}\n\n${email_data.token}\n\nThis code expires in 5 minutes.`
+  EdgeRuntime.waitUntil(
+    sendEmail(user.email, subject, emailHtml(intro, email_data.token), text).catch((err) => {
+      console.error('Email delivery failed (background)', err)
+    }),
+  )
 
-  // 3. Empty 200 = success (Supabase Send Email hook contract).
-  return new Response(null, { status: 200 })
+  // 3. 200 = success (Supabase Send Email hook contract). Returned immediately;
+  //    delivery continues in the background scheduled above. GoTrue reads the
+  //    response and requires a Content-Type header, so we return an empty JSON
+  //    object rather than a null body — a bare 200 trips
+  //    "Invalid Content-Type: Missing Content-Type header".
+  return new Response(JSON.stringify({}), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
 })
