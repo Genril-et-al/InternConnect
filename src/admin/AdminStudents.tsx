@@ -25,6 +25,7 @@ export function AdminStudents({
   onRefresh: () => Promise<void>
 }) {
   const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminStudent | null>(null)
@@ -36,10 +37,11 @@ export function AdminStudents({
     () =>
       students.filter(
         (s) =>
-          s.name.toLowerCase().includes(search.toLowerCase()) ||
-          s.email.toLowerCase().includes(search.toLowerCase()),
+          (filter === 'all' || s.status === filter) &&
+          (s.name.toLowerCase().includes(search.toLowerCase()) ||
+            s.email.toLowerCase().includes(search.toLowerCase())),
       ),
-    [students, search],
+    [students, search, filter],
   )
 
   async function runAction(id: string, fn: () => Promise<void>) {
@@ -94,6 +96,16 @@ export function AdminStudents({
 
       <div className="ad-toolbar">
         <AdSearch onChange={setSearch} placeholder="Search by name or email…" value={search} />
+        <select
+          className="ad-select"
+          onChange={(e) => setFilter(e.target.value as 'all' | 'active' | 'inactive' | 'pending')}
+          value={filter}
+        >
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="pending">Not registered</option>
+        </select>
       </div>
 
       {actionError && (
