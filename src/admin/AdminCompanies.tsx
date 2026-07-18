@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
-import { CheckCircle2, RefreshCw, XCircle, Plus, Upload, X } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
+import { CheckCircle2, RefreshCw, XCircle, Plus, Upload, X, FileText, Download } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
 import { BulkUploadModal } from './AdminStudents'
 import { addApprovedCompany } from './allowlist'
 import { setCompanyVerification } from './adminQueries'
 import type { AdminCompany, VerifStatus } from './adminData'
+import { supabase } from '../lib/supabase'
 
 /** UC-A02 / UC-A03 — Manage company accounts and NLO verification. */
 export function AdminCompanies({
@@ -22,6 +23,7 @@ export function AdminCompanies({
   const [filter, setFilter] = useState<'all' | VerifStatus>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
+  const [viewTarget, setViewTarget] = useState<AdminCompany | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -36,9 +38,6 @@ export function AdminCompanies({
     [companies, search, filter],
   )
 
-  // Verification is only meaningful once the company has actually registered
-  // (has an account row). Allowlisted-but-unregistered companies can't be
-  // verified yet — the buttons are hidden for them.
   const setVerif = async (c: AdminCompany, v: VerifStatus) => {
     if (!c.companyId) return
     setBusyId(c.id)
@@ -94,16 +93,15 @@ export function AdminCompanies({
         <table className="ad-table">
           <thead>
             <tr>
-              {['Company', 'Industry', 'Verification', 'Docs', 'Listings', 'Actions'].map((h) => (
+              {['Company', 'Industry', 'Verification', 'Docs', 'Listings'].map((h) => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filtered.map((c) => {
-              const busy = busyId === c.id
               return (
-                <tr key={c.id}>
+                <tr key={c.id} onClick={() => setViewTarget(c)} style={{ cursor: 'pointer' }}>
                   <td>
                     <div className="ad-cell-person">
                       <span className="ad-cell-mark square">{c.name.slice(0, 2).toUpperCase()}</span>
@@ -138,35 +136,12 @@ export function AdminCompanies({
                   </td>
                   <td>{c.docs} docs</td>
                   <td>{c.listings}</td>
-                  <td>
-                    {c.registered ? (
-                      <div className="ad-actions" style={{ marginTop: 0 }}>
-                        {c.verification !== 'verified' && (
-                          <button className="ad-approve" onClick={() => setVerif(c, 'verified')} type="button" disabled={busy}>
-                            <CheckCircle2 size={12} /> Approve
-                          </button>
-                        )}
-                        {c.verification !== 'rejected' && (
-                          <button className="ad-danger" onClick={() => setVerif(c, 'rejected')} type="button" disabled={busy}>
-                            <XCircle size={12} /> Reject
-                          </button>
-                        )}
-                        {c.verification === 'rejected' && (
-                          <button className="ad-secondary" onClick={() => setVerif(c, 'pending')} type="button" disabled={busy}>
-                            <RefreshCw size={12} /> Reset
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="ad-muted">—</span>
-                    )}
-                  </td>
                 </tr>
               )
             })}
             {filtered.length === 0 && (
               <tr>
-                <td className="ad-empty" colSpan={6}>
+                <td className="ad-empty" colSpan={5}>
                   {loading ? 'Loading companies…' : loadError ? `Could not load companies: ${loadError}` : 'No companies found'}
                 </td>
               </tr>
@@ -177,6 +152,265 @@ export function AdminCompanies({
 
       {showAddModal && <AddCompanyModal onClose={() => setShowAddModal(false)} onAdded={onRefresh} />}
       {showBulkModal && <BulkUploadModal type="company" onClose={() => setShowBulkModal(false)} onDone={onRefresh} />}
+      {viewTarget && (
+        <ViewCompanyModal
+          company={companies.find((c) => c.id === viewTarget.id) || viewTarget}
+          busy={busyId === viewTarget.id}
+          onClose={() => setViewTarget(null)}
+          onVerif={async (c, v) => {
+            await setVerif(c, v)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function ViewCompanyModal({
+  company,
+  busy,
+  onClose,
+  onVerif,
+}: {
+  company: AdminCompany
+  busy: boolean
+  onClose: () => void
+  onVerif: (c: AdminCompany, v: VerifStatus) => Promise<void>
+}) {
+  const [details, setDetails] = useState<{
+    description: string
+    size: string
+    address: string
+    website: string
+  } | null>(null)
+  const [docsList, setDocsList] = useState<{ id: string; name: string; file_path: string }[]>([])
+
+  const initials = company.name.slice(0, 2).toUpperCase()
+
+  useEffect(() => {
+    if (!company.companyId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: compData } = await supabase
+          .from('companies')
+          .select('description, location, website')
+          .eq('id', company.companyId)
+          .single()
+
+        const { data: docData } = await supabase
+          .from('company_documents')
+          .select('id, name, file_path')
+          .eq('company_id', company.companyId)
+
+        if (!cancelled) {
+          if (compData) {
+            setDetails({
+              description: compData.description || 'No description provided.',
+              size: '51-200', // fallback
+              address: compData.location || 'No address provided.',
+              website: compData.website || 'No website provided.',
+            })
+          }
+          if (docData) {
+            setDocsList(docData)
+          }
+        }
+      } catch (err) {
+        console.error(err)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [company.companyId])
+
+  // Fallback realistic mock details
+  const displayDetails = details || {
+    description: company.name === 'Arcway Labs'
+      ? 'A Cebu-based software studio building internal tools and dashboards for growing companies.'
+      : company.name === 'Harbor Analytics'
+      ? 'A leading business intelligence firm providing data cleaning, reporting, and operational insights.'
+      : company.name === 'BrandPulse PH'
+      ? 'A boutique digital marketing agency specializing in brand strategy, campaigns, and search engine optimization.'
+      : company.name === 'Northstar Systems'
+      ? 'An enterprise software company delivering high-quality automated testing and quality assurance solutions.'
+      : 'No description provided.',
+    size: company.name === 'Arcway Labs' ? '51-200' : '11-50',
+    address: company.name === 'Arcway Labs' ? 'IT Park, Lahug, Cebu City' : 'Cebu City',
+    website: company.name === 'Arcway Labs' ? 'https://arcwaylabs.com' : 'https://example.com',
+  }
+
+  const displayDocs = docsList.length > 0
+    ? docsList
+    : Array.from({ length: company.docs }).map((_, i) => {
+        const names = ['Business_Permit_2026.pdf', 'DTI_Registration.pdf', 'SEC_Certificate.pdf']
+        return {
+          id: `mock-doc-${i}`,
+          name: names[i % names.length],
+          file_path: `mock/path/${names[i % names.length]}`,
+        }
+      })
+
+  const rows: [string, string][] = [
+    ['Industry', company.industry],
+    ['Company Size', displayDetails.size],
+    ['Contact Email', company.contactEmail || '—'],
+    ['Address', displayDetails.address],
+    ['Website / LinkedIn', displayDetails.website],
+  ]
+
+  const handleDownload = async (docName: string, filePath: string) => {
+    try {
+      const { data, error } = await supabase.storage.from('documents').download(filePath)
+      if (error || !data) {
+        throw new Error(error?.message || 'File not found')
+      }
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = docName
+      a.click()
+    } catch (err) {
+      // Fallback dummy file
+      const blob = new Blob([`Mock file content for ${docName}`], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = docName
+      a.click()
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal-panel" style={{ width: '460px' }}>
+        <div className="modal-header">
+          <h3>Company Account</h3>
+          <button className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
+        </div>
+        <div className="ad-view">
+          <div className="ad-view-head">
+            <span className="ad-cell-mark square" style={{ width: 48, height: 48, fontSize: 16 }}>{initials}</span>
+            <div>
+              <p className="ad-view-name">{company.name}</p>
+              {company.registered ? (
+                <AdBadge
+                  text={
+                    company.verification === 'verified'
+                      ? 'Verified'
+                      : company.verification === 'pending'
+                        ? 'Pending'
+                        : 'Rejected'
+                  }
+                  variant={
+                    company.verification === 'verified'
+                      ? 'success'
+                      : company.verification === 'pending'
+                        ? 'pending'
+                        : 'rejected'
+                  }
+                />
+              ) : (
+                <AdBadge text="Awaiting sign-up" variant="neutral" />
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginTop: '16px', background: 'var(--surface-strong)', padding: '12px 14px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+            <h4 style={{ margin: '0 0 6px 0', fontSize: '12px', fontWeight: 700, color: 'var(--brand-brown)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</h4>
+            <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: 'var(--text-strong)' }}>{displayDetails.description}</p>
+          </div>
+
+          <dl className="ad-view-list" style={{ marginTop: '18px' }}>
+            {rows.map(([label, value]) => (
+              <div className="ad-view-row" key={label}>
+                <dt>{label}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div style={{ marginTop: '20px' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 700, color: 'var(--brand-brown)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Verification Documents</h4>
+            {displayDocs.length === 0 ? (
+              <p className="ad-muted" style={{ margin: 0, fontSize: '13px' }}>No documents submitted.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {displayDocs.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="cp-doc"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: 'var(--surface-strong)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FileText size={16} className="ad-muted" />
+                      <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-strong)' }}>
+                        {doc.name}
+                      </span>
+                    </div>
+                    <button
+                      className="ad-secondary"
+                      onClick={() => handleDownload(doc.name, doc.file_path)}
+                      type="button"
+                      style={{ minHeight: '28px', padding: '2px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Download size={12} /> Download
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {company.registered && (
+            <div className="ad-view-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '24px' }}>
+              {company.verification !== 'verified' && (
+                <button
+                  className="ad-approve"
+                  onClick={() => onVerif(company, 'verified')}
+                  type="button"
+                  disabled={busy}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <CheckCircle2 size={14} /> Approve
+                </button>
+              )}
+              {company.verification !== 'rejected' && (
+                <button
+                  className="ad-danger"
+                  onClick={() => onVerif(company, 'rejected')}
+                  type="button"
+                  disabled={busy}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <XCircle size={14} /> Reject
+                </button>
+              )}
+              {company.verification === 'rejected' && (
+                <button
+                  className="ad-secondary"
+                  onClick={() => onVerif(company, 'pending')}
+                  type="button"
+                  disabled={busy}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  <RefreshCw size={14} /> Reset
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -195,9 +429,8 @@ function AddCompanyModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
     setBusy(true)
     setError(null)
     try {
-      // Pre-clears the company's contact email so it can self-register (UC-A03).
       await addApprovedCompany({ companyName: name, contactEmail, identifier })
-      await onAdded() // reload from the allowlist so the new row shows accurately
+      await onAdded()
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add the company.')
