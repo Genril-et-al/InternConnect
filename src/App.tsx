@@ -25,6 +25,7 @@ import {
   fetchBookmarks,
   fetchMyApplications,
   fetchOpenListings,
+  matchPool,
   setBookmarked,
   submitRequirementFile,
   submitRequirementText,
@@ -202,18 +203,21 @@ function StudentPortal({
 
   const userId = profile?.id
   const skills = profile?.skills
+  const specializations = profile?.specializations
 
   const refresh = useCallback(async () => {
     if (!userId) return
     const [l, a, b] = await Promise.all([
-      fetchOpenListings(skills ?? []),
+      // Match against the full profile pool: resume-extracted skills plus any
+      // manually added skills and specializations.
+      fetchOpenListings(matchPool(skills, specializations)),
       fetchMyApplications(userId),
       fetchBookmarks(userId),
     ])
     setInternships(l)
     setApplications(a)
     setBookmarkedIds(b)
-  }, [userId, skills])
+  }, [userId, skills, specializations])
 
   useEffect(() => {
     let cancelled = false

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { computeMatch, formatDate } from '../lib/listingsApi'
+import { computeMatch, formatDate, matchPool } from '../lib/listingsApi'
 import type {
   ApplicantStatus,
   CompanyApplicant,
@@ -218,7 +218,10 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
       email: r.profiles?.email ?? '—',
       listingId: r.listing_id,
       role: r.listings?.title ?? '—',
-      match: computeMatch(r.profiles?.skills ?? [], r.listings?.skills ?? []),
+      match: computeMatch(
+        matchPool(r.profiles?.skills, r.profiles?.specializations),
+        r.listings?.skills ?? [],
+      ),
       status: APPLICANT_STATUS_FROM_DB[r.status] ?? 'Pending',
       applied: formatDate(r.created_at),
       skills: r.profiles?.skills ?? [],

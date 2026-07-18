@@ -172,11 +172,25 @@ Deno.serve(async (req) => {
     if (!geminiRes.ok) {
       const detail = await geminiRes.text()
       console.error('Gemini error', geminiRes.status, detail)
-      return json({ error: 'AI analysis failed. Please try again shortly.' }, 502)
+      // Persist the failure so the team can diagnose without console access.
+      await admin.from('edge_function_errors').insert({
+        fn: 'analyze-resume',
+        detail: `Gemini ${geminiRes.status}: ${detail.slice(0, 2000)}`,
+      })
+      return json(
+        { error: `AI analysis failed (Gemini ${geminiRes.status}). Please try again shortly.` },
+        502,
+      )
     }
     const geminiBody = await geminiRes.json()
     const text = geminiBody?.candidates?.[0]?.content?.parts?.[0]?.text
-    if (!text) return json({ error: 'AI returned no result. Please try again.' }, 502)
+    if (!text) {
+      await admin.from('edge_function_errors').insert({
+        fn: 'analyze-resume',
+        detail: `Empty Gemini response: ${JSON.stringify(geminiBody).slice(0, 2000)}`,
+      })
+      return json({ error: 'AI returned no result. Please try again.' }, 502)
+    }
     const extraction = JSON.parse(text) as Extraction
 
     const skills = dedupe(extraction.skills)

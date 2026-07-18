@@ -29,12 +29,32 @@ export function formatDate(iso: string | null): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-/** Skills-overlap match %: how many of the listing's skills the student has. */
-export function computeMatch(profileSkills: string[], listingSkills: string[]): number {
+/**
+ * Skills-overlap match %: how many of the listing's skills the student covers.
+ * The student pool is everything on their profile — AI-extracted resume skills
+ * plus any manually added skills AND specializations — so profile-only entries
+ * count toward the match too. Specializations also match loosely (a "Frontend
+ * Development" specialization covers a "Frontend" listing skill and vice versa).
+ */
+export function computeMatch(studentPool: string[], listingSkills: string[]): number {
   if (!listingSkills.length) return 0
-  const mine = new Set(profileSkills.map((s) => s.trim().toLowerCase()))
-  const hit = listingSkills.filter((s) => mine.has(s.trim().toLowerCase())).length
+  const mine = studentPool.map((s) => s.trim().toLowerCase()).filter(Boolean)
+  const mineExact = new Set(mine)
+  const hit = listingSkills.filter((raw) => {
+    const skill = raw.trim().toLowerCase()
+    if (!skill) return false
+    if (mineExact.has(skill)) return true
+    // Loose containment for multi-word specializations vs listing skills.
+    return mine.some(
+      (m) => (m.length > 3 && skill.includes(m)) || (skill.length > 3 && m.includes(skill)),
+    )
+  }).length
   return Math.round((hit / listingSkills.length) * 100)
+}
+
+/** The full matching pool for a student profile: skills + specializations. */
+export function matchPool(skills?: string[] | null, specializations?: string[] | null): string[] {
+  return [...(skills ?? []), ...(specializations ?? [])]
 }
 
 function listingStatus(deadline: string | null): Internship['status'] {
