@@ -9,16 +9,12 @@ import type { Profile } from './supabase'
  *   2. verifySignupCode()   — confirm the code, opening an authenticated session
  *   3. setPassword()        — set the password used for future logins
  *
- * Domain rules (only @cit.edu students, or NLO-approved companies) are enforced
- * server-side by the `handle_new_user` trigger, so an invalid email fails at
- * step 1 with a descriptive error.
+ * Eligibility is roster-based, not domain-based: the `handle_new_user` trigger
+ * (via `resolve_signup_role`) allows an email only if it is on the
+ * `approved_students` roster or the `nlo_approved_companies` allowlist —
+ * regardless of domain. A non-rostered email fails at step 1 with a
+ * descriptive server error, so no client-side domain check is needed.
  */
-
-const UNIVERSITY_DOMAIN = '@cit.edu'
-
-export function isUniversityEmail(email: string): boolean {
-  return email.trim().toLowerCase().endsWith(UNIVERSITY_DOMAIN)
-}
 
 /**
  * Sign-up collects only the student's full name and university email
@@ -29,6 +25,22 @@ export type SignupName = {
   middleInitial: string
   lastName: string
   suffix: string
+}
+
+/**
+ * Pre-check whether an email is cleared to register, by asking the database
+ * (approved_students roster / nlo_approved_companies allowlist). Returns the
+ * resolved role, or null if the email is not permitted. Used to give a clear
+ * message before requesting a code (UC-S01), instead of a generic 500.
+ */
+export async function checkSignupEligibility(
+  email: string,
+): Promise<'student' | 'company' | null> {
+  const { data, error } = await supabase.rpc('check_signup_eligibility', {
+    p_email: email.trim().toLowerCase(),
+  })
+  if (error) throw error
+  return (data as 'student' | 'company' | null) ?? null
 }
 
 /** Step 1: send a verification code to the email (creates the pending user). */

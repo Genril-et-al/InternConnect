@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  isUniversityEmail,
+  checkSignupEligibility,
   login,
   requestSignupCode,
   setPassword,
@@ -18,7 +18,10 @@ const MAX_CODE_ATTEMPTS = 3 // UC-S01 alt flow 4a: limited attempts.
 
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) {
-    return String((err as { message: unknown }).message)
+    const msg = String((err as { message: unknown }).message ?? '').trim()
+    // supabase-js wraps a 500 as AuthRetryableFetchError with message "{}" and
+    // drops the server text — don't surface that noise to the user.
+    if (msg && msg !== '{}') return msg
   }
   return 'Something went wrong. Please try again.'
 }
@@ -197,14 +200,17 @@ function SignupFlow({
     setError('')
     setInfo('')
 
-    if (!isUniversityEmail(email)) {
-      // Client-side hint; the server enforces this too (UC-S01 alt 3a).
-      setError('Students must register with a university @cit.edu email address.')
-      return
-    }
-
     setBusy(true)
     try {
+      // Ask the database whether this email is cleared to register before
+      // sending a code, so non-rostered emails get a clear message (UC-S01).
+      const role = await checkSignupEligibility(email)
+      if (!role) {
+        setError(
+          "This email isn't cleared to register yet. Students must be pre-registered by the NLO, and companies must be NLO-approved. Ask the NLO to add your email, then try again.",
+        )
+        return
+      }
       await requestSignupCode(email, { firstName, middleInitial, lastName, suffix })
       setAttempts(0)
       setInfo(`We sent a 6-digit code to ${email}. It expires in 5 minutes.`)

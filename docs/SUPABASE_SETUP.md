@@ -147,8 +147,8 @@ password. On success you're routed into the role-appropriate portal.
 |------|--------|
 | UC-S01 Register (email → code → password) | ✅ frontend + server rules |
 | UC-S01 Login (email + password) | ✅ |
-| Domain restriction (@cit.edu students) | ✅ server trigger + client hint |
-| Company allowlist gate (UC-A03) | ✅ schema + trigger (admin UI pending) |
+| Signup eligibility (roster-based, any domain) | ✅ `resolve_signup_role` + `check_signup_eligibility` pre-check |
+| Student roster + company allowlist gate (UC-A03) | ✅ schema + trigger + admin UI |
 | Role-based routing | ✅ derived from `profiles.role` |
 | Deactivated-account block (UC-A01) | ✅ login gate (admin action pending) |
 | Student profile setup (UC-S02) | ✅ name (read-only), photo, skills, specializations, resume, portfolio |
