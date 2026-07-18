@@ -60,34 +60,62 @@ token instead of a link.
 > During development you don't need a real inbox — Supabase logs sent emails
 > under **Authentication → Logs**, and you can also read the code there.
 
-### 4a. Send codes from a real inbox (Custom SMTP — required for real delivery)
+### 4a. Send codes from a real inbox (Send Email Hook — edge function delivery)
 
 Supabase's **built-in** email sender is for testing only: it is rate-limited to a
-handful of messages per hour and often never reaches the student. To reliably
-deliver the verification code **from `internconnect000@gmail.com`**, point
-Supabase at Gmail's SMTP server.
+handful of messages per hour and often never reaches the student. Instead of
+configuring Supabase's SMTP settings directly, we deliver the code from an **edge
+function we control** — the [`send-email-hook`](../supabase/functions/send-email-hook/index.ts)
+**Send Email hook**. Supabase still generates, expires, and rate-limits the
+6-digit code (no change to `src/lib/auth.ts`); the hook only owns *delivery*, and
+sends over Gmail SMTP (`smtp.gmail.com:465`) using a Gmail App Password.
 
-1. On the Google account `internconnect000@gmail.com`, turn on **2-Step
-   Verification** (myaccount.google.com → Security), then create an **App
-   Password** at myaccount.google.com/apppasswords (16 characters). Gmail rejects
-   normal-password SMTP — the App Password is required.
-2. In Supabase: **Project Settings → Authentication → SMTP Settings → Enable
-   Custom SMTP**, and set:
+> Why this instead of the built-in SMTP settings? The sending logic lives in
+> versioned code, is easy to swap to a provider API (e.g. Resend) later — replace
+> `sendEmail()` in the function and drop the Gmail secrets — and reaches real
+> `@cit.edu` inboxes today.
 
-   | Field | Value |
-   |-------|-------|
-   | Host | `smtp.gmail.com` |
-   | Port | `465` |
-   | Username | `internconnect000@gmail.com` |
-   | Password | the 16-char App Password (a **secret** — lives only here, never in the repo) |
-   | Sender email | `internconnect000@gmail.com` |
-   | Sender name | `InternConnect` |
+**Step 1 — Gmail App Password.** On `internconnect000@gmail.com`, turn on
+**2-Step Verification** (myaccount.google.com → Security), then create an **App
+Password** at myaccount.google.com/apppasswords (16 characters). Gmail rejects
+normal-password SMTP — the App Password is required.
 
-3. **Authentication → Rate Limits** → raise "emails per hour" above the built-in
-   default (Gmail allows ~500/day).
+**Step 2 — Deploy the function** (JWT verification OFF — it is called by the auth
+server, not a logged-in user):
 
-No code changes are needed — `signInWithOtp` in `src/lib/auth.ts` already routes
-through whatever SMTP Supabase is configured with.
+```
+supabase functions deploy send-email-hook --no-verify-jwt
+```
+
+**Step 3 — Register the Send Email hook.** In the dashboard go to
+**Authentication → Hooks → Send Email hook → Enable**, choose **HTTPS**, and point
+it at the function URL:
+
+```
+https://YOUR-PROJECT-ref.supabase.co/functions/v1/send-email-hook
+```
+
+Supabase generates a **hook secret** (`v1,whsec_…`) here — copy it for the next step.
+
+**Step 4 — Set the function secrets:**
+
+```
+supabase secrets set SEND_EMAIL_HOOK_SECRET="v1,whsec_..."   # from step 3
+supabase secrets set GMAIL_APP_PASSWORD="the-16-char-app-password"
+# optional overrides (defaults shown):
+# supabase secrets set GMAIL_USER="internconnect000@gmail.com"
+# supabase secrets set EMAIL_FROM_NAME="InternConnect"
+```
+
+**Step 5 — (optional) turn off Supabase's own SMTP.** With the hook enabled, the
+old **Custom SMTP** settings are no longer used for these emails; you can leave
+them blank. Raise **Authentication → Rate Limits → emails per hour** if you expect
+more than the default (Gmail allows ~500/day).
+
+> **No custom domain yet?** Gmail SMTP is exactly why this works without one —
+> you send *from* the Gmail account. To later send from `no-reply@yourdomain.com`
+> and drop the Gmail dependency, verify a domain in Resend and swap the
+> `sendEmail()` body in the function for a Resend API call.
 
 ## 5. Seed an admin and approve a company
 
