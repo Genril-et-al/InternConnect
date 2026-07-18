@@ -51,10 +51,10 @@ export async function uploadDocument(
 }
 
 /** Create a temporary signed URL to view a private document. */
-export async function signedDocumentUrl(path: string, expiresInSec = 3600): Promise<string> {
+export async function signedDocumentUrl(path: string, downloadName?: string, expiresInSec = 3600): Promise<string> {
   const { data, error } = await supabase.storage
     .from('documents')
-    .createSignedUrl(path, expiresInSec)
+    .createSignedUrl(path, expiresInSec, downloadName ? { download: downloadName } : undefined)
   if (error) throw error
   return data.signedUrl
 }

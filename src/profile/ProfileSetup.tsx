@@ -4,6 +4,7 @@ import {
   completeProfile,
   uploadAvatar,
   uploadDocument,
+  signedDocumentUrl,
 } from '../lib/profile'
 import { analyzeResume, NO_SKILLS_MESSAGE } from '../lib/resumeAnalysis'
 import { formatMiddleInitial } from '../lib/name'
@@ -86,6 +87,12 @@ export function ProfileSetup({
   const suffix = profile?.suffix ?? ''
   const initials = `${first[0] ?? ''}${last[0] ?? ''}`.toUpperCase() || 'IC'
 
+  const displayResumeName = resume 
+    ? (last ? `${last}_resume.${resume.name.split('.').pop()}` : resume.name)
+    : profile?.resume_url 
+      ? (last ? `${last}_resume.${profile.resume_url.split('.').pop()}` : profile.resume_url.split('/').pop())
+      : null
+
   function handlePhoto(file: File | null) {
     setPhoto(file)
     setPhotoPreview(file ? URL.createObjectURL(file) : profile?.photo_url ?? null)
@@ -94,6 +101,23 @@ export function ProfileSetup({
   function handleDeletePhoto() {
     setPhoto(null)
     setPhotoPreview(null)
+  }
+
+  async function handleViewDocument(path: string | null | undefined, downloadName?: string) {
+    if (!path) return
+    if (demo) {
+      alert('In demo mode, files are not actually uploaded to the server, so they cannot be viewed.')
+      return
+    }
+    setBusy(true)
+    try {
+      const url = await signedDocumentUrl(path, downloadName)
+      window.open(url, '_blank')
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -394,19 +418,44 @@ export function ProfileSetup({
           <h2>Resume / CV</h2>
           <span className="profile-optional">PDF or DOCX</span>
         </div>
-        <label className="profile-upload block">
-          <input
-            accept=".pdf,.doc,.docx"
-            hidden
-            onChange={(e) => setResume(e.target.files?.[0] ?? null)}
-            type="file"
-          />
-          {resume
-            ? resume.name
-            : resumeRejected
-              ? 'Upload a new resume'
-              : 'Upload resume'}
-        </label>
+        <div>
+          {resume || profile?.resume_url ? (
+            <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', cursor: 'default' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (resume) {
+                    window.open(URL.createObjectURL(resume), '_blank')
+                  } else {
+                    handleViewDocument(profile?.resume_url)
+                  }
+                }}
+                style={{ background: 'none', border: 'none', color: 'var(--brand-orange)', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+              >
+                {displayResumeName}
+              </button>
+              <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
+                Change
+                <input
+                  accept=".pdf,.doc,.docx"
+                  hidden
+                  onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+                  type="file"
+                />
+              </label>
+            </div>
+          ) : (
+            <label className="profile-upload block">
+              <input
+                accept=".pdf,.doc,.docx"
+                hidden
+                onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+                type="file"
+              />
+              {resumeRejected ? 'Upload a new resume' : 'Upload resume'}
+            </label>
+          )}
+        </div>
         {!resume && resumeRejected && (
           <p className="profile-resume-rejected" role="alert">
             <strong>{resumeRejected.message}</strong>{' '}
@@ -442,15 +491,44 @@ export function ProfileSetup({
           />
         </label>
         <div className="profile-or">or</div>
-        <label className="profile-upload block">
-          <input
-            accept=".pdf,.zip,.doc,.docx"
-            hidden
-            onChange={(e) => setPortfolioFile(e.target.files?.[0] ?? null)}
-            type="file"
-          />
-          {portfolioFile ? portfolioFile.name : 'Upload portfolio file'}
-        </label>
+        <div>
+          {portfolioFile || profile?.portfolio_file_url ? (
+            <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', cursor: 'default' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (portfolioFile) {
+                    window.open(URL.createObjectURL(portfolioFile), '_blank')
+                  } else {
+                    handleViewDocument(profile?.portfolio_file_url)
+                  }
+                }}
+                style={{ background: 'none', border: 'none', color: 'var(--brand-orange)', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+              >
+                {portfolioFile ? portfolioFile.name : profile?.portfolio_file_url?.split('/').pop()}
+              </button>
+              <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
+                Change
+                <input
+                  accept=".pdf,.zip,.doc,.docx"
+                  hidden
+                  onChange={(e) => setPortfolioFile(e.target.files?.[0] ?? null)}
+                  type="file"
+                />
+              </label>
+            </div>
+          ) : (
+            <label className="profile-upload block">
+              <input
+                accept=".pdf,.zip,.doc,.docx"
+                hidden
+                onChange={(e) => setPortfolioFile(e.target.files?.[0] ?? null)}
+                type="file"
+              />
+              Upload portfolio file
+            </label>
+          )}
+        </div>
       </section>
 
       {error && <p className="profile-error">{error}</p>}
