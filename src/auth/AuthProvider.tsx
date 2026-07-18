@@ -13,6 +13,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   // Offline demo student (only used when Supabase is not connected).
   const [demoProfile, setDemoProfile] = useState<Profile | null>(null)
+  // Set when the user arrives via a password-recovery link.
+  const [recovery, setRecovery] = useState(false)
 
   async function loadProfile(userId: string | undefined) {
     if (!userId) {
@@ -42,8 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // supabase query needs that same lock to attach the token — awaiting a
     // query here deadlocks (login hangs on "Finishing account setup…"). Defer
     // the profile fetch out of the callback so the lock is released first.
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next)
+      // A recovery link opens a real session — flag it so the app routes to
+      // the reset screen rather than dropping the user into the workspace.
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true)
+      if (event === 'SIGNED_OUT') setRecovery(false)
       setTimeout(() => {
         if (active) loadProfile(next?.user.id)
       }, 0)
@@ -68,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile: effectiveProfile,
       loading,
       demo: demoProfile !== null,
+      recovery,
+      endRecovery: () => setRecovery(false),
       refreshProfile: () => loadProfile(session?.user.id),
       signOut: async () => {
         if (demoProfile) {
@@ -77,12 +85,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await authLogout()
         setSession(null)
         setProfile(null)
+        setRecovery(false)
       },
       enterDemo: (p: Profile) => setDemoProfile(p),
       updateProfileLocal: (patch: Partial<Profile>) =>
         setDemoProfile((prev) => (prev ? { ...prev, ...patch } : prev)),
     }
-  }, [session, profile, loading, demoProfile])
+  }, [session, profile, loading, demoProfile, recovery])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

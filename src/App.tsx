@@ -14,6 +14,7 @@ import {
 import './App.css'
 import { useAuth } from './auth/context'
 import { LoginPage } from './auth/LoginPage'
+import { ResetPasswordPage } from './auth/ResetPasswordPage'
 import { ProfileSetup } from './profile/ProfileSetup'
 import { StudentDashboard } from './dashboard/StudentDashboard'
 import { AdminApp } from './admin/AdminApp'
@@ -22,6 +23,7 @@ import { applications, internships } from './lib/mockData'
 import type { Internship, Application } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
 import { SignOutButton } from './components/SignOutButton'
+import { Avatar } from './components/Avatar'
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 // Profile isn't a nav item — users open their own profile from the account
@@ -39,7 +41,7 @@ const COMPANY_NAV = [
 ]
 
 function App() {
-  const { session, profile, loading, signOut } = useAuth()
+  const { session, profile, loading, recovery, signOut } = useAuth()
   const [activeView, setActiveView] = useState('Dashboard')
   const [collapsed, toggleCollapsed] = useSidebarCollapsed()
 
@@ -55,6 +57,12 @@ function App() {
 
   if (!session) {
     return <LoginPage />
+  }
+
+  // Arrived from a password-recovery email — set the new password before
+  // anything else, since the link's session is only meant for that.
+  if (recovery) {
+    return <ResetPasswordPage />
   }
 
   // Signed in, but the profile row hasn't materialised (or was removed).
@@ -94,12 +102,6 @@ function App() {
 
   const role = profile.role
   const displayName = profile.full_name?.trim() || profile.email
-  const initials = displayName
-    .split(/[\s.@]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('')
   const roleLabel =
     role === 'student' ? 'Student' : role === 'company' ? 'Company' : 'Coordinator'
 
@@ -150,7 +152,7 @@ function App() {
             title="View your profile"
             type="button"
           >
-            <span className="ad-user-avatar">{initials || 'IC'}</span>
+            <Avatar className="ad-user-avatar" name={displayName} photoUrl={profile.photo_url} />
             <div className="ad-user-main">
               <p className="ad-user-name">{displayName}</p>
               <p className="ad-user-role">{roleLabel}</p>

@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../auth/context'
 import { useSidebarCollapsed } from '../lib/useSidebar'
 import { SignOutButton } from '../components/SignOutButton'
+import { Avatar } from '../components/Avatar'
 import { AdminDashboard } from './AdminDashboard'
 import { AdminStudents } from './AdminStudents'
 import { AdminCompanies } from './AdminCompanies'
@@ -75,13 +76,6 @@ export function AdminApp() {
   }, [])
 
   const name = profile?.full_name?.trim() || profile?.email || 'NLO Admin'
-  const initials =
-    name
-      .split(/[\s.@]+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? '')
-      .join('') || 'NA'
 
   return (
     <div className={`ad-shell${collapsed ? ' sb-collapsed' : ''}`}>
@@ -121,7 +115,12 @@ export function AdminApp() {
         </nav>
 
         <div className="ad-user">
-          <span className="ad-user-avatar">{initials}</span>
+          <Avatar
+            className="ad-user-avatar"
+            fallback="NA"
+            name={name}
+            photoUrl={profile?.photo_url}
+          />
           <div className="ad-user-main">
             <p className="ad-user-name">{name}</p>
             <p className="ad-user-role">NLO Admin</p>

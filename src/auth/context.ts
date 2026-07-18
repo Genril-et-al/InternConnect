@@ -8,6 +8,13 @@ export type AuthState = {
   loading: boolean
   /** True when running as the offline demo student (no Supabase). */
   demo: boolean
+  /**
+   * True while the session came from a password-recovery link, so the app
+   * shows the "set a new password" screen instead of the workspace.
+   */
+  recovery: boolean
+  /** Leave recovery mode (password changed, or the user cancelled). */
+  endRecovery: () => void
   refreshProfile: () => Promise<void>
   signOut: () => Promise<void>
   /** Enter offline demo mode with the given profile (demo builds only). */

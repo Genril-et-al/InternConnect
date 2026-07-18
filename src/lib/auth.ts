@@ -77,6 +77,25 @@ export async function setPassword(password: string) {
   if (error) throw error
 }
 
+/**
+ * Send a password-recovery email. Supabase returns the user to the app with a
+ * recovery session in the URL fragment; AuthProvider picks that up as a
+ * PASSWORD_RECOVERY event and shows the "set a new password" screen, which
+ * calls setPassword() above.
+ *
+ * Always resolves without revealing whether the email exists — an error here
+ * would let anyone probe which addresses are registered.
+ */
+export async function requestPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    email.trim().toLowerCase(),
+    { redirectTo: `${window.location.origin}/` },
+  )
+  // Log for debugging, but don't surface it: the UI shows the same
+  // "if that email exists, check your inbox" message either way.
+  if (error) console.warn('[InternConnect] password reset request failed:', error.message)
+}
+
 /** Login with email + password (UC-S01 step 7). */
 export async function login(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({

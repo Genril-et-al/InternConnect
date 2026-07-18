@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { Building2, Eye, EyeOff, GraduationCap } from 'lucide-react'
+import { Building2, GraduationCap } from 'lucide-react'
 import {
   checkSignupEligibility,
   login,
+  requestPasswordReset,
   requestSignupCode,
   setPassword,
   verifySignupCode,
 } from '../lib/auth'
+import { PasswordField } from './PasswordField'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { DEMO_ADMIN, DEMO_COMPANY, DEMO_STUDENT } from '../lib/demo'
 import { useAuth } from './context'
@@ -26,51 +28,6 @@ function errorMessage(err: unknown): string {
     if (msg && msg !== '{}') return msg
   }
   return 'Something went wrong. Please try again.'
-}
-
-/**
- * Password input with an eye button that toggles masking. `visible`/`onToggle`
- * are lifted so the sign-up step can reveal both password fields at once.
- */
-function PasswordField({
-  autoComplete,
-  label,
-  onChange,
-  onToggle,
-  value,
-  visible,
-}: {
-  autoComplete: string
-  label: string
-  onChange: (value: string) => void
-  onToggle: () => void
-  value: string
-  visible: boolean
-}) {
-  return (
-    <label>
-      {label}
-      <div className="auth-password">
-        <input
-          autoComplete={autoComplete}
-          onChange={(e) => onChange(e.target.value)}
-          required
-          type={visible ? 'text' : 'password'}
-          value={value}
-        />
-        <button
-          aria-label={visible ? 'Hide password' : 'Show password'}
-          aria-pressed={visible}
-          className="auth-password-toggle"
-          onClick={onToggle}
-          title={visible ? 'Hide password' : 'Show password'}
-          type="button"
-        >
-          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
-        </button>
-      </div>
-    </label>
-  )
 }
 
 export function LoginPage() {
@@ -176,6 +133,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => Promise<void> }
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [forgot, setForgot] = useState(false)
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -189,6 +147,10 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => Promise<void> }
     } finally {
       setBusy(false)
     }
+  }
+
+  if (forgot) {
+    return <ForgotPasswordForm initialEmail={email} onBack={() => setForgot(false)} />
   }
 
   return (
@@ -215,6 +177,87 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => Promise<void> }
       {error && <p className="auth-error">{error}</p>}
       <button className="auth-primary" disabled={busy} type="submit">
         {busy ? 'Signing in…' : 'Log In'}
+      </button>
+      <button
+        className="auth-link"
+        disabled={busy}
+        onClick={() => {
+          setError('')
+          setForgot(true)
+        }}
+        type="button"
+      >
+        Forgot password?
+      </button>
+    </form>
+  )
+}
+
+/**
+ * Requests a recovery email. Deliberately reports success even for unknown
+ * addresses so the form can't be used to discover registered emails.
+ */
+function ForgotPasswordForm({
+  initialEmail,
+  onBack,
+}: {
+  initialEmail: string
+  onBack: () => void
+}) {
+  const [email, setEmail] = useState(initialEmail)
+  const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    try {
+      await requestPasswordReset(email)
+      setSent(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="auth-form">
+        <p className="auth-info">
+          If an account exists for <strong>{email.trim().toLowerCase()}</strong>, we've
+          sent a password reset link. Check your inbox (and spam folder) — the
+          link expires in 1 hour.
+        </p>
+        <button className="auth-primary" onClick={onBack} type="button">
+          Back to login
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form className="auth-form" onSubmit={handleSubmit}>
+      <p className="auth-step">Reset your password</p>
+      <p className="auth-hint auth-hint-left">
+        Enter your account email and we'll send you a link to set a new
+        password. You won't need your old one.
+      </p>
+      <label>
+        Email
+        <input
+          autoComplete="email"
+          autoFocus
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="firstname.lastname@cit.edu"
+          required
+          type="email"
+          value={email}
+        />
+      </label>
+      <button className="auth-primary" disabled={busy} type="submit">
+        {busy ? 'Sending…' : 'Send reset link'}
+      </button>
+      <button className="auth-link" disabled={busy} onClick={onBack} type="button">
+        Back to login
       </button>
     </form>
   )
