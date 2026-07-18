@@ -9,6 +9,7 @@ import { analyzeResume, NO_SKILLS_MESSAGE } from '../lib/resumeAnalysis'
 import { useAuth } from '../auth/context'
 import { SignOutButton } from '../components/SignOutButton'
 import { TagInput } from './TagInput'
+import { Trash2 } from 'lucide-react'
 import './profile.css'
 
 /** Case-insensitive union of manually typed and AI-extracted tags. */
@@ -89,6 +90,11 @@ export function ProfileSetup({
     setPhotoPreview(file ? URL.createObjectURL(file) : profile?.photo_url ?? null)
   }
 
+  function handleDeletePhoto() {
+    setPhoto(null)
+    setPhotoPreview(null)
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setError('')
@@ -133,7 +139,9 @@ export function ProfileSetup({
 
     setBusy(true)
     try {
-      const photoUrl = photo ? await uploadAvatar(userId, photo) : profile?.photo_url ?? null
+      const photoUrl = photo 
+        ? await uploadAvatar(userId, photo) 
+        : (photoPreview ? profile?.photo_url : null)
       const resumePath = resume
         ? await uploadDocument(userId, 'resume', resume)
         : profile?.resume_url ?? null
@@ -296,7 +304,7 @@ export function ProfileSetup({
             Personal email address
             <input
               onChange={(e) => setPersonalEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="name@gmail.com"
               type="email"
               value={personalEmail}
             />
@@ -319,6 +327,9 @@ export function ProfileSetup({
           <h2>Formal photo</h2>
           <span className="profile-required">Required</span>
         </div>
+        <p className="profile-subtext">
+          Upload a recent 2×2 ID photo with a white background and a formal, front-facing pose.
+        </p>
         <div className="profile-photo-row">
           <span className="profile-avatar">
             {photoPreview ? (
@@ -336,6 +347,16 @@ export function ProfileSetup({
             />
             {photo ? 'Change photo' : 'Upload photo'}
           </label>
+          {photoPreview && (
+            <button
+              className="profile-delete-btn"
+              onClick={handleDeletePhoto}
+              title="Delete photo"
+              type="button"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
           {photo && <span className="profile-filename">{photo.name}</span>}
         </div>
       </section>
