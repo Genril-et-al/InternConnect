@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import {
   completeProfile,
+  markResumeReplaced,
   uploadAvatar,
   uploadDocument,
   signedDocumentUrl,
@@ -121,6 +122,19 @@ export function ProfileSetup({
     }
   }
 
+  /**
+   * Picking a new resume clears the previous AI rejection straight away — that
+   * banner described the old file, so leaving it up makes a fresh upload look
+   * rejected before it has even been analyzed.
+   */
+  function handlePickResume(file: File | null) {
+    setResume(file)
+    if (file) {
+      setResumeRejected(null)
+      setError('')
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setError('')
@@ -166,11 +180,18 @@ export function ProfileSetup({
     setBusy(true)
     try {
       const photoUrl = photo 
-        ? await uploadAvatar(userId, photo) 
+        ? await uploadAvatar(userId, photo, profile?.photo_url) 
         : (photoPreview ? profile?.photo_url : null)
+      // Pass the old path so the replaced file is removed rather than orphaned.
       const resumePath = resume
-        ? await uploadDocument(userId, 'resume', resume)
+        ? await uploadDocument(userId, 'resume', resume, profile?.resume_url)
         : profile?.resume_url ?? null
+
+      // A new resume invalidates the previous AI verdict immediately, so a
+      // stale rejection can't outlive the file it was about.
+      if (resume && resumePath) {
+        await markResumeReplaced(userId)
+      }
 
       // AI analysis (cloud-side): read the new resume with Gemini and extract
       // skills/specializations. Runs only when a new resume was uploaded.
@@ -224,7 +245,7 @@ export function ProfileSetup({
       }
 
       const portfolioFilePath = portfolioFile
-        ? await uploadDocument(userId, 'portfolio', portfolioFile)
+        ? await uploadDocument(userId, 'portfolio', portfolioFile, profile?.portfolio_file_url)
         : profile?.portfolio_file_url ?? null
 
       await completeProfile(userId, {
@@ -478,7 +499,7 @@ export function ProfileSetup({
                 <input
                   accept=".pdf,.doc,.docx"
                   hidden
-                  onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+                  onChange={(e) => handlePickResume(e.target.files?.[0] ?? null)}
                   type="file"
                 />
               </label>
@@ -488,7 +509,7 @@ export function ProfileSetup({
               <input
                 accept=".pdf,.doc,.docx"
                 hidden
-                onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+                onChange={(e) => handlePickResume(e.target.files?.[0] ?? null)}
                 type="file"
               />
               {resumeRejected ? 'Upload a new resume' : 'Upload resume'}

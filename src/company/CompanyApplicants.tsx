@@ -304,8 +304,13 @@ function ApplicantDetail({
           {applicant.resume ? (
             <div className="cp-doc">
               <FileText size={14} />
-              <span className="cp-doc-name">{baseName(applicant.resume)}</span>
-              <button onClick={() => openDocument(applicant.resume)} type="button">
+              <span className="cp-doc-name">{docLabel(applicant.resume, applicant.name, 'Resume')}</span>
+              <button
+                onClick={() =>
+                  openDocument(applicant.resume, docLabel(applicant.resume, applicant.name, 'Resume'))
+                }
+                type="button"
+              >
                 <Download size={12} /> View
               </button>
             </div>
@@ -328,9 +333,16 @@ function ApplicantDetail({
           {applicant.portfolioFile && (
             <div className="cp-doc">
               <FileText size={14} />
-              <span className="cp-doc-name">{baseName(applicant.portfolioFile)}</span>
+              <span className="cp-doc-name">
+                {docLabel(applicant.portfolioFile, applicant.name, 'Portfolio')}
+              </span>
               <button
-                onClick={() => openDocument(applicant.portfolioFile!)}
+                onClick={() =>
+                  openDocument(
+                    applicant.portfolioFile!,
+                    docLabel(applicant.portfolioFile!, applicant.name, 'Portfolio'),
+                  )
+                }
                 type="button"
               >
                 <Download size={12} /> View
@@ -463,13 +475,18 @@ function initials(name: string): string {
     .toUpperCase()
 }
 
-function baseName(path: string): string {
-  return path.split('/').pop() || path
+/**
+ * Storage paths are timestamped (`{uid}/resume-1784372069279.pdf`), so show the
+ * applicant's name instead of the raw key.
+ */
+function docLabel(path: string, applicant: string, kind: string): string {
+  const ext = path.split('.').pop()?.toLowerCase()
+  return `${applicant} — ${kind}${ext ? `.${ext}` : ''}`
 }
 
 /** Open a private document from the documents bucket via a signed URL. */
-function openDocument(path: string) {
-  signedDocumentUrl(path)
+function openDocument(path: string, downloadName?: string) {
+  signedDocumentUrl(path, downloadName)
     .then((url) => window.open(url, '_blank', 'noopener'))
     .catch(() => window.alert('Could not open the document. Please try again.'))
 }

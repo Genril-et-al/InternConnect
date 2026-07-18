@@ -318,12 +318,30 @@ export async function submitRequirementFile(
 ): Promise<void> {
   const parts = file.name.split('.')
   const ext = parts.length > 1 ? parts.pop()!.toLowerCase() : 'bin'
-  const path = `${studentId}/requirements/${applicationId}-${requirementId}.${ext}`
+
+  // Unique per submission: resubmitting after "needs revision" used to write to
+  // the same key, so the company kept seeing the rejected version from cache.
+  const path = `${studentId}/requirements/${applicationId}-${requirementId}-${Date.now()}.${ext}`
+
+  // The file this replaces, so it can be cleaned up after a successful upload.
+  const { data: existing } = await supabase
+    .from('requirement_submissions')
+    .select('file_path')
+    .eq('application_id', applicationId)
+    .eq('requirement_id', requirementId)
+    .maybeSingle()
+
   const { error: uploadError } = await supabase.storage
     .from('documents')
-    .upload(path, file, { upsert: true, contentType: file.type })
+    .upload(path, file, { contentType: file.type, cacheControl: '0' })
   if (uploadError) throw new Error(uploadError.message)
+
   await upsertSubmission(applicationId, requirementId, { file_path: path })
+
+  const previous = existing?.file_path as string | undefined
+  if (previous && previous !== path && previous.startsWith(`${studentId}/`)) {
+    await supabase.storage.from('documents').remove([previous])
+  }
 }
 
 export async function submitRequirementText(
