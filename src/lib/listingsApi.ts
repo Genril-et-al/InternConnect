@@ -1,6 +1,133 @@
 import { supabase } from './supabase'
 import type { Application, ApplicationStatus, Internship, PreEmploymentRequirement } from './mockData'
 
+const RELATED_SKILL_GROUPS = [
+  [
+    'embedded systems',
+    'embedded software',
+    'embedded c',
+    'firmware',
+    'firmware development',
+    'microcontroller',
+    'arm cortex-m',
+    'arm',
+    'rtos',
+    'uart',
+    'spi',
+    'i2c',
+    'esp32',
+    'arduino',
+    'raspberry pi',
+    'c/c++',
+    'c++',
+  ],
+  [
+    'pcb design',
+    'printed circuit board',
+    'electronics design',
+    'kicad',
+    'altium designer',
+    'schematic capture',
+    'dfm',
+    'soldering',
+    'electrical schematics',
+  ],
+  [
+    'robotics',
+    'robotics software',
+    'ros',
+    'computer vision',
+    'opencv',
+    'automation',
+    'control systems',
+  ],
+  ['iot', 'internet of things', 'mqtt', 'aws iot', 'esp32', 'node.js', 'embedded systems'],
+  ['data analytics', 'data analysis', 'statistics', 'excel', 'root cause analysis'],
+  ['machine learning', 'artificial intelligence', 'edge ai', 'tensorflow lite', 'model optimization'],
+  ['networking', 'network engineering', 'ccna', 'tcp/ip', 'cisco ios', 'network security', 'wireshark'],
+  ['rf engineering', 'telecommunications', 'rf fundamentals', 'spectrum analysis', 'lte/5g', 'matlab', 'site survey'],
+  ['automation engineering', 'plc', 'ladder logic', 'scada', 'hmi', 'electrical schematics'],
+  ['frontend development', 'frontend', 'react', 'typescript', 'javascript', 'html', 'css', 'ui/ux design', 'figma'],
+  ['backend development', 'backend', 'node.js', 'api development', 'databases', 'sql'],
+]
+
+function normalizeSkill(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[._-]/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function includesWholePhrase(value: string, phrase: string): boolean {
+  return new RegExp(`(^|\\W)${escapeRegExp(phrase)}(\\W|$)`).test(value)
+}
+
+function tokens(value: string): string[] {
+  return value.match(/[a-z0-9+#]+/g) ?? []
+}
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(1, value))
+}
+
+function tokenOverlapScore(a: string, b: string): number {
+  const aTokens = new Set(tokens(a))
+  const bTokens = tokens(b)
+  if (!aTokens.size || !bTokens.length) return 0
+  const shared = bTokens.filter((token) => aTokens.has(token)).length
+  return shared / Math.max(aTokens.size, bTokens.length)
+}
+
+function phraseSpecificity(value: string): number {
+  return Math.min(tokens(value).length / 4, 1)
+}
+
+function relatedSkillScore(profileSkill: string, listingSkill: string): number {
+  let best = 0
+  for (const group of RELATED_SKILL_GROUPS) {
+    const profileTerms = group
+      .map(normalizeSkill)
+      .filter((term) => includesWholePhrase(profileSkill, term))
+    if (!profileTerms.length) continue
+
+    const listingTerms = group
+      .map(normalizeSkill)
+      .filter((term) => includesWholePhrase(listingSkill, term))
+    if (!listingTerms.length) continue
+
+    for (const profileTerm of profileTerms) {
+      for (const listingTerm of listingTerms) {
+        const score =
+          0.45 +
+          phraseSpecificity(profileTerm) * 0.16 +
+          phraseSpecificity(listingTerm) * 0.16 +
+          tokenOverlapScore(profileTerm, listingTerm) * 0.18
+        best = Math.max(best, clampScore(score))
+      }
+    }
+  }
+  return best
+}
+
+function skillCoverageScore(profileSkills: string[], listingSkill: string): number {
+  const skill = normalizeSkill(listingSkill)
+  if (!skill) return 0
+  if (profileSkills.some((mine) => mine === skill)) return 1
+  if (
+    profileSkills.some(
+      (mine) => (mine.length > 3 && skill.includes(mine)) || (skill.length > 3 && mine.includes(skill)),
+    )
+  ) {
+    return 0.95
+  }
+  return profileSkills.reduce((best, mine) => Math.max(best, relatedSkillScore(mine, skill)), 0)
+}
+
 /**
  * Student-side data layer for internship listings, applications, and
  * bookmarks (UC-S03..S05). Reads/writes go through RLS: students only see
@@ -35,21 +162,13 @@ export function formatDate(iso: string | null): string {
  * plus any manually added skills AND specializations — so profile-only entries
  * count toward the match too. Specializations also match loosely (a "Frontend
  * Development" specialization covers a "Frontend" listing skill and vice versa).
+ * Close domain relationships receive variable partial credit based on confidence.
  */
 export function computeMatch(studentPool: string[], listingSkills: string[]): number {
   if (!listingSkills.length) return 0
-  const mine = studentPool.map((s) => s.trim().toLowerCase()).filter(Boolean)
-  const mineExact = new Set(mine)
-  const hit = listingSkills.filter((raw) => {
-    const skill = raw.trim().toLowerCase()
-    if (!skill) return false
-    if (mineExact.has(skill)) return true
-    // Loose containment for multi-word specializations vs listing skills.
-    return mine.some(
-      (m) => (m.length > 3 && skill.includes(m)) || (skill.length > 3 && m.includes(skill)),
-    )
-  }).length
-  return Math.round((hit / listingSkills.length) * 100)
+  const mine = studentPool.map(normalizeSkill).filter(Boolean)
+  const covered = listingSkills.reduce((sum, skill) => sum + skillCoverageScore(mine, skill), 0)
+  return Math.round((covered / listingSkills.length) * 100)
 }
 
 /** The full matching pool for a student profile: skills + specializations. */
