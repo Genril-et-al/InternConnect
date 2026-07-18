@@ -183,6 +183,92 @@
   outline: 3px solid rgba(231, 104, 20, 0.16);
 }
 
+/* ── Password field with show/hide toggle ──────────────────────────── */
+.auth-password {
+  position: relative;
+}
+
+.auth-password input {
+  /* leave room for the eye button */
+  padding-right: 46px;
+  width: 100%;
+}
+
+.auth-password-toggle {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+}
+
+.auth-password-toggle:hover {
+  color: var(--brand-orange);
+}
+
+.auth-password-toggle:focus-visible {
+  outline: 3px solid rgba(231, 104, 20, 0.16);
+}
+
+/* ── Account type choice ───────────────────────────────────────────── */
+.auth-role-choices {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.auth-role-card {
+  align-items: flex-start;
+  background: var(--surface-strong);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  color: var(--brand-brown);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 14px;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.auth-role-card:hover {
+  border-color: var(--brand-orange);
+}
+
+.auth-role-card.selected {
+  background: #fdf1e7;
+  border-color: var(--brand-orange);
+  box-shadow: 0 4px 12px rgba(231, 104, 20, 0.18);
+  color: var(--brand-dark-red);
+}
+
+.auth-role-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.auth-role-sub {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.auth-hint-left {
+  text-align: left;
+}
+
 .auth-step {
   color: var(--text-muted);
   font-size: 12px;
@@ -419,6 +505,9 @@
     grid-column: 1 / -1;
   }
   .auth-details-grid {
+    grid-template-columns: 1fr;
+  }
+  .auth-role-choices {
     grid-template-columns: 1fr;
   }
 }

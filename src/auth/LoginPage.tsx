@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Building2, Eye, EyeOff, GraduationCap } from 'lucide-react'
 import {
   checkSignupEligibility,
   login,
@@ -12,7 +13,8 @@ import { useAuth } from './context'
 import './auth.css'
 
 type Mode = 'login' | 'signup'
-type SignupStep = 'details' | 'verify' | 'password'
+type SignupStep = 'role' | 'details' | 'verify' | 'password'
+type AccountType = 'student' | 'company'
 
 const MAX_CODE_ATTEMPTS = 3 // UC-S01 alt flow 4a: limited attempts.
 
@@ -24,6 +26,51 @@ function errorMessage(err: unknown): string {
     if (msg && msg !== '{}') return msg
   }
   return 'Something went wrong. Please try again.'
+}
+
+/**
+ * Password input with an eye button that toggles masking. `visible`/`onToggle`
+ * are lifted so the sign-up step can reveal both password fields at once.
+ */
+function PasswordField({
+  autoComplete,
+  label,
+  onChange,
+  onToggle,
+  value,
+  visible,
+}: {
+  autoComplete: string
+  label: string
+  onChange: (value: string) => void
+  onToggle: () => void
+  value: string
+  visible: boolean
+}) {
+  return (
+    <label>
+      {label}
+      <div className="auth-password">
+        <input
+          autoComplete={autoComplete}
+          onChange={(e) => onChange(e.target.value)}
+          required
+          type={visible ? 'text' : 'password'}
+          value={value}
+        />
+        <button
+          aria-label={visible ? 'Hide password' : 'Show password'}
+          aria-pressed={visible}
+          className="auth-password-toggle"
+          onClick={onToggle}
+          title={visible ? 'Hide password' : 'Show password'}
+          type="button"
+        >
+          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
+    </label>
+  )
 }
 
 export function LoginPage() {
@@ -128,6 +175,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => Promise<void> }
   const [password, setPasswordValue] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -156,16 +204,14 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => Promise<void> }
           value={email}
         />
       </label>
-      <label>
-        Password
-        <input
-          autoComplete="current-password"
-          onChange={(e) => setPasswordValue(e.target.value)}
-          required
-          type="password"
-          value={password}
-        />
-      </label>
+      <PasswordField
+        autoComplete="current-password"
+        label="Password"
+        onChange={setPasswordValue}
+        onToggle={() => setShowPassword((v) => !v)}
+        value={password}
+        visible={showPassword}
+      />
       {error && <p className="auth-error">{error}</p>}
       <button className="auth-primary" disabled={busy} type="submit">
         {busy ? 'Signing in…' : 'Log In'}
@@ -181,7 +227,8 @@ function SignupFlow({
   onAuthenticated: () => Promise<void>
   onSwitchToLogin: () => void
 }) {
-  const [step, setStep] = useState<SignupStep>('details')
+  const [step, setStep] = useState<SignupStep>('role')
+  const [accountType, setAccountType] = useState<AccountType | null>(null)
   const [firstName, setFirstName] = useState('')
   const [middleInitial, setMiddleInitial] = useState('')
   const [lastName, setLastName] = useState('')
@@ -194,6 +241,7 @@ function SignupFlow({
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleRequestCode(event: React.FormEvent) {
     event.preventDefault()
@@ -208,6 +256,16 @@ function SignupFlow({
       if (!role) {
         setError(
           "This email isn't cleared to register yet. Students must be pre-registered by the NLO, and companies must be NLO-approved. Ask the NLO to add your email, then try again.",
+        )
+        return
+      }
+      // The roster decides the real role — flag a mismatch instead of letting
+      // the account silently register as the other account type.
+      if (role !== accountType) {
+        setError(
+          `This email is registered with the NLO as ${
+            role === 'student' ? 'a student' : 'a company'
+          }, not as ${accountType === 'student' ? 'a student' : 'a company'}. Go back and pick the matching account type.`,
         )
         return
       }
@@ -282,10 +340,59 @@ function SignupFlow({
     }
   }
 
+  if (step === 'role') {
+    return (
+      <div className="auth-form">
+        <p className="auth-step">Step 1 of 4 · Account type</p>
+        <p className="auth-hint auth-hint-left">
+          Who are you signing up as? This decides which workspace you land in.
+        </p>
+        <div className="auth-role-choices" role="radiogroup" aria-label="Account type">
+          <button
+            aria-checked={accountType === 'student'}
+            className={`auth-role-card${accountType === 'student' ? ' selected' : ''}`}
+            onClick={() => setAccountType('student')}
+            role="radio"
+            type="button"
+          >
+            <GraduationCap size={22} />
+            <span className="auth-role-title">Student</span>
+            <span className="auth-role-sub">Browse listings, apply, and track your placement.</span>
+          </button>
+          <button
+            aria-checked={accountType === 'company'}
+            className={`auth-role-card${accountType === 'company' ? ' selected' : ''}`}
+            onClick={() => setAccountType('company')}
+            role="radio"
+            type="button"
+          >
+            <Building2 size={22} />
+            <span className="auth-role-title">Company</span>
+            <span className="auth-role-sub">Post internships and review applicants.</span>
+          </button>
+        </div>
+        <button
+          className="auth-primary"
+          disabled={!accountType}
+          onClick={() => setStep('details')}
+          type="button"
+        >
+          Continue
+        </button>
+        <p className="auth-hint">
+          Already have an account?{' '}
+          <button className="auth-inline-link" onClick={onSwitchToLogin} type="button">
+            Log in
+          </button>
+        </p>
+      </div>
+    )
+  }
+
   if (step === 'verify') {
     return (
       <form className="auth-form" onSubmit={handleVerify}>
-        <p className="auth-step">Step 2 of 3 · Verify email</p>
+        <p className="auth-step">Step 3 of 4 · Verify email</p>
         <label>
           Verification code
           <input
@@ -313,27 +420,26 @@ function SignupFlow({
   if (step === 'password') {
     return (
       <form className="auth-form" onSubmit={handleSetPassword}>
-        <p className="auth-step">Step 3 of 3 · Create password</p>
-        <label>
-          Password
-          <input
-            autoComplete="new-password"
-            onChange={(e) => setPasswordValue(e.target.value)}
-            required
-            type="password"
-            value={password}
-          />
-        </label>
-        <label>
-          Confirm password
-          <input
-            autoComplete="new-password"
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-            type="password"
-            value={confirm}
-          />
-        </label>
+        <p className="auth-step">Step 4 of 4 · Create password</p>
+        <PasswordField
+          autoComplete="new-password"
+          label="Password"
+          onChange={setPasswordValue}
+          onToggle={() => setShowPassword((v) => !v)}
+          value={password}
+          visible={showPassword}
+        />
+        <PasswordField
+          autoComplete="new-password"
+          label="Confirm password"
+          onChange={setConfirm}
+          onToggle={() => setShowPassword((v) => !v)}
+          value={confirm}
+          visible={showPassword}
+        />
+        <p className="auth-hint auth-hint-left">
+          At least 8 characters. Use the eye icon to show or hide both fields.
+        </p>
         {error && <p className="auth-error">{error}</p>}
         <button className="auth-primary" disabled={busy} type="submit">
           {busy ? 'Saving…' : 'Create account'}
@@ -344,7 +450,10 @@ function SignupFlow({
 
   return (
     <form className="auth-form" onSubmit={handleRequestCode}>
-      <p className="auth-step">Step 1 of 3 · Your details</p>
+      <p className="auth-step">
+        Step 2 of 4 · Your details ·{' '}
+        {accountType === 'company' ? 'Company account' : 'Student account'}
+      </p>
       <div className="auth-name-grid">
         <label>
           First name
@@ -383,11 +492,13 @@ function SignupFlow({
         </label>
       </div>
       <label>
-        University email
+        {accountType === 'company' ? 'Work email' : 'University email'}
         <input
           autoComplete="email"
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="firstname.lastname@cit.edu"
+          placeholder={
+            accountType === 'company' ? 'you@company.com' : 'firstname.lastname@cit.edu'
+          }
           required
           type="email"
           value={email}
@@ -396,6 +507,17 @@ function SignupFlow({
       {error && <p className="auth-error">{error}</p>}
       <button className="auth-primary" disabled={busy} type="submit">
         {busy ? 'Sending code…' : 'Send verification code'}
+      </button>
+      <button
+        className="auth-link"
+        disabled={busy}
+        onClick={() => {
+          setError('')
+          setStep('role')
+        }}
+        type="button"
+      >
+        Back to account type
       </button>
       <p className="auth-hint">
         Already have an account?{' '}
