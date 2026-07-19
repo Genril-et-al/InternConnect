@@ -15,8 +15,8 @@ among them does not matter.
 The database's own migration ledger does not match this folder, because
 migrations applied through the SQL Editor are not recorded there. Migrations
 applied through the MCP server *are* recorded — it goes through the migration
-system rather than a raw query, which is why the newer rows differ. As of
-2026-07-20:
+system rather than a raw query, which is why the newer rows differ. Verified
+against the live database 2026-07-20:
 
 | Migration | Recorded in ledger | Present in database |
 | --- | --- | --- |
@@ -27,23 +27,20 @@ system rather than a raw query, which is why the newer rows differ. As of
 | `0007_admin_panel_data` | no | yes |
 | `0008_signup_eligibility` | no | yes |
 | `0009_notifications` | yes | yes |
-| `0010_applied_listing_visibility` | no | **no — not applied** |
+| `0010_applied_listing_visibility` | yes | yes |
 | `0011_rls_least_privilege` | yes | yes |
 | `0012_applicant_profile_projection` | yes | yes |
-| `0013_personal_email_signup` | unconfirmed | yes |
+| `0013_personal_email_signup` | yes | yes |
 
-Everything except `0010` is live. The ledger gaps are bookkeeping only; the
-schema is correct.
+Every migration in this folder is now live. The ledger gaps on the older rows
+are bookkeeping only; the schema is correct.
 
-`0011` and `0012` were applied to the remote project via MCP on 2026-07-19,
-recorded in the commits that added them (`2955500`, `3143a5d`).
+`0010`–`0013` were applied via MCP, so they carry ledger rows where the
+SQL-Editor migrations above them do not.
 
-`0013` is present — the personal-email signup path was verified against the
-live database in a rolled-back transaction, which exercises the
-`handle_new_user` changes the file makes. Its ledger row was never checked
-either way, hence *unconfirmed*; the rows above it were confirmed by query,
-this one is inferred from that test. Re-run the ledger query below to settle
-it.
+Confirmed 2026-07-20 by querying the ledger and the catalog directly:
+`has_applied_to()` exists (`0010`), the `applicant_profiles` view exists and
+`profiles_select_applicants` is gone (`0012`).
 
 ### `is_admin_grants`
 
