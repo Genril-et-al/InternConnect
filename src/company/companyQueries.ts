@@ -153,22 +153,25 @@ export async function deleteListing(listingId: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+type ApplicantProfile = {
+  id: string
+  full_name: string | null
+  email: string
+  skills: string[]
+  specializations: string[]
+  resume_url: string | null
+  portfolio_link: string | null
+  portfolio_file_url: string | null
+}
+
 type ApplicantRow = {
   id: string
   listing_id: string
+  student_id: string
   status: string
   cover_letter: string | null
   feedback: string | null
   created_at: string
-  profiles: {
-    full_name: string | null
-    email: string
-    skills: string[]
-    specializations: string[]
-    resume_url: string | null
-    portfolio_link: string | null
-    portfolio_file_url: string | null
-  } | null
   listings: {
     title: string
     skills: string[]
@@ -187,15 +190,32 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
   const { data, error } = await supabase
     .from('applications')
     .select(
-      'id, listing_id, status, cover_letter, feedback, created_at, ' +
-        'profiles:student_id(full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url), ' +
+      'id, listing_id, student_id, status, cover_letter, feedback, created_at, ' +
         'listings!inner(title, skills, company_id, listing_requirements(id, name)), ' +
         'requirement_submissions(id, requirement_id, status, file_path, text_value)',
     )
     .eq('listings.company_id', companyId)
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
-  return ((data ?? []) as unknown as ApplicantRow[]).map((r) => {
+  const rows = (data ?? []) as unknown as ApplicantRow[]
+
+  // Applicant details come from the applicant_profiles view rather than an
+  // embedded profiles join: profiles rows carry address, age, gender,
+  // personal_email and contact_number, and RLS cannot withhold columns, so
+  // embedding profiles handed all of it to the company (migration 0012).
+  const studentIds = [...new Set(rows.map((r) => r.student_id))]
+  const profileById = new Map<string, ApplicantProfile>()
+  if (studentIds.length > 0) {
+    const { data: profiles, error: profilesError } = await supabase
+      .from('applicant_profiles')
+      .select('id, full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url')
+      .in('id', studentIds)
+    if (profilesError) throw new Error(profilesError.message)
+    for (const p of (profiles ?? []) as ApplicantProfile[]) profileById.set(p.id, p)
+  }
+
+  return rows.map((r) => {
+    const profile = profileById.get(r.student_id) ?? null
     const submitted: SubmittedRequirement[] = (r.listings?.listing_requirements ?? []).map((q) => {
       const sub = (r.requirement_submissions ?? []).find((s) => s.requirement_id === q.id)
       return {
@@ -214,21 +234,21 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
     })
     return {
       id: r.id,
-      name: r.profiles?.full_name || r.profiles?.email || 'Unknown student',
-      email: r.profiles?.email ?? '—',
+      name: profile?.full_name || profile?.email || 'Unknown student',
+      email: profile?.email ?? '—',
       listingId: r.listing_id,
       role: r.listings?.title ?? '—',
       match: computeMatch(
-        matchPool(r.profiles?.skills, r.profiles?.specializations),
+        matchPool(profile?.skills, profile?.specializations),
         r.listings?.skills ?? [],
       ),
       status: APPLICANT_STATUS_FROM_DB[r.status] ?? 'Pending',
       applied: formatDate(r.created_at),
-      skills: r.profiles?.skills ?? [],
-      specializations: r.profiles?.specializations ?? [],
-      resume: r.profiles?.resume_url ?? '',
-      portfolioLink: r.profiles?.portfolio_link ?? undefined,
-      portfolioFile: r.profiles?.portfolio_file_url ?? undefined,
+      skills: profile?.skills ?? [],
+      specializations: profile?.specializations ?? [],
+      resume: profile?.resume_url ?? '',
+      portfolioLink: profile?.portfolio_link ?? undefined,
+      portfolioFile: profile?.portfolio_file_url ?? undefined,
       coverLetter: r.cover_letter ?? '',
       feedback: r.feedback ?? undefined,
       submittedRequirements: submitted,
