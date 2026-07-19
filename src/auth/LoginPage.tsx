@@ -6,6 +6,7 @@ import {
   requestPasswordReset,
   requestSignupCode,
   setPassword,
+  verifyPasswordResetCode,
   verifySignupCode,
 } from '../lib/auth'
 import { PasswordField } from './PasswordField'
@@ -204,9 +205,12 @@ function ForgotPasswordForm({
   initialEmail: string
   onBack: () => void
 }) {
+  const { beginRecovery } = useAuth()
   const [email, setEmail] = useState(initialEmail)
   const [sent, setSent] = useState(false)
+  const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -219,18 +223,70 @@ function ForgotPasswordForm({
     }
   }
 
+  async function handleVerify(event: React.FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await verifyPasswordResetCode(email, code)
+      // The code opened a real session. Flag recovery BEFORE it propagates, so
+      // App routes to ResetPasswordPage instead of the workspace.
+      beginRecovery()
+    } catch (err) {
+      const msg =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : 'That code is not valid.'
+      // Supabase returns the same error for a wrong code and an expired one,
+      // and without terminating punctuation — add it so the two sentences
+      // don't run together ("...is invalid Check the code").
+      setError(`${msg.replace(/\s*\.?\s*$/, '')}. Check the code, or request a new one.`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (sent) {
     return (
-      <div className="auth-form">
+      <form className="auth-form" onSubmit={handleVerify}>
         <p className="auth-info">
           If an account exists for <strong>{email.trim().toLowerCase()}</strong>, we've
-          sent a password reset link. Check your inbox (and spam folder) — the
-          link expires in 1 hour.
+          sent a 6-digit recovery code. Check your inbox (and spam folder), then
+          enter it below.
         </p>
-        <button className="auth-primary" onClick={onBack} type="button">
+        <label>
+          Recovery code
+          <input
+            autoComplete="one-time-code"
+            autoFocus
+            inputMode="numeric"
+            maxLength={6}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            placeholder="123456"
+            required
+            value={code}
+          />
+        </label>
+        {error && <p className="auth-error">{error}</p>}
+        <button className="auth-primary" disabled={busy || code.length < 6} type="submit">
+          {busy ? 'Verifying…' : 'Verify code'}
+        </button>
+        <button
+          className="auth-link"
+          disabled={busy}
+          onClick={() => {
+            setSent(false)
+            setCode('')
+            setError(null)
+          }}
+          type="button"
+        >
+          Use a different email or resend
+        </button>
+        <button className="auth-link" disabled={busy} onClick={onBack} type="button">
           Back to login
         </button>
-      </div>
+      </form>
     )
   }
 
@@ -238,7 +294,7 @@ function ForgotPasswordForm({
     <form className="auth-form" onSubmit={handleSubmit}>
       <p className="auth-step">Reset your password</p>
       <p className="auth-hint auth-hint-left">
-        Enter your account email and we'll send you a link to set a new
+        Enter your account email and we'll send you a code to set a new
         password. You won't need your old one.
       </p>
       <label>
@@ -254,7 +310,7 @@ function ForgotPasswordForm({
         />
       </label>
       <button className="auth-primary" disabled={busy} type="submit">
-        {busy ? 'Sending…' : 'Send reset link'}
+        {busy ? 'Sending…' : 'Send recovery code'}
       </button>
       <button className="auth-link" disabled={busy} onClick={onBack} type="button">
         Back to login

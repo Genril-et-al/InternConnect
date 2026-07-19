@@ -79,10 +79,14 @@ export async function setPassword(password: string) {
 }
 
 /**
- * Send a password-recovery email. Supabase returns the user to the app with a
- * recovery session in the URL fragment; AuthProvider picks that up as a
- * PASSWORD_RECOVERY event and shows the "set a new password" screen, which
- * calls setPassword() above.
+ * Send a password-recovery email. Recovery is code-based, mirroring signup:
+ *   1. requestPasswordReset()    — email a 6-digit recovery code
+ *   2. verifyPasswordResetCode() — confirm it, opening an authenticated session
+ *   3. setPassword()             — set the new password on that session
+ *
+ * No redirectTo is passed: the send-email-hook delivers `email_data.token` (the
+ * 6-digit code) rather than building a confirmation URL, so a recovery link is
+ * never issued and nothing would consume the redirect.
  *
  * Always resolves without revealing whether the email exists — an error here
  * would let anyone probe which addresses are registered.
@@ -90,11 +94,30 @@ export async function setPassword(password: string) {
 export async function requestPasswordReset(email: string) {
   const { error } = await supabase.auth.resetPasswordForEmail(
     email.trim().toLowerCase(),
-    { redirectTo: `${window.location.origin}/` },
   )
   // Log for debugging, but don't surface it: the UI shows the same
   // "if that email exists, check your inbox" message either way.
   if (error) console.warn('[InternConnect] password reset request failed:', error.message)
+}
+
+/**
+ * Verify the 6-digit recovery code; on success a session is established and
+ * setPassword() can update the account.
+ *
+ * type: 'recovery' (not 'email' as in signup) — resetPasswordForEmail issues a
+ * recovery-type token, and verifyOtp rejects a mismatched type.
+ *
+ * Unlike requestPasswordReset(), this throws: once someone is typing a code
+ * there is no address to disclose, and a wrong or expired code must be shown.
+ */
+export async function verifyPasswordResetCode(email: string, code: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: code.trim(),
+    type: 'recovery',
+  })
+  if (error) throw error
+  return data
 }
 
 /** Login with email + password (UC-S01 step 7). */

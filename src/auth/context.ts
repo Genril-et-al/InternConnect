@@ -9,10 +9,16 @@ export type AuthState = {
   /** True when running as the offline demo student (no Supabase). */
   demo: boolean
   /**
-   * True while the session came from a password-recovery link, so the app
-   * shows the "set a new password" screen instead of the workspace.
+   * True while the session was opened for password recovery, so the app shows
+   * the "set a new password" screen instead of the workspace.
    */
   recovery: boolean
+  /**
+   * Enter recovery mode after verifying a recovery code. verifyOtp emits
+   * SIGNED_IN rather than PASSWORD_RECOVERY, so the code path has to flag this
+   * itself or the user lands in the workspace with the old password intact.
+   */
+  beginRecovery: () => void
   /** Leave recovery mode (password changed, or the user cancelled). */
   endRecovery: () => void
   refreshProfile: () => Promise<void>

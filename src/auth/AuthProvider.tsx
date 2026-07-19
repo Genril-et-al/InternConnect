@@ -13,7 +13,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   // Offline demo student (only used when Supabase is not connected).
   const [demoProfile, setDemoProfile] = useState<Profile | null>(null)
-  // Set when the user arrives via a password-recovery link.
+  // Set once a recovery code is verified (see beginRecovery below).
   const [recovery, setRecovery] = useState(false)
 
   async function loadProfile(userId: string | undefined) {
@@ -75,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       demo: demoProfile !== null,
       recovery,
+      beginRecovery: () => setRecovery(true),
       endRecovery: () => setRecovery(false),
       refreshProfile: () => loadProfile(session?.user.id),
       signOut: async () => {
