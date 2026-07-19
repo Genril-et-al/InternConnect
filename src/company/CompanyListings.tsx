@@ -75,7 +75,7 @@ export function CompanyListings({
         </div>
         
         <div style={{ display: 'flex', gap: '8px' }}>
-          {['All', 'Open', 'Draft', 'Closed'].map(status => (
+          {['All', 'Open', 'Closed'].map(status => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -131,24 +131,7 @@ export function CompanyListings({
                   {l.description}
                 </p>
               </div>
-              
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
-                {l.status !== 'Closed' && (
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      if (l.status === 'Open') {
-                        run(() => onSetStatus(l.id, 'Draft'))
-                      } else {
-                        setIsPosting(true)
-                      }
-                    }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                    {l.status === 'Draft' ? 'Edit Draft' : 'Draft'}
-                  </button>
-                )}
                 
                 {l.status === 'Closed' && (
                   <button 
@@ -455,34 +438,12 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
               <Plus size={16} /> Add Requirement
             </button>
           </div>
-          
-          <div style={{ marginTop: '16px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>
-              <input 
-                type="checkbox" 
-                checked={publishImmediately} 
-                onChange={e => setPublishImmediately(e.target.checked)} 
-                style={{ width: '16px', height: '16px' }}
-              />
-              Publish immediately (uncheck to save as draft)
-            </label>
-          </div>
-          
           {saveError && <p className="cp-notice rejected" style={{ margin: 0 }}>{saveError}</p>}
           <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end', paddingTop: '16px' }}>
             <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontWeight: 500 }}>Discard</button>
             <button type="submit" disabled={saving} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 600, cursor: saving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: saving ? 0.7 : 1 }}>
-              {publishImmediately ? (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                  Publish
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 3v5h5M16 13H8M16 17H8M10 9H8"/></svg>
-                  Save Draft
-                </>
-              )}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              Publish
             </button>
           </div>
         </form>

@@ -525,7 +525,11 @@ function ApplicationStrip({ application, onClick }: { application: Application; 
 
   return (
     <article className="application-strip" role="button" tabIndex={0} onClick={onClick}>
-      <span className="strip-avatar">{application.company.slice(0, 2).toUpperCase()}</span>
+      {application.companyLogo ? (
+        <img src={application.companyLogo} alt={application.company} className="strip-avatar" style={{ objectFit: 'contain' }} />
+      ) : (
+        <span className="strip-avatar">{application.company.slice(0, 2).toUpperCase()}</span>
+      )}
       <div className="strip-main">
         <h3>{application.role}</h3>
         <p className="strip-subtitle">
@@ -897,7 +901,11 @@ function InternshipStrip({
   return (
     <article className="internship-strip clickable" onClick={onClick} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
       <div className="strip-top">
-        <span className="strip-avatar">{internship.company.slice(0, 2).toUpperCase()}</span>
+        {internship.companyLogo ? (
+          <img src={internship.companyLogo} alt={internship.company} className="strip-avatar" style={{ objectFit: 'contain' }} />
+        ) : (
+          <span className="strip-avatar">{internship.company.slice(0, 2).toUpperCase()}</span>
+        )}
         <div className="strip-main">
           <h3>{internship.title}</h3>
           <p className="strip-subtitle">
@@ -965,7 +973,11 @@ function InternshipDetailView({
       </button>
 
       <div className="detail-header">
-        <span className="company-mark detail-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+        {internship.companyLogo ? (
+          <img src={internship.companyLogo} alt={internship.company} className="company-mark detail-mark" style={{ objectFit: 'contain' }} />
+        ) : (
+          <span className="company-mark detail-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+        )}
         <div>
           <h2 className="detail-title">{internship.title}</h2>
           <p className="muted">{internship.company} · {internship.industry}</p>
@@ -1079,7 +1091,11 @@ function ApplyModal({
             {/* Internship preview */}
             <div className="modal-preview">
               <div className="modal-preview-header">
-                <span className="company-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+                {internship.companyLogo ? (
+                  <img src={internship.companyLogo} alt={internship.company} className="company-mark" style={{ objectFit: 'contain' }} />
+                ) : (
+                  <span className="company-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+                )}
                 <div>
                   <strong>{internship.title}</strong>
                   <p className="muted">{internship.company} · {internship.location} · {internship.setup}</p>

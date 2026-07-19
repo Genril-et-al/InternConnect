@@ -138,7 +138,11 @@ export function StudentDashboard({
           )}
           {internships.slice(0, 3).map((job) => (
             <div className="sd-list-row" key={job.id}>
-              <span className="sd-mark">{job.company.slice(0, 2).toUpperCase()}</span>
+              {job.companyLogo ? (
+                <img src={job.companyLogo} alt={job.company} className="sd-mark" style={{ objectFit: 'contain' }} />
+              ) : (
+                <span className="sd-mark">{job.company.slice(0, 2).toUpperCase()}</span>
+              )}
               <div className="sd-list-main">
                 <p className="sd-list-title">{job.title}</p>
                 <p className="sd-muted">
@@ -180,7 +184,11 @@ export function StudentDashboard({
                 role="button"
                 tabIndex={0}
               >
-                <span className="sd-mark dark">{app.company.slice(0, 2).toUpperCase()}</span>
+                {app.companyLogo ? (
+                  <img src={app.companyLogo} alt={app.company} className="sd-mark dark" style={{ objectFit: 'contain' }} />
+                ) : (
+                  <span className="sd-mark dark">{app.company.slice(0, 2).toUpperCase()}</span>
+                )}
                 <div className="sd-list-main">
                   <p className="sd-list-title">{app.role}</p>
                   <p className="sd-muted">

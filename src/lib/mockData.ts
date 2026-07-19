@@ -16,6 +16,7 @@ export type Internship = {
   id: string
   title: string
   company: string
+  companyLogo?: string | null
   industry: string
   location: string
   setup: 'Onsite' | 'Remote' | 'Hybrid'
@@ -46,6 +47,7 @@ export type Application = {
   id: string
   internshipId: string
   company: string
+  companyLogo?: string | null
   role: string
   dateApplied: string
   status: ApplicationStatus

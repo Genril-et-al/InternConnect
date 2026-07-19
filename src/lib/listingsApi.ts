@@ -55,14 +55,14 @@ type ListingRow = {
   slots: number
   deadline: string | null
   skills: string[]
-  companies: { name: string; industry: string | null } | null
+  companies: { name: string; industry: string | null; logo_url: string | null } | null
 }
 
 /** Open listings, ranked by skills match against the student's profile. */
 export async function fetchOpenListings(profileSkills: string[]): Promise<Internship[]> {
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(name, industry)')
+    .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(name, industry, logo_url)')
     .eq('status', 'open')
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
@@ -71,6 +71,7 @@ export async function fetchOpenListings(profileSkills: string[]): Promise<Intern
       id: r.id,
       title: r.title,
       company: r.companies?.name ?? 'Unknown company',
+      companyLogo: r.companies?.logo_url ?? null,
       industry: r.companies?.industry ?? '—',
       location: r.location ?? '—',
       setup: SETUP_LABELS[r.setup] ?? 'Onsite',
@@ -96,7 +97,7 @@ type ApplicationRow = {
   created_at: string
   listings: {
     title: string
-    companies: { name: string } | null
+    companies: { name: string; logo_url: string | null } | null
     listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
   } | null
   requirement_submissions: { requirement_id: string; status: string; text_value: string | null; file_path: string | null }[]
@@ -108,7 +109,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
     .from('applications')
     .select(
       'id, listing_id, status, next_step, cover_letter, created_at, ' +
-        'listings(title, companies(name), listing_requirements(id, name, kind, is_printable)), ' +
+        'listings(title, companies(name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
         'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
     .eq('student_id', studentId)
@@ -138,7 +139,8 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
       id: r.id,
       internshipId: r.listing_id,
       company: r.listings?.companies?.name ?? 'Unknown company',
-      role: r.listings?.title ?? '—',
+      companyLogo: r.listings?.companies?.logo_url ?? null,
+      role: r.listings?.title ?? 'Unknown role',
       dateApplied: formatDate(r.created_at),
       status: STATUS_LABELS[r.status] ?? 'Pending',
       nextStep: r.next_step ?? '',
