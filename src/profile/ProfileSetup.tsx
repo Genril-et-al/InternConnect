@@ -381,14 +381,14 @@ export function ProfileSetup({
             </span>
             <label 
               style={{ 
-                position: 'absolute', bottom: '0px', right: '-8px', background: 'var(--brand-orange)', 
-                color: 'white', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', 
+                position: 'absolute', bottom: '0px', right: '-4px', background: 'var(--brand-orange)', 
+                color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', 
                 alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid white',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
               }}
               title="Edit photo"
             >
-              <Pencil size={14} />
+              <Pencil size={12} />
               <input
                 accept="image/*"
                 hidden
@@ -411,36 +411,36 @@ export function ProfileSetup({
         </div>
       </section>
 
-      {/* Read-only name (from registration / database) */}
+      {/* Basic details */}
       <section className="profile-section">
         <div className="profile-section-head">
           <h2>Name</h2>
-          <span className="profile-locked">Locked · from your account</span>
+          <span className="profile-optional">Locked · from your account</span>
         </div>
         <div className="profile-name-grid">
           <label>
-            First name
-            <input readOnly value={first} />
+            First Name
+            <input disabled value={first} />
           </label>
           <label>
             M.I.
-            <input readOnly value={mi} />
+            <input disabled value={mi} />
           </label>
           <label>
-            Last name
-            <input readOnly value={last} />
+            Last Name
+            <input disabled value={last} />
           </label>
           <label>
             Suffix
-            <input readOnly value={suffix} />
+            <input disabled value={suffix} />
           </label>
         </div>
       </section>
 
-      {/* Personal details — filled here, not during sign-up */}
+      {/* Personal Information */}
       <section className="profile-section">
         <div className="profile-section-head">
-          <h2>Personal information</h2>
+          <h2>Personal Information</h2>
           <span className="profile-optional">Optional · editable anytime</span>
         </div>
         <div className="profile-personal-grid">
@@ -448,9 +448,8 @@ export function ProfileSetup({
             Age
             <input
               inputMode="numeric"
-              min={0}
-              onChange={(e) => setAge(e.target.value)}
-              type="number"
+              onChange={(e) => setAge(e.target.value.replace(/\D/g, ''))}
+              placeholder="e.g. 21"
               value={age}
             />
           </label>
@@ -471,24 +470,24 @@ export function ProfileSetup({
             Address
             <input
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Street, City, Province"
+              placeholder="City, Province"
               value={address}
             />
           </label>
           <label>
-            Personal email address
+            Personal Email Address
             <input
               onChange={(e) => setPersonalEmail(e.target.value)}
-              placeholder="name@gmail.com"
+              placeholder="Not your @cit.edu email"
               type="email"
               value={personalEmail}
             />
           </label>
           <label>
-            Contact number
+            Contact Number
             <input
               onChange={(e) => setContactNumber(e.target.value)}
-              placeholder="09XX XXX XXXX"
+              placeholder="09..."
               type="tel"
               value={contactNumber}
             />

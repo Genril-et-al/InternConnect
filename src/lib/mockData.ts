@@ -39,6 +39,7 @@ export type PreEmploymentRequirement = {
   /** Review state of the student's submission for this requirement. */
   submissionStatus?: SubmissionStatus
   submittedText?: string
+  submittedFilePath?: string
 }
 
 export type Application = {

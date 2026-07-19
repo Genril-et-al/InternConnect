@@ -34,6 +34,7 @@ import type { PreEmploymentRequirement } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
 import { SignOutButton } from './components/SignOutButton'
 import { Avatar } from './components/Avatar'
+import { signedDocumentUrl } from './lib/profile'
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 // Profile isn't a nav item — users open their own profile from the account
@@ -384,7 +385,9 @@ function BrowseInternships({
         .toLowerCase()
         .includes(query.toLowerCase())
       // An unscored listing can only satisfy the "All" pill.
-      const matchesScore = internship.match === null ? pillMin === 0 : internship.match >= pillMin
+      const matchesScore = internship.match === null 
+        ? pillMin === 0 
+        : (internship.match >= pillMin && internship.match > 0)
       const matchesBookmarks = !showBookmarksOnly || bookmarkedIds.has(internship.id)
       return matchesQuery && matchesScore && matchesBookmarks
     })
@@ -666,8 +669,8 @@ function RequirementSubmitRow({
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
   const status = requirement.submissionStatus ?? 'not_submitted'
+  const [isEditing, setIsEditing] = useState(status === 'not_submitted')
   const statusLabel =
     status === 'approved'
       ? 'Approved'
@@ -684,7 +687,7 @@ function RequirementSubmitRow({
         : status === 'pending'
           ? 'var(--brand-orange)'
           : 'var(--text-light)'
-  const canSubmit = status !== 'approved' && status !== 'pending'
+  const canSubmit = status !== 'approved' && isEditing
 
   const submit = async () => {
     if (!userId) return
@@ -699,6 +702,7 @@ function RequirementSubmitRow({
         await submitRequirementText(applicationId, requirement.id, text)
       }
       setFile(null)
+      setIsEditing(false)
       onSubmitted?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit.')
@@ -722,7 +726,57 @@ function RequirementSubmitRow({
         </span>
       </div>
 
-      {canSubmit && (
+      {!isEditing && status !== 'not_submitted' && (
+        <div style={{ marginTop: '10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', fontSize: '13px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, marginRight: '16px', overflow: 'hidden' }}>
+              <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
+                Your Submission
+              </span>
+              {requirement.type === 'text' ? (
+                <p style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {requirement.submittedText}
+                </p>
+              ) : (
+                <button
+                  className="sd-link"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!requirement.submittedFilePath) return
+                    try {
+                      setBusy(true)
+                      const url = await signedDocumentUrl(requirement.submittedFilePath, requirement.name)
+                      window.open(url, '_blank')
+                    } catch (e) {
+                      setError('Failed to load document')
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                  style={{ textAlign: 'left', padding: 0 }}
+                  type="button"
+                >
+                  {busy ? 'Loading document...' : 'View submitted document'}
+                </button>
+              )}
+              {error && !isEditing && <p className="muted" style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--brand-crimson)' }}>{error}</p>}
+            </div>
+            
+            {status !== 'approved' && (
+              <button 
+                className="sd-primary sm" 
+                onClick={() => setIsEditing(true)} 
+                style={{ flexShrink: 0, background: 'var(--border)', color: 'var(--text)', border: 'none' }}
+                type="button"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isEditing && (
         <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {requirement.type === 'file' ? (
             <input
@@ -741,15 +795,33 @@ function RequirementSubmitRow({
             />
           )}
           {error && <p className="muted" style={{ margin: 0, fontSize: '12px', color: 'var(--brand-crimson)' }}>{error}</p>}
-          <button
-            className="primary"
-            disabled={busy || (requirement.type === 'file' ? !file : !text.trim())}
-            onClick={submit}
-            style={{ alignSelf: 'flex-start', padding: '6px 14px', fontSize: '13px' }}
-            type="button"
-          >
-            {busy ? 'Submitting…' : status === 'rejected' ? 'Resubmit' : 'Submit'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-start' }}>
+            <button
+              className="primary"
+              disabled={busy || (requirement.type === 'file' ? !file : !text.trim())}
+              onClick={submit}
+              style={{ padding: '6px 14px', fontSize: '13px' }}
+              type="button"
+            >
+              {busy ? 'Submitting…' : 'Submit'}
+            </button>
+            {status !== 'not_submitted' && (
+              <button
+                className="sd-link"
+                disabled={busy}
+                onClick={() => {
+                  setIsEditing(false)
+                  setText(requirement.submittedText ?? '')
+                  setFile(null)
+                  setError(null)
+                }}
+                style={{ padding: '6px 14px', fontSize: '13px', textDecoration: 'none' }}
+                type="button"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -823,7 +895,7 @@ function InternshipStrip({
   onToggleBookmark?: (e: React.MouseEvent) => void
 }) {
   return (
-    <article className="internship-strip" role="button" tabIndex={0}>
+    <article className="internship-strip clickable" onClick={onClick} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
       <div className="strip-top">
         <span className="strip-avatar">{internship.company.slice(0, 2).toUpperCase()}</span>
         <div className="strip-main">
@@ -832,9 +904,10 @@ function InternshipStrip({
             {internship.company} · {internship.location} · {internship.slots} slots · {internship.duration}
           </p>
           <p className="strip-summary">{internship.summary}</p>
-          <div className="strip-tags">
+          <div className="strip-tags" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontStyle: 'italic', color: 'var(--text-light)', background: 'transparent', padding: 0 }}>Skills Required:</span>
             {internship.skills.slice(0, 3).map((skill) => (
-              <span key={skill}>{skill}</span>
+              <span key={skill} style={{ borderRadius: '16px', padding: '2px 10px', background: 'var(--bg-subtle)', border: '1px solid var(--border)', fontSize: '12px' }}>{skill}</span>
             ))}
           </div>
         </div>
@@ -857,12 +930,12 @@ function InternshipStrip({
           <button
             aria-label="Bookmark"
             className={`strip-bookmark ${isBookmarked ? 'active' : ''}`}
-            onClick={onToggleBookmark}
+            onClick={(e) => { e.stopPropagation(); onToggleBookmark?.(e); }}
             type="button"
           >
             <Bookmark fill={isBookmarked ? 'currentColor' : 'none'} size={18} />
           </button>
-          <button className="strip-apply-btn primary" type="button" onClick={onClick}>
+          <button className="strip-apply-btn primary" type="button" onClick={(e) => { e.stopPropagation(); onClick(); }}>
             Learn More
           </button>
         </div>

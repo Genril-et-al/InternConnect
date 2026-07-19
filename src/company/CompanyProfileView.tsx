@@ -88,14 +88,14 @@ export function CompanyProfileView() {
             </span>
             <label 
               style={{ 
-                position: 'absolute', bottom: '0px', right: '-8px', background: 'var(--brand-orange)', 
-                color: 'white', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', 
+                position: 'absolute', bottom: '0px', right: '-4px', background: 'var(--brand-orange)', 
+                color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', 
                 alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid white',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
               }}
               title="Edit logo"
             >
-              <Pencil size={14} />
+              <Pencil size={12} />
               <input 
                 hidden 
                 type="file" 
@@ -112,7 +112,7 @@ export function CompanyProfileView() {
 
         <div className="cp-form-grid">
           <label>
-            Company name
+            Company Name
             <input onChange={(e) => setName(e.target.value)} value={name} />
           </label>
           <label>
@@ -120,7 +120,7 @@ export function CompanyProfileView() {
             <input onChange={(e) => setIndustry(e.target.value)} value={industry} />
           </label>
           <label>
-            Company size
+            Company Size
             <select onChange={(e) => setSize(e.target.value)} value={size}>
               {['1-10', '11-50', '51-200', '201-500', '500+'].map((s) => (
                 <option key={s}>{s}</option>
@@ -128,7 +128,7 @@ export function CompanyProfileView() {
             </select>
           </label>
           <label>
-            Contact person email
+            Contact Person Email
             <input onChange={(e) => setContact(e.target.value)} type="email" value={contact} />
           </label>
           <label className="cp-form-span cp-form-label">
@@ -148,8 +148,8 @@ export function CompanyProfileView() {
 
       {/* Job specialty / fields */}
       <section className="cp-card">
-        <h3>Job specialty / fields</h3>
-        <p className="cp-muted" style={{ marginBottom: 10 }}>
+        <h3 style={{ fontSize: '18px', margin: '0 0 4px 0', color: 'var(--brand-brown)' }}>Job Specialty / Fields</h3>
+        <p className="cp-muted" style={{ marginBottom: 16 }}>
           The fields your company hires interns for (e.g. Marketing, Frontend, Backend,
           Software Dev). These improve matching with student specializations.
         </p>

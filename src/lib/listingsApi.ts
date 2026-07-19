@@ -243,7 +243,7 @@ type ApplicationRow = {
     companies: { name: string } | null
     listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
   } | null
-  requirement_submissions: { requirement_id: string; status: string; text_value: string | null }[]
+  requirement_submissions: { requirement_id: string; status: string; text_value: string | null; file_path: string | null }[]
 }
 
 /** The signed-in student's applications, newest first. */
@@ -253,7 +253,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
     .select(
       'id, listing_id, status, next_step, cover_letter, created_at, ' +
         'listings(title, companies(name), listing_requirements(id, name, kind, is_printable)), ' +
-        'requirement_submissions(requirement_id, status, text_value)',
+        'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
     .eq('student_id', studentId)
     .order('created_at', { ascending: false })
@@ -274,6 +274,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
               ? ('rejected' as const)
               : ('pending' as const),
         submittedText: sub?.text_value ?? undefined,
+        submittedFilePath: sub?.file_path ?? undefined,
       }
     })
     const approved = (r.requirement_submissions ?? []).filter((s) => s.status === 'approved').length
