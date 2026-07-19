@@ -13,8 +13,10 @@ among them does not matter.
 ## Applied vs. recorded
 
 The database's own migration ledger does not match this folder, because
-migrations applied through the SQL Editor are not recorded there. As of
-2026-07-19:
+migrations applied through the SQL Editor are not recorded there. Migrations
+applied through the MCP server *are* recorded — it goes through the migration
+system rather than a raw query, which is why the newer rows differ. As of
+2026-07-20:
 
 | Migration | Recorded in ledger | Present in database |
 | --- | --- | --- |
@@ -26,9 +28,22 @@ migrations applied through the SQL Editor are not recorded there. As of
 | `0008_signup_eligibility` | no | yes |
 | `0009_notifications` | yes | yes |
 | `0010_applied_listing_visibility` | no | **no — not applied** |
+| `0011_rls_least_privilege` | yes | yes |
+| `0012_applicant_profile_projection` | yes | yes |
+| `0013_personal_email_signup` | unconfirmed | yes |
 
 Everything except `0010` is live. The ledger gaps are bookkeeping only; the
 schema is correct.
+
+`0011` and `0012` were applied to the remote project via MCP on 2026-07-19,
+recorded in the commits that added them (`2955500`, `3143a5d`).
+
+`0013` is present — the personal-email signup path was verified against the
+live database in a rolled-back transaction, which exercises the
+`handle_new_user` changes the file makes. Its ledger row was never checked
+either way, hence *unconfirmed*; the rows above it were confirmed by query,
+this one is inferred from that test. Re-run the ledger query below to settle
+it.
 
 ### `is_admin_grants`
 
@@ -58,6 +73,30 @@ order by 1;
 ```
 
 Every result should be traceable to a file here.
+
+To read the ledger itself — what the database believes it has applied:
+
+```sql
+select version, name from supabase_migrations.schema_migrations order by version;
+```
+
+## Ship the migration and its code together
+
+A migration that changes RLS breaks the app the moment it lands, unless the
+code that queries around it ships at the same time. `0012` is the worked
+example: it dropped `profiles_select_applicants`, and the query in
+`fetchApplicants` had to move to the `applicant_profiles` view in the same
+breath. The file says so in its own header.
+
+That did not happen. `0012` went to the shared database on 2026-07-19 while
+the matching code sat unmerged on `fix/rls-least-privilege` until 2026-07-20.
+For a day, every machine except the author's rendered every applicant as
+"Unknown student" — because a blocked embed returns null rather than an
+error, so RLS denial arrives disguised as missing data.
+
+The database is shared; branches are not. Applying a migration deploys it to
+everyone instantly, so treat "applied to remote" as a deploy: merge the code
+first, or apply and merge together.
 
 ## Avoiding future drift
 
