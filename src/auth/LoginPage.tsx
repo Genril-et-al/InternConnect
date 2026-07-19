@@ -254,9 +254,8 @@ function ForgotPasswordForm({
       <form className="auth-form" onSubmit={handleVerify}>
         <p className="auth-info">
           If an account exists for <strong>{email.trim().toLowerCase()}</strong>, we've
-          sent a 6-digit recovery code to the personal email on that account —
-          not to your university inbox. Check it (and the spam folder), then
-          enter the code below.
+          sent a 6-digit recovery code to the personal email on that account.
+          Check it (and the spam folder), then enter the code below.
         </p>
         <label>
           Recovery code
@@ -298,9 +297,8 @@ function ForgotPasswordForm({
     <form className="auth-form" onSubmit={handleSubmit}>
       <p className="auth-step">Reset your password</p>
       <p className="auth-hint auth-hint-left">
-        Enter your university email. We'll send a code to the personal inbox on
-        your account — university mail filters block our messages. You won't
-        need your old password.
+        Enter your university email. We'll send a code to the personal email on
+        your account. You won't need your old password.
       </p>
       <label>
         University email
@@ -425,7 +423,7 @@ function SignupFlow({
     // the one that never receives our mail.
     if (personal.endsWith('@cit.edu')) {
       setError(
-        'Use a non-university inbox (Gmail, Outlook, Yahoo). University mail filters block our verification codes, which is why we ask for a personal address.',
+        'Please enter a personal email address, such as Gmail, Outlook, or Yahoo — not your university email.',
       )
       return
     }
@@ -563,9 +561,9 @@ function SignupFlow({
       <form className="auth-form" onSubmit={handleSendToPersonal}>
         <p className="auth-step">Step 3 of {totalSteps} · Where to send your code</p>
         <p className="auth-hint auth-hint-left">
-          <strong>{email.trim().toLowerCase()}</strong> is on the NLO roster. University
-          mail filters block our verification codes, so give us a personal inbox
-          you can open now — Gmail, Outlook, or Yahoo.
+          <strong>{email.trim().toLowerCase()}</strong> is on the NLO roster. Add a
+          personal email you check regularly — Gmail, Outlook, or Yahoo — and
+          we'll send your verification code there.
         </p>
         <label>
           Personal email
