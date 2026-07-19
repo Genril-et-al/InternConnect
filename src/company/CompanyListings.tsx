@@ -295,7 +295,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  const [publishImmediately, setPublishImmediately] = useState(true)
+  const publishImmediately = true
   // Lazy initializer keeps the impure id generation out of render.
   const [requirements, setRequirements] = useState<PreEmploymentRequirement[]>(() => [
     { id: newRequirementId(), name: '', type: 'text', isPrintable: false }

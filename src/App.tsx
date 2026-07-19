@@ -691,7 +691,7 @@ function RequirementSubmitRow({
         : status === 'pending'
           ? 'var(--brand-orange)'
           : 'var(--text-light)'
-  const canSubmit = status !== 'approved' && isEditing
+
 
   const submit = async () => {
     if (!userId) return
