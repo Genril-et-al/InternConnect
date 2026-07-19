@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "skills:check": "node --import ./scripts/tsResolve.mjs scripts/checkSkillMatching.ts",
+    "skills:learn": "node --import ./scripts/tsResolve.mjs scripts/learnSkills.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.6",

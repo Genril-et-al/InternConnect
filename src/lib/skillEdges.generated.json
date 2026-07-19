@@ -1,0 +1,5 @@
+{
+  "_readme": "AI-generated skill edges. DO NOT EDIT BY HAND. Written by `npm run skills:learn`. Seed edges in skillTaxonomy.ts always win over anything here. Safe to reset to {} — the app falls back to the seed taxonomy alone.",
+  "generatedAt": null,
+  "edges": {}
+}
