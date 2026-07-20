@@ -994,7 +994,7 @@ function StudentApplications({
         <p className="applications-subtitle">{total} total applications</p>
       </div>
 
-      <div className="browse-search-field" style={{ marginBottom: 16 }}>
+      <div className="browse-search-field">
         <span className="browse-search-icon">
           <Search size={16} />
         </span>
@@ -1007,7 +1007,8 @@ function StudentApplications({
         />
       </div>
 
-      <div className="applications-filters">
+      <div className="applications-filters" style={{ alignItems: 'center' }}>
+        <span className="browse-pills-label" style={{ marginRight: 4 }}>Filter by status:</span>
         {filters.map(f => (
           <button
             key={f.label}
