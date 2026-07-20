@@ -216,6 +216,14 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
 
   return rows.map((r) => {
     const profile = profileById.get(r.student_id) ?? null
+    let parsedFeedback: Record<string, string> = {}
+    if (r.feedback) {
+      try {
+        parsedFeedback = JSON.parse(r.feedback)
+      } catch {
+        // Not a JSON object, ignore for requirement parsing
+      }
+    }
     const submitted: SubmittedRequirement[] = (r.listings?.listing_requirements ?? []).map((q) => {
       const sub = (r.requirement_submissions ?? []).find((s) => s.requirement_id === q.id)
       return {
@@ -230,6 +238,7 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
               ? 'Needs Revision'
               : 'Pending',
         fileUrl: sub?.file_path ?? undefined,
+        feedback: sub?.status === 'rejected' ? (parsedFeedback[q.id] ?? undefined) : undefined,
       }
     })
     return {
@@ -275,11 +284,48 @@ export async function updateApplicationStatus(
 /** Approve or send back a student's requirement submission. */
 export async function reviewSubmission(
   submissionId: string,
+  applicationId: string,
   approve: boolean,
+  feedback?: string,
 ): Promise<void> {
   const { error } = await supabase
     .from('requirement_submissions')
-    .update({ status: approve ? 'approved' : 'rejected', reviewed_at: new Date().toISOString() })
+    .update({ 
+      status: approve ? 'approved' : 'rejected', 
+      reviewed_at: new Date().toISOString() 
+    })
     .eq('id', submissionId)
   if (error) throw new Error(error.message)
+
+  if (feedback && !approve) {
+    // We fetch the requirement_id and the current application feedback
+    const { data: subData } = await supabase
+      .from('requirement_submissions')
+      .select('requirement_id')
+      .eq('id', submissionId)
+      .single()
+      
+    if (subData) {
+      const { data: appData } = await supabase
+        .from('applications')
+        .select('feedback')
+        .eq('id', applicationId)
+        .single()
+        
+      let parsedFeedback: Record<string, string> = {}
+      if (appData?.feedback) {
+        try {
+          parsedFeedback = JSON.parse(appData.feedback)
+        } catch {}
+      }
+      
+      parsedFeedback[subData.requirement_id] = feedback
+      
+      const { error: appErr } = await supabase
+        .from('applications')
+        .update({ feedback: JSON.stringify(parsedFeedback) })
+        .eq('id', applicationId)
+      if (appErr) throw new Error(appErr.message)
+    }
+  }
 }

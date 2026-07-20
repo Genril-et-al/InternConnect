@@ -31,7 +31,7 @@ export function CompanyApplicants({
   applicants: CompanyApplicant[]
   listings: CompanyListing[]
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
-  onReviewSubmission: (submissionId: string, approve: boolean) => Promise<void>
+  onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
   const [listingFilter, setListingFilter] = useState('All listings')
@@ -152,10 +152,28 @@ function ApplicantDetail({
   applicant: CompanyApplicant
   onBack: () => void
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
-  onReviewSubmission: (submissionId: string, approve: boolean) => Promise<void>
+  onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
 }) {
   const [rejectOpen, setRejectOpen] = useState(false)
+  const [revisionOpen, setRevisionOpen] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewName, setPreviewName] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  const handleOpenDocument = async (path: string, name?: string) => {
+    try {
+      setPreviewLoading(true)
+      const url = await signedDocumentUrl(path, name)
+      setPreviewUrl(url)
+      setPreviewName(name ?? 'Document Preview')
+    } catch {
+      window.alert('Could not open the document. Please try again.')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
 
   const run = (action: () => Promise<void>) => {
     setActionError(null)
@@ -237,11 +255,16 @@ function ApplicantDetail({
                       {req.status}
                     </span>
                     {req.fileUrl && (
-                      <button type="button" onClick={() => openDocument(req.fileUrl!)} style={{ background: 'transparent', border: 'none', color: 'var(--brand-orange)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Download size={12} /> View Submission
+                      <button type="button" disabled={previewLoading} onClick={() => handleOpenDocument(req.fileUrl!, req.name)} style={{ background: 'transparent', border: 'none', color: 'var(--brand-orange)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Download size={12} /> {previewLoading ? 'Loading...' : 'View Submission'}
                       </button>
                     )}
                   </div>
+                  {req.status === 'Needs Revision' && req.feedback && (
+                    <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: 'var(--brand-crimson)' }}>
+                      <strong>Reason:</strong> {req.feedback}
+                    </p>
+                  )}
                 </div>
                 
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -250,7 +273,7 @@ function ApplicantDetail({
                       {req.status !== 'Approved' && (
                         <button
                           type="button"
-                          onClick={() => run(() => onReviewSubmission(req.submissionId!, true))}
+                          onClick={() => run(() => onReviewSubmission(req.submissionId!, applicant.id, true))}
                           style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
                         >
                           Approve
@@ -259,7 +282,7 @@ function ApplicantDetail({
                       {req.status !== 'Needs Revision' && (
                         <button
                           type="button"
-                          onClick={() => run(() => onReviewSubmission(req.submissionId!, false))}
+                          onClick={() => setRevisionOpen(req.submissionId!)}
                           style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
                         >
                           Needs Revision
@@ -307,10 +330,9 @@ function ApplicantDetail({
               <FileText size={14} />
               <span className="cp-doc-name">{docLabel(applicant.resume, applicant.name, 'Resume')}</span>
               <button
-                onClick={() =>
-                  openDocument(applicant.resume, docLabel(applicant.resume, applicant.name, 'Resume'))
-                }
+                onClick={() => handleOpenDocument(applicant.resume!, docLabel(applicant.resume!, applicant.name, 'Resume'))}
                 type="button"
+                disabled={previewLoading}
               >
                 <Download size={12} /> View
               </button>
@@ -338,13 +360,9 @@ function ApplicantDetail({
                 {docLabel(applicant.portfolioFile, applicant.name, 'Portfolio')}
               </span>
               <button
-                onClick={() =>
-                  openDocument(
-                    applicant.portfolioFile!,
-                    docLabel(applicant.portfolioFile!, applicant.name, 'Portfolio'),
-                  )
-                }
+                onClick={() => handleOpenDocument(applicant.portfolioFile!, docLabel(applicant.portfolioFile!, applicant.name, 'Portfolio'))}
                 type="button"
+                disabled={previewLoading}
               >
                 <Download size={12} /> View
               </button>
@@ -371,6 +389,100 @@ function ApplicantDetail({
           }}
         />
       )}
+
+      {previewUrl && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setPreviewUrl(null)} 
+          style={{ zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '40px' }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ display: 'flex', flexDirection: 'column', background: 'white', flex: 1, borderRadius: '8px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--brand-brown)' }}>{previewName}</h3>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <a href={previewUrl} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 500, color: 'var(--brand-orange)', textDecoration: 'none' }}>
+                  <Eye size={14} /> Open in new tab
+                </a>
+                <button onClick={() => setPreviewUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-light)' }} type="button">
+                  <XCircle size={20} />
+                </button>
+              </div>
+            </div>
+            <iframe 
+              src={previewUrl} 
+              style={{ flex: 1, width: '100%', border: 'none', background: '#f9fafb' }} 
+              title={previewName}
+            />
+          </div>
+        </div>
+      )}
+
+      {revisionOpen && (
+        <RevisionModal
+          onClose={() => setRevisionOpen(null)}
+          onSubmit={(reason) => {
+            run(() => onReviewSubmission(revisionOpen, applicant.id, false, reason))
+            setRevisionOpen(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/* ── Request Revision with feedback ─────────────────────────── */
+
+function RevisionModal({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void
+  onSubmit: (feedback: string) => void
+}) {
+  const [feedback, setFeedback] = useState('')
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal-panel">
+        <div className="modal-header">
+          <h3>Request Revision</h3>
+          <button className="modal-close" onClick={onClose} type="button">
+            ✕
+          </button>
+        </div>
+        <p className="cp-muted">
+          Provide a reason so the applicant knows what to correct or improve in their submission.
+        </p>
+        <label className="cp-modal-label">
+          Reason for revision *
+          <textarea
+            onChange={(e) => setFeedback(e.target.value)}
+            placeholder="e.g. The document is blurry, please re-upload a clear scanned copy."
+            value={feedback}
+          />
+        </label>
+        <div className="cp-modal-footer">
+          <button className="cp-secondary" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button
+            className="cp-danger"
+            disabled={!feedback.trim()}
+            onClick={() => onSubmit(feedback.trim())}
+            type="button"
+          >
+            <XCircle size={13} /> Request Revision
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

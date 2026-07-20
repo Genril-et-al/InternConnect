@@ -95,8 +95,8 @@ export function CompanyPortal({
     [withRefresh],
   )
   const handleReviewSubmission = useCallback(
-    (submissionId: string, approve: boolean) =>
-      withRefresh(() => reviewSubmission(submissionId, approve)),
+    (submissionId: string, applicationId: string, approve: boolean, feedback?: string) =>
+      withRefresh(() => reviewSubmission(submissionId, applicationId, approve, feedback)),
     [withRefresh],
   )
 
