@@ -28,6 +28,19 @@
   }
 }
 
+/* Belt and braces: the rule above is the precise one, but it silently does
+   nothing if `pointer` reports `fine` (some Android browsers, and anything
+   proxying the viewport). Under 760px it is a phone regardless, and 16px
+   controls are correct there anyway. */
+@media (max-width: 760px) {
+
+  input:not([type='checkbox']):not([type='radio']),
+  select:not([multiple]):not([hidden]),
+  textarea:not([hidden]):not([disabled]) {
+    font-size: 16px;
+  }
+}
+
 
 /* ── 2. Sidebar rail → bottom tab bar ─────────────────────────────────────
    Below 760px the shells already shrank the sidebar to a 72px icon-only rail,

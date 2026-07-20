@@ -39,6 +39,13 @@
   content: '';
   inset: 0;
   position: absolute;
+  /* Decorative only. Without this it hit-tests as .auth-hero and swallows every
+     click that lands on top of it — which is exactly what happened on mobile,
+     where the stacked layout drops the panel's `position: fixed` and this layer
+     then sizes itself against the viewport instead of the panel. The panel
+     keeps a containing block now (see the 820px block), but a purely visual
+     layer should never be able to intercept input regardless. */
+  pointer-events: none;
 }
 
 .auth-brand {
@@ -618,8 +625,11 @@
 
   .auth-hero {
     /* Stacked layout: let the panel size to its content instead of pinning a
-       full screen of red above the form. */
-    position: static;
+       full screen of red above the form. `relative`, not `static` — the panel
+       has an absolutely positioned ::after glow, and dropping out of the
+       positioned-ancestor chain entirely made that glow resolve `inset: 0`
+       against the viewport, stretching it over the whole login card. */
+    position: relative;
     height: auto;
     width: 100%;
     padding: 40px 32px;
@@ -631,6 +641,43 @@
 
   .auth-hero h1 {
     font-size: 30px;
+  }
+
+  /* The stage is `flex: 1` against a panel that is now `height: auto`, so it
+     has nothing to grow into and collapses to a ~30px sliver of clipped
+     artwork. An explicit height gives the coverflow room to actually read as a
+     carousel. */
+  .cf-stage {
+    min-height: 150px;
+  }
+
+  /* The slides are 4:3, so their width sets their height. The desktop `74%`
+     resolved to ~238px here, i.e. 179px tall inside a 150px stage — cropped top
+     and bottom. Capping the width at 200px makes a slide exactly 150px tall. */
+  .cf-item {
+    width: min(62%, 200px);
+  }
+
+  /* 96px of logo is the single tallest thing in the stacked panel, and every
+     pixel here pushes the form further down the page. */
+  .auth-logo {
+    height: 64px;
+    width: 64px;
+  }
+}
+
+/* Phones. The stacked panel keeps the carousel between 760px and 820px, where a
+   small tablet still has room for it, but on a phone it pushed the hero to
+   ~55-60% of the screen — you landed on a wall of branding and had to scroll to
+   find the login form. The carousel is decorative; the form is the job.
+   Deleting this block restores it on phones. */
+@media (max-width: 760px) {
+  .cf {
+    display: none;
+  }
+
+  .auth-hero {
+    padding: 24px 28px;
   }
 }
 
