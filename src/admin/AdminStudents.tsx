@@ -29,7 +29,6 @@ export function AdminStudents({
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showBulkModal, setShowBulkModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminStudent | null>(null)
   const [deactivateTarget, setDeactivateTarget] = useState<AdminStudent | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -87,9 +86,6 @@ export function AdminStudents({
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="ad-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Upload size={14} /> Add in Bulk
-          </button>
           <button className="ad-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={14} /> Add Student
           </button>
@@ -161,7 +157,6 @@ export function AdminStudents({
       </div>
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={onRefresh} />}
-      {showBulkModal && <BulkUploadModal type="student" onClose={() => setShowBulkModal(false)} onDone={onRefresh} />}
       {viewTarget && (
         <ViewStudentModal
           student={students.find((s) => s.id === viewTarget.id) || viewTarget}
@@ -366,7 +361,7 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name || !email || busy) return
+    if (!name || !email || !studentNumber || busy) return
     setBusy(true)
     setError(null)
     const { firstName, lastName } = splitName(name)
@@ -402,12 +397,11 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
             <input className="ad-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. juan.delacruz@cit.edu" required />
           </label>
           <label className="cp-modal-label">
-            Student Number
-            <input className="ad-input" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} placeholder="e.g. 21-1234-567 (optional)" />
+            Student Number *
+            <input className="ad-input" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} placeholder="e.g. 21-1234-567" required />
           </label>
           {error && <p className="ad-form-error" style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
-            <button className="ad-secondary" type="button" onClick={onClose} disabled={busy}>Cancel</button>
             <button className="ad-primary" type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add Student'}</button>
           </div>
         </form>

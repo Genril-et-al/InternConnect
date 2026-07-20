@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
-import { CheckCircle2, RefreshCw, XCircle, Plus, Upload, X, FileText, Download } from 'lucide-react'
+import { CheckCircle2, RefreshCw, XCircle, Plus, X, FileText, Download } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
-import { BulkUploadModal } from './AdminStudents'
 import { addApprovedCompany } from './allowlist'
 import { setCompanyVerification } from './adminQueries'
 import type { AdminCompany, VerifStatus } from './adminData'
@@ -22,7 +21,6 @@ export function AdminCompanies({
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | VerifStatus>('all')
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showBulkModal, setShowBulkModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminCompany | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -62,9 +60,6 @@ export function AdminCompanies({
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="ad-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Upload size={14} /> Add in Bulk
-          </button>
           <button className="ad-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={14} /> Add Company
           </button>
@@ -151,7 +146,6 @@ export function AdminCompanies({
       </div>
 
       {showAddModal && <AddCompanyModal onClose={() => setShowAddModal(false)} onAdded={onRefresh} />}
-      {showBulkModal && <BulkUploadModal type="company" onClose={() => setShowBulkModal(false)} onDone={onRefresh} />}
       {viewTarget && (
         <ViewCompanyModal
           company={companies.find((c) => c.id === viewTarget.id) || viewTarget}
@@ -441,7 +435,7 @@ function AddCompanyModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name || !contactEmail || busy) return
+    if (!name || !contactEmail || !industry || !identifier || busy) return
     setBusy(true)
     setError(null)
     try {
@@ -475,16 +469,15 @@ function AddCompanyModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
             <input className="ad-input" type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="e.g. hr@acme.com" required />
           </label>
           <label className="cp-modal-label">
-            Industry
-            <input className="ad-input" value={industry} onChange={e => setIndustry(e.target.value)} placeholder="e.g. Technology (optional)" />
+            Industry *
+            <input className="ad-input" value={industry} onChange={e => setIndustry(e.target.value)} placeholder="e.g. Technology" required />
           </label>
           <label className="cp-modal-label">
-            Business ID / Permit No.
-            <input className="ad-input" value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="e.g. SEC-123456 (optional)" />
+            Business ID / Permit No. *
+            <input className="ad-input" value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="e.g. SEC-123456" required />
           </label>
           {error && <p style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
-            <button className="ad-secondary" type="button" onClick={onClose} disabled={busy}>Cancel</button>
             <button className="ad-primary" type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add Company'}</button>
           </div>
         </form>
