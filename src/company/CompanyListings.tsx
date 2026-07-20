@@ -11,6 +11,7 @@ export function CompanyListings({
   onCreate,
   onSetStatus,
   onDelete,
+  highlightedListingId,
 }: {
   listings: CompanyListing[]
   applicants: CompanyApplicant[]

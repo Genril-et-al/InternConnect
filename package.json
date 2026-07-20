@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview",
     "skills:check": "node --import ./scripts/tsResolve.mjs scripts/checkSkillMatching.ts",

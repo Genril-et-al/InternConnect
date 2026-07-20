@@ -38,7 +38,7 @@ export function CompanyDashboard({
     onNavigate(hint)
     
     if (hint === 'Applicants' && notification) {
-      const matched = applicants.find(a => notification.message.includes(a.listingTitle))
+      const matched = applicants.find(a => notification.message.includes(a.role))
       if (matched) onHighlightApplicant?.(matched.id)
     }
     if (hint === 'Listings' && notification) {

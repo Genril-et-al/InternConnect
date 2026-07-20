@@ -57,7 +57,6 @@ export type CompanyApplicant = {
   match: number | null
   status: ApplicantStatus
   nextStep?: string
-  feedback?: string
   applied: string
   skills: string[]
   specializations: string[]

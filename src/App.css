@@ -59,27 +59,23 @@ button.primary {
 }
 
 .workspace {
-  /* Three layers, topmost first: the white wash, the centred brand watermark,
-     then the hero mark in the corner. Both marks sit UNDER the wash, so its
-     alpha is what fades them — see --wm-size in index.css. The watermark is
-     `fixed` so it stays put while content scrolls, and its position is nudged
-     right by half the sidebar to centre it in the content area rather than
-     the viewport. */
+  /* Two layers, topmost first: the white wash, then the centred brand
+     watermark. The mark sits UNDER the wash, so its alpha is what fades it —
+     see --wm-size in index.css. The watermark is `fixed` so it stays put while
+     content scrolls, and its position is nudged right by half the sidebar to
+     centre it in the content area rather than the viewport. */
   background-color: #fff;
   background-image:
     linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 248, 251, 0.95)),
-    url('/logo.png'),
-    url('./assets/hero.png');
+    url('/logo.png');
   background-position:
     0 0,
-    calc(50% + var(--sb-w) / 2) 50%,
-    right 28px top 24px;
-  background-repeat: no-repeat, no-repeat, no-repeat;
+    calc(50% + var(--sb-w) / 2) 50%;
+  background-repeat: no-repeat, no-repeat;
   background-size:
     auto,
-    var(--wm-size) auto,
-    160px auto;
-  background-attachment: scroll, fixed, scroll;
+    var(--wm-size) auto;
+  background-attachment: scroll, fixed;
   margin-left: var(--sb-w);
   min-height: 100svh;
   min-width: 0;

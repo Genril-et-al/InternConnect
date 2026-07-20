@@ -28,12 +28,14 @@ export function CompanyApplicants({
   onSetStatus,
   onScheduleInterview,
   onReviewSubmission,
+  highlightedApplicantId,
 }: {
   applicants: CompanyApplicant[]
   listings: CompanyListing[]
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
   onScheduleInterview: (id: string, details: any) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
+  highlightedApplicantId?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [listingFilter, setListingFilter] = useState('All listings')

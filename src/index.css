@@ -35,8 +35,8 @@
      `isolation` on the container, which would trap the z-index:1000
      .modal-overlay in a new stacking context and paint it under the sidebar.
      Instead the logo is a background layer with an almost-opaque wash of the
-     page colour painted over it — the same trick .workspace already uses for
-     hero.png. Lower the wash alpha to make the mark stronger. */
+     page colour painted over it. Lower the wash alpha to make the mark
+     stronger. */
   --wm-size: min(620px, 46vw);
 
   --font-display: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
