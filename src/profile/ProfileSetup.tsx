@@ -703,6 +703,15 @@ export function ProfileSetup({
               ? 'Save changes'
               : 'Save and continue'}
       </button>
+
+      {/* Edit mode only: on a phone the sign-out moves off the bottom tab bar
+          and lands here, under Save changes. Setup mode keeps its own sign-out
+          in the page header, so adding it here would double it up. Hidden above
+          the mobile breakpoint — the sidebar still owns sign-out on desktop.
+          SignOutButton sets type="button", so it never submits the form. */}
+      {isEdit && (
+        <SignOutButton className="profile-mobile-signout">Sign out</SignOutButton>
+      )}
     </form>
     </>
   )

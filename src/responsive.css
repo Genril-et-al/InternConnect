@@ -156,6 +156,22 @@
     padding: 6px;
     transition-delay: 0s;
   }
+
+  /* Sign-out moves off the tab bar and onto the profile page, under Save
+     changes — the avatar beside it already goes to Profile, so it is one tap
+     away and the bar gets the space back.
+
+     Scoped to .app-shell deliberately. The admin shell (.ad-shell) has no
+     profile page — ProfileSetup is only rendered by App.tsx, and the admin
+     avatar is not a button — so hiding its sign-out too would leave an admin
+     with no way to sign out on a phone at all. */
+  .app-shell .ad-signout {
+    display: none;
+  }
+
+  .profile-mobile-signout {
+    display: block;
+  }
 }
 
 
