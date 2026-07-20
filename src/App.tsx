@@ -21,7 +21,7 @@ import { ProfileSetup } from './profile/ProfileSetup'
 import { StudentDashboard } from './dashboard/StudentDashboard'
 import { AdminApp } from './admin/AdminApp'
 import { CompanyPortal } from './company/CompanyPortal'
-import type { Internship, Application } from './lib/mockData'
+import type { Internship, Application, ApplicationStatus } from './lib/mockData'
 import {
   applyToListing,
   fetchBookmarks,
@@ -615,12 +615,37 @@ function BrowseInternships({
   )
 }
 
+/**
+ * Statuses that get their own tab on My Applications. Typed as
+ * ApplicationStatus so a renamed status breaks the build rather than leaving a
+ * tab that silently matches nothing -- the filter compares the label against
+ * application.status directly.
+ */
+const FILTER_STATUSES: ApplicationStatus[] = ['Pending', 'Accepted', 'Rejected', 'Withdrawn']
+
+/** Accepted sorts to the top of My Applications; all other statuses hold their order. */
+const statusRank = (status: ApplicationStatus): number => (status === 'Accepted' ? 0 : 1)
+
+/**
+ * Badge colour per status. Keyed by ApplicationStatus rather than matched with
+ * an if-chain so that adding a status to the union fails the build here instead
+ * of silently falling through to the neutral badge -- which is exactly what
+ * happened to 'Withdrawn', styled as if it were still live.
+ */
+const STATUS_BADGE: Record<ApplicationStatus, string> = {
+  Pending: 'pending',
+  'Under review': 'warning',
+  Shortlisted: 'pending',
+  'Interview scheduled': 'warning',
+  Offered: 'success',
+  Accepted: 'success',
+  Rejected: 'error',
+  Discarded: 'error',
+  Withdrawn: 'error',
+}
+
 function ApplicationStrip({ application, onClick, isHighlighted, isShaded }: { application: Application; onClick: () => void; isHighlighted?: boolean; isShaded?: boolean }) {
-  let statusClass = 'pending'
-  if (application.status === 'Accepted') statusClass = 'success'
-  if (application.status === 'Rejected' || application.status === 'Discarded') statusClass = 'error'
-  if (application.status === 'Interview scheduled' || application.status === 'Under review') statusClass = 'warning'
-  if (application.status === 'Offered') statusClass = 'success' // Or maybe a different color, let's use success to highlight it
+  const statusClass = STATUS_BADGE[application.status] ?? 'pending'
 
   return (
     <article className={`application-strip ${isHighlighted ? 'highlighted' : ''} ${isShaded ? 'shaded' : ''}`} role="button" tabIndex={0} onClick={isShaded ? undefined : onClick}>
@@ -1146,24 +1171,23 @@ function StudentApplications({
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
     return matchesFilter && matchesSearch
-  }).sort((a, b) => {
-    if (a.status === 'Accepted' && b.status !== 'Accepted') return -1
-    if (b.status === 'Accepted' && a.status !== 'Accepted') return 1
-    return 0
-  })
+    // Accepted first; everything else keeps the newest-first order the API
+    // returned. .filter() above already returned a fresh array, so this sorts a
+    // copy rather than mutating the applications prop, and Array#sort is stable,
+    // so the within-group ordering survives.
+  }).sort((a, b) => statusRank(a.status) - statusRank(b.status))
 
-  const pendingCount = applications.filter((a) => a.status === 'Pending').length
-  const acceptedCount = applications.filter((a) => a.status === 'Accepted').length
-  const rejectedCount = applications.filter((a) => a.status === 'Rejected').length
-  const withdrawnCount = applications.filter((a) => a.status === 'Withdrawn').length
+  // One pass instead of a .filter() per tab, so a tab can't end up counting a
+  // status string that no longer exists in the union.
+  const counts = applications.reduce<Partial<Record<ApplicationStatus, number>>>((acc, a) => {
+    acc[a.status] = (acc[a.status] ?? 0) + 1
+    return acc
+  }, {})
   const total = applications.length
 
-  const filters = [
+  const filters: { label: string; count: number }[] = [
     { label: 'All', count: total },
-    { label: 'Pending', count: pendingCount },
-    { label: 'Accepted', count: acceptedCount },
-    { label: 'Rejected', count: rejectedCount },
-    { label: 'Withdrawn', count: withdrawnCount }
+    ...FILTER_STATUSES.map((status) => ({ label: status, count: counts[status] ?? 0 })),
   ]
 
   return (
