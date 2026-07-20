@@ -26,6 +26,7 @@ export function CompanyApplicants({
   applicants,
   listings,
   onSetStatus,
+  onScheduleInterview,
   onReviewSubmission,
 }: {
   applicants: CompanyApplicant[]

@@ -13,6 +13,7 @@ import {
   reviewSubmission,
   setListingStatus,
   updateApplicationStatus,
+  scheduleInterview,
 } from './companyQueries'
 import type { NewListingInput } from './companyQueries'
 import type { ApplicantStatus } from './companyData'
@@ -94,6 +95,11 @@ export function CompanyPortal({
       withRefresh(() => updateApplicationStatus(id, status, feedback)),
     [withRefresh],
   )
+  const handleScheduleInterview = useCallback(
+    (id: string, details: any) =>
+      withRefresh(() => scheduleInterview(id, details)),
+    [withRefresh],
+  )
   const handleReviewSubmission = useCallback(
     (submissionId: string, applicationId: string, approve: boolean, feedback?: string) =>
       withRefresh(() => reviewSubmission(submissionId, applicationId, approve, feedback)),
@@ -125,6 +131,7 @@ export function CompanyPortal({
         applicants={applicants}
         listings={listings}
         onSetStatus={handleApplicantStatus}
+        onScheduleInterview={handleScheduleInterview}
         onReviewSubmission={handleReviewSubmission}
       />
     )
