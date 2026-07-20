@@ -7,6 +7,7 @@ import { computeMatch } from './skillMatch'
 export { computeMatch, matchPool, pairScore, skillGaps } from './skillMatch'
 
 
+
 /**
  * Student-side data layer for internship listings, applications, and
  * bookmarks (UC-S03..S05). Reads/writes go through RLS: students only see
@@ -18,8 +19,11 @@ const STATUS_LABELS: Record<string, ApplicationStatus> = {
   under_review: 'Under review',
   shortlisted: 'Shortlisted',
   interview_scheduled: 'Interview scheduled',
+  offered: 'Offered',
   accepted: 'Accepted',
   rejected: 'Rejected',
+  discarded: 'Discarded',
+  withdrawn: 'Withdrawn',
 }
 
 const SETUP_LABELS: Record<string, Internship['setup']> = {
@@ -277,5 +281,80 @@ export async function setBookmarked(
       .eq('student_id', studentId)
       .eq('listing_id', listingId)
     if (error) throw new Error(error.message)
+  }
+}
+
+/** Reject an internship offer (UC-S04). */
+export async function rejectOffer(applicationId: string) {
+  const { error } = await supabase
+    .from('applications')
+    .update({ status: 'rejected' })
+    .eq('id', applicationId)
+  if (error) throw new Error(error.message)
+}
+
+/** Accept an internship offer (UC-S04). All other pending applications will be discarded. */
+export async function acceptOffer(studentId: string, applicationId: string) {
+  // Update the accepted application
+  const { error: acceptError } = await supabase
+    .from('applications')
+    .update({ status: 'accepted' })
+    .eq('id', applicationId)
+  
+  if (acceptError) throw new Error(acceptError.message)
+
+  // Discard all other applications for this student that are not accepted, rejected, or already discarded
+  // We need to fetch them first to save their previous status
+  const { data: appsToDiscard, error: fetchError } = await supabase
+    .from('applications')
+    .select('id, status')
+    .eq('student_id', studentId)
+    .neq('id', applicationId)
+    .neq('status', 'accepted')
+    .neq('status', 'rejected')
+    .neq('status', 'discarded')
+    .neq('status', 'withdrawn')
+
+  if (fetchError) throw new Error(fetchError.message)
+
+  for (const app of appsToDiscard || []) {
+    const { error: discardError } = await supabase
+      .from('applications')
+      .update({ status: 'discarded', previous_status: app.status })
+      .eq('id', app.id)
+      
+    if (discardError) throw new Error(discardError.message)
+  }
+}
+
+/** Withdraw acceptance from an internship offer. Restores discarded applications. */
+export async function withdrawAcceptance(studentId: string, applicationId: string) {
+  // Update the withdrawn application
+  const { error: withdrawError } = await supabase
+    .from('applications')
+    .update({ status: 'withdrawn' })
+    .eq('id', applicationId)
+  
+  if (withdrawError) throw new Error(withdrawError.message)
+
+  // Find discarded applications to restore
+  const { data: discardedApps, error: fetchError } = await supabase
+    .from('applications')
+    .select('id, previous_status')
+    .eq('student_id', studentId)
+    .eq('status', 'discarded')
+
+  if (fetchError) throw new Error(fetchError.message)
+
+  // Restore each to its previous status
+  for (const app of discardedApps || []) {
+    if (app.previous_status) {
+      const { error: restoreError } = await supabase
+        .from('applications')
+        .update({ status: app.previous_status, previous_status: null })
+        .eq('id', app.id)
+        
+      if (restoreError) throw new Error(restoreError.message)
+    }
   }
 }
