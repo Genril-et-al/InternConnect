@@ -94,6 +94,7 @@ type ApplicationRow = {
   status: string
   next_step: string | null
   cover_letter: string | null
+  feedback: string | null
   created_at: string
   listings: {
     title: string
@@ -108,7 +109,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
   const { data, error } = await supabase
     .from('applications')
     .select(
-      'id, listing_id, status, next_step, cover_letter, created_at, ' +
+      'id, listing_id, status, next_step, cover_letter, feedback, created_at, ' +
         'listings(title, companies(name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
         'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
@@ -116,6 +117,13 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
   return ((data ?? []) as unknown as ApplicationRow[]).map((r) => {
+    let parsedFeedback: Record<string, string> = {}
+    if (r.feedback) {
+      try {
+        parsedFeedback = JSON.parse(r.feedback)
+      } catch {}
+    }
+
     const reqs: PreEmploymentRequirement[] = (r.listings?.listing_requirements ?? []).map((q) => {
       const sub = (r.requirement_submissions ?? []).find((s) => s.requirement_id === q.id)
       return {
@@ -132,6 +140,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
               : ('pending' as const),
         submittedText: sub?.text_value ?? undefined,
         submittedFilePath: sub?.file_path ?? undefined,
+        feedback: sub?.status === 'rejected' ? (parsedFeedback[q.id] ?? undefined) : undefined,
       }
     })
     const approved = (r.requirement_submissions ?? []).filter((s) => s.status === 'approved').length

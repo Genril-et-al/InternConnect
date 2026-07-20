@@ -38,9 +38,10 @@ export type PreEmploymentRequirement = {
   type: 'file' | 'text'
   isPrintable: boolean
   /** Review state of the student's submission for this requirement. */
-  submissionStatus?: SubmissionStatus
+  submissionStatus?: 'pending' | 'approved' | 'rejected' | 'not_submitted'
   submittedText?: string
   submittedFilePath?: string
+  feedback?: string
 }
 
 export type Application = {

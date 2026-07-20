@@ -777,6 +777,11 @@ function RequirementSubmitRow({
               </button>
             )}
           </div>
+          {status === 'rejected' && requirement.feedback && (
+            <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--border)', fontSize: '13px', color: 'var(--brand-crimson)' }}>
+              <strong>Reason for revision:</strong> {requirement.feedback}
+            </div>
+          )}
         </div>
       )}
 
