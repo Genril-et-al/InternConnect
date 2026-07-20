@@ -53,6 +53,22 @@ export function ProfileSetup({
   const [specializations, setSpecializations] = useState<string[]>(
     profile?.specializations ?? [],
   )
+
+  // When the ai_skills column hasn't been populated yet (migration not applied
+  // or profile predates the feature) but the resume was already analyzed, fall
+  // back to treating all existing skills as AI-extracted. Once the student
+  // re-analyzes or saves, the real ai_skills column takes over.
+  const fallbackAiSkills =
+    (profile?.ai_skills?.length ?? 0) === 0 && profile?.resume_status === 'analyzed'
+      ? (profile?.skills ?? [])
+      : (profile?.ai_skills ?? [])
+  const fallbackAiSpecializations =
+    (profile?.ai_specializations?.length ?? 0) === 0 && profile?.resume_status === 'analyzed'
+      ? (profile?.specializations ?? [])
+      : (profile?.ai_specializations ?? [])
+
+  const [aiSkills, setAiSkills] = useState<string[]>(fallbackAiSkills)
+  const [aiSpecializations, setAiSpecializations] = useState<string[]>(fallbackAiSpecializations)
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(profile?.photo_url ?? null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
@@ -144,8 +160,10 @@ export function ProfileSetup({
       } else if (result.status === 'unsupported_format') {
         setError(result.message)
       } else {
-        setSkills((prev) => mergeTags(prev, result.skills))
-        setSpecializations((prev) => mergeTags(prev, result.specializations))
+        setAiSkills(result.skills)
+        setAiSpecializations(result.specializations)
+        setSkills((prev) => [...result.skills, ...prev.filter(s => !result.skills.some(rs => rs.toLowerCase() === s.toLowerCase()))])
+        setSpecializations((prev) => [...result.specializations, ...prev.filter(s => !result.specializations.some(rs => rs.toLowerCase() === s.toLowerCase()))])
         setResumeRejected(null)
       }
       await refreshProfile()
@@ -197,6 +215,8 @@ export function ProfileSetup({
       updateProfileLocal({
         skills,
         specializations,
+        ai_skills: aiSkills,
+        ai_specializations: aiSpecializations,
         photo_url: photoPreview ?? null,
         resume_url: resume ? resume.name : profile?.resume_url ?? null,
         portfolio_link: portfolioLink.trim() || null,
@@ -236,6 +256,8 @@ export function ProfileSetup({
       // skills/specializations. Runs only when a new resume was uploaded.
       let mergedSkills = skills
       let mergedSpecializations = specializations
+      let finalAiSkills = aiSkills
+      let finalAiSpecializations = aiSpecializations
       if (resume && resumePath) {
         setAnalyzing(true)
         try {
@@ -257,8 +279,12 @@ export function ProfileSetup({
           }
           // Merge AI-extracted tags with anything the student typed; the
           // student sees the combined list and can edit it afterwards.
-          mergedSkills = mergeTags(skills, result.skills)
-          mergedSpecializations = mergeTags(specializations, result.specializations)
+          finalAiSkills = result.skills
+          finalAiSpecializations = result.specializations
+          mergedSkills = [...result.skills, ...skills.filter(s => !result.skills.some(rs => rs.toLowerCase() === s.toLowerCase()))]
+          mergedSpecializations = [...result.specializations, ...specializations.filter(s => !result.specializations.some(rs => rs.toLowerCase() === s.toLowerCase()))]
+          setAiSkills(finalAiSkills)
+          setAiSpecializations(finalAiSpecializations)
           setSkills(mergedSkills)
           setSpecializations(mergedSpecializations)
           setResumeRejected(null)
@@ -290,6 +316,8 @@ export function ProfileSetup({
       await completeProfile(userId, {
         skills: mergedSkills,
         specializations: mergedSpecializations,
+        aiSkills: finalAiSkills,
+        aiSpecializations: finalAiSpecializations,
         photoUrl,
         resumePath,
         portfolioLink: portfolioLink.trim() || null,
@@ -507,6 +535,7 @@ export function ProfileSetup({
           onChange={setSkills}
           placeholder="Type a skill and press Enter (e.g. React, SQL, Figma)"
           tags={skills}
+          lockedTags={aiSkills}
         />
       </section>
 
@@ -520,6 +549,7 @@ export function ProfileSetup({
           onChange={setSpecializations}
           placeholder="e.g. Marketing, Frontend, Backend, Software Dev"
           tags={specializations}
+          lockedTags={aiSpecializations}
         />
       </section>
 

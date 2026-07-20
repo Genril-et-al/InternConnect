@@ -18,6 +18,8 @@ export type ProfileSetupInput = {
   address?: string | null
   personalEmail?: string | null
   contactNumber?: string | null
+  aiSkills?: string[]
+  aiSpecializations?: string[]
 }
 
 /**
@@ -126,6 +128,8 @@ export async function completeProfile(userId: string, input: ProfileSetupInput) 
     .update({
       skills: input.skills,
       specializations: input.specializations,
+      ai_skills: input.aiSkills ?? [],
+      ai_specializations: input.aiSpecializations ?? [],
       photo_url: input.photoUrl ?? null,
       resume_url: input.resumePath ?? null,
       portfolio_link: input.portfolioLink ?? null,

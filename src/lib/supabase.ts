@@ -56,6 +56,8 @@ export type Profile = {
   photo_url: string | null
   skills: string[]
   specializations: string[]
+  ai_skills: string[]
+  ai_specializations: string[]
   resume_url: string | null
   resume_status: 'pending_analysis' | 'analyzed' | 'no_skills_found' | null
   resume_analyzed_at: string | null

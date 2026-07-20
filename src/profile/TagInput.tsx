@@ -8,8 +8,10 @@ export function TagInput({
   tags,
   onChange,
   placeholder,
+  lockedTags = [],
 }: {
   tags: string[]
+  lockedTags?: string[]
   onChange: (next: string[]) => void
   placeholder?: string
 }) {
@@ -31,24 +33,33 @@ export function TagInput({
       e.preventDefault()
       add(draft)
     } else if (e.key === 'Backspace' && !draft && tags.length) {
-      onChange(tags.slice(0, -1))
+      const lastTag = tags[tags.length - 1]
+      const isLocked = lockedTags.some((t) => t.toLowerCase() === lastTag.toLowerCase())
+      if (!isLocked) {
+        onChange(tags.slice(0, -1))
+      }
     }
   }
 
   return (
     <div className="tag-input">
-      {tags.map((tag) => (
-        <span className="tag-chip" key={tag}>
-          {tag}
-          <button
-            aria-label={`Remove ${tag}`}
-            onClick={() => onChange(tags.filter((t) => t !== tag))}
-            type="button"
-          >
-            ×
-          </button>
-        </span>
-      ))}
+      {tags.map((tag) => {
+        const isLocked = lockedTags.some((t) => t.toLowerCase() === tag.toLowerCase())
+        return (
+          <span className={`tag-chip${isLocked ? ' locked' : ''}`} key={tag}>
+            {tag}
+            {!isLocked && (
+              <button
+                aria-label={`Remove ${tag}`}
+                onClick={() => onChange(tags.filter((t) => t !== tag))}
+                type="button"
+              >
+                ×
+              </button>
+            )}
+          </span>
+        )
+      })}
       <input
         onBlur={() => add(draft)}
         onChange={(e) => setDraft(e.target.value)}

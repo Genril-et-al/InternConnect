@@ -364,6 +364,15 @@
   padding: 4px !important;
 }
 
+/* AI-extracted skills: faded, non-editable, no remove button */
+.tag-chip.locked {
+  background: var(--brand-orange);
+  opacity: 0.5;
+  cursor: default;
+  padding: 4px 12px;
+  user-select: none;
+}
+
 /* Footer */
 .profile-error {
   background: #fdece9;

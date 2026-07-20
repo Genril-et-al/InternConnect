@@ -235,6 +235,8 @@ Deno.serve(async (req) => {
         resume_status: empty ? 'no_skills_found' : 'analyzed',
         resume_analyzed_at: new Date().toISOString(),
         resume_ai_suggestion: empty ? (extraction.suggestion || null) : null,
+        ai_skills: empty ? [] : skills,
+        ai_specializations: empty ? [] : specializations,
       })
       .eq('id', uid)
     if (updateError) return json({ error: updateError.message }, 500)
