@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Search,
+  Upload,
   Users,
   XCircle,
 } from 'lucide-react'
@@ -909,12 +910,32 @@ function RequirementSubmitRow({
       {isEditing && (
         <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {requirement.type === 'file' ? (
-            <input
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              style={{ fontSize: '12px' }}
-              type="file"
-            />
+            <label className={`upload-zone ${file ? 'has-file' : ''}`}>
+              <input
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                type="file"
+              />
+              {file ? (
+                <div className="upload-file-info">
+                  <span className="upload-file-icon">📄</span>
+                  <div>
+                    <p className="upload-file-name">{file.name}</p>
+                    <p className="muted">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="upload-placeholder">
+                  <div className="upload-icon">
+                    <Upload size={18} />
+                  </div>
+                  <p>
+                    <strong>Click to browse</strong> or drag file here
+                  </p>
+                  <p className="muted">Supported: PDF, DOCX, JPG, PNG</p>
+                </div>
+              )}
+            </label>
           ) : (
             <textarea
               onChange={(e) => setText(e.target.value)}
