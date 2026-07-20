@@ -429,6 +429,51 @@ function ApplicantDetail({
           }}
         />
       )}
+
+      {previewUrl && (
+        <DocumentPreviewModal
+          url={previewUrl}
+          name={previewName}
+          onClose={() => {
+            setPreviewUrl(null)
+            setPreviewName('')
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/* ── Document Preview Modal ─────────────────────────────────────── */
+
+function DocumentPreviewModal({
+  url,
+  name,
+  onClose,
+}: {
+  url: string
+  name: string
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="modal-overlay"
+      style={{ zIndex: 9999, padding: '2rem' }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal-panel" style={{ width: '100%', maxWidth: '1000px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-header">
+          <h3 style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</h3>
+          <button className="modal-close" onClick={onClose} type="button">
+            ✕
+          </button>
+        </div>
+        <div style={{ flex: 1, marginTop: '16px', background: '#eee', borderRadius: '6px', overflow: 'hidden' }}>
+          <iframe src={url} style={{ width: '100%', height: '100%', border: 'none' }} title={name} />
+        </div>
+      </div>
     </div>
   )
 }
