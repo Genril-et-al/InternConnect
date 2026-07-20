@@ -1680,6 +1680,12 @@ label {
   font-weight: 600;
 }
 
+.nb-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .nb-mark-read {
   background: none;
   border: none;
@@ -1687,6 +1693,13 @@ label {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+
+/* The panel is a plain dropdown on desktop — clicking away is gesture enough,
+   so the explicit close and its scrim are mobile-only (see responsive.css). */
+.nb-close,
+.nb-backdrop {
+  display: none;
 }
 
 .nb-mark-read:hover {
