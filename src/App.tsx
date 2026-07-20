@@ -10,6 +10,7 @@ import {
   LogOut,
   Search,
   Users,
+  XCircle,
 } from 'lucide-react'
 import './App.css'
 import { useAuth } from './auth/context'
@@ -566,10 +567,16 @@ function ProgressModal({
 }) {
   const internship = useMemo(() => internships.find(i => i.id === application.internshipId), [internships, application.internshipId])
   
+  const rejectedAtInterview = application.status === 'Rejected' && !!application.nextStep
   const steps = [
     { label: 'Application Submitted', active: true, done: true },
-    { label: 'Under Review', active: application.status !== 'Pending', done: application.status !== 'Pending' },
-    { label: 'Interview', active: ['Interview scheduled', 'Accepted'].includes(application.status), done: ['Interview scheduled', 'Accepted'].includes(application.status) },
+    { label: 'Under Review', active: application.status !== 'Pending', done: application.status !== 'Pending', status: (application.status === 'Rejected' && !application.nextStep) ? 'error' : '' },
+    { 
+      label: 'Interview', 
+      active: ['Interview scheduled', 'Accepted'].includes(application.status) || rejectedAtInterview, 
+      done: ['Interview scheduled', 'Accepted'].includes(application.status) || rejectedAtInterview,
+      status: application.status === 'Interview scheduled' ? 'warning' : (rejectedAtInterview ? 'error' : '') 
+    },
     { label: 'Offer Accepted', active: application.status === 'Accepted', done: application.status === 'Accepted' },
     { label: 'Pre-Employment Requirements', active: application.status === 'Accepted' && (application.approvedRequirements || 0) < (application.requirements?.length || 0), done: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length },
     { label: 'Ready to Start', active: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length, done: false },
@@ -620,9 +627,9 @@ function ProgressModal({
           <h3>Your Progress</h3>
           <div className="progress-stepper">
             {steps.map((step, index) => (
-              <div className={`stepper-item ${step.done ? 'done' : ''} ${step.active && !step.done ? 'active' : ''} ${!step.active && !step.done ? 'inactive' : ''}`} key={step.label}>
+              <div className={`stepper-item ${step.done && !step.status ? 'done' : ''} ${step.active && !step.done && !step.status ? 'active' : ''} ${!step.active && !step.done ? 'inactive' : ''} ${step.status || ''}`} key={step.label}>
                 <div className="stepper-circle">
-                  {step.done ? <CheckCircle2 size={16} /> : step.active ? <div className="dot" /> : <span>{index + 1}</span>}
+                  {step.status === 'error' ? <XCircle size={16} /> : (step.done || step.status === 'warning') ? <CheckCircle2 size={16} /> : step.active ? <div className="dot" /> : <span>{index + 1}</span>}
                 </div>
                 <span className="stepper-label">{step.label}</span>
               </div>

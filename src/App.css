@@ -1425,6 +1425,18 @@ label {
   color: var(--green);
 }
 
+.stepper-item.warning .stepper-circle {
+  background: white;
+  border-color: transparent;
+  color: var(--brand-orange);
+}
+
+.stepper-item.error .stepper-circle {
+  background: white;
+  border-color: transparent;
+  color: #d93025; /* Red */
+}
+
 .stepper-item.active .stepper-circle {
   border-color: var(--brand-orange-soft);
   border-width: 4px;
@@ -1447,6 +1459,16 @@ label {
 .stepper-item.done .stepper-label,
 .stepper-item.active .stepper-label {
   color: var(--brand-orange);
+}
+
+.stepper-item.warning .stepper-label {
+  color: var(--brand-orange);
+  font-weight: bold;
+}
+
+.stepper-item.error .stepper-label {
+  color: #d93025;
+  font-weight: bold;
 }
 
 .stepper-item.done .stepper-label {
