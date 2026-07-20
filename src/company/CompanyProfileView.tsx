@@ -179,11 +179,12 @@ export function CompanyProfileView() {
                 </div>
               )}
               
-              <input 
+              {/* Matches the avatars bucket allowlist (20260720000000_storage_bucket_limits). */}
+              <input
                 ref={fileInputRef}
-                hidden 
-                type="file" 
-                accept="image/*" 
+                hidden
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
                 onChange={(e) => {
                   handleLogo(e.target.files?.[0] ?? null)
                   setShowLogoMenu(false)

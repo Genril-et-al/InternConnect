@@ -389,8 +389,10 @@ export function ProfileSetup({
               title="Edit photo"
             >
               <Pencil size={12} />
+              {/* Matches the avatars bucket allowlist (20260720000000_storage_bucket_limits) —
+                  image/* would let the picker offer SVG/HEIC, which the bucket rejects. */}
               <input
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp,image/gif"
                 hidden
                 onChange={(e) => handlePhoto(e.target.files?.[0] ?? null)}
                 type="file"

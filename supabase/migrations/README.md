@@ -1,62 +1,67 @@
 # Migrations
 
-Applied **by hand** through the Supabase SQL Editor, in filename order. The
-Supabase CLI is not initialised (no `supabase/config.toml`), so nothing runs
-these automatically and nothing verifies the database matches this folder.
+Managed by the **Supabase CLI** since 2026-07-20 (`supabase init` + `supabase db push`).
+Before that they were pasted into the SQL Editor by hand — see "History" below
+for the drift that caused and how it was reconciled.
 
-## Order
+## Workflow
 
-Run in filename order. Files sharing a number prefix (`0006`, `0006a`, `0006b`)
-are independent of each other — each depends only on `0005`, so the order
-among them does not matter.
+```sh
+npx supabase migration new <name>   # creates supabase/migrations/<timestamp>_<name>.sql
+# ...write the SQL...
+npx supabase db push                # applies pending migrations to the linked project + records them
+npx supabase migration list --linked  # local vs remote ledger, side by side
+```
 
-## Applied vs. recorded
+The project is linked to `mpuysdwgzijrppofvked` (see `supabase/.temp/`).
+`db push` applies anything in this folder whose version is missing from the
+remote ledger, in timestamp order — so a file landing here IS a deploy to the
+shared database the next time anyone pushes.
 
-The database's own migration ledger does not match this folder, because
-migrations applied through the SQL Editor are not recorded there. Migrations
-applied through the MCP server *are* recorded — it goes through the migration
-system rather than a raw query, which is why the newer rows differ. Verified
-against the live database 2026-07-20:
+## Ship the migration and its code together
 
-| Migration | Recorded in ledger | Present in database |
-| --- | --- | --- |
-| `0001`–`0005` | yes | yes |
-| `0006_resume_analysis` | no | yes |
-| `0006a_edge_function_errors` | no | yes |
-| `0006b_student_allowlist` | yes | yes |
-| `0007_admin_panel_data` | no | yes |
-| `0008_signup_eligibility` | no | yes |
-| `0009_notifications` | yes | yes |
-| `0010_applied_listing_visibility` | yes | yes |
-| `0011_rls_least_privilege` | yes | yes |
-| `0012_applicant_profile_projection` | yes | yes |
-| `0013_personal_email_signup` | yes | yes |
+A migration that changes RLS breaks the app the moment it lands, unless the
+code that queries around it ships at the same time. `applicant_profile_projection`
+is the worked example: it dropped `profiles_select_applicants`, and the query in
+`fetchApplicants` had to move to the `applicant_profiles` view in the same
+breath. That didn't happen — the migration hit the shared database on
+2026-07-19 while the matching code sat unmerged for a day, and every machine
+except the author's rendered applicants as "Unknown student" (a blocked embed
+returns null, so RLS denial arrives disguised as missing data).
 
-Every migration in this folder is now live. The ledger gaps on the older rows
-are bookkeeping only; the schema is correct.
+The database is shared; branches are not. Merge the code first, or push and
+merge together.
 
-`0010`–`0013` were applied via MCP, so they carry ledger rows where the
-SQL-Editor migrations above them do not.
+## History: the hand-applied era
 
-Confirmed 2026-07-20 by querying the ledger and the catalog directly:
-`has_applied_to()` exists (`0010`), the `applicant_profiles` view exists and
-`profiles_select_applicants` is gone (`0012`).
+Everything up to `20260719141121_personal_email_signup` predates the CLI. Files
+were originally numbered `0001`–`0013` and renamed on 2026-07-20 to the CLI's
+`<timestamp>_<name>` format:
 
-### `is_admin_grants`
-
-The ledger lists a migration named `is_admin_grants` (2026-07-17 11:17:11) with
-no file here. It is **not** missing functionality: it re-ran the grant block
-already present in `0005_security_hardening.sql` (lines 63–64), 42 seconds
-after `security_hardening` was applied. The live ACL on `public.is_admin()`
-matches that file exactly. Nothing needs recovering.
-
-### `0006a_edge_function_errors`
-
-This one *was* a real gap — the table existed only in the live database. The
-file was reconstructed from `information_schema` and `pg_policy` and matches
-production. Every statement is guarded, so re-running it is a no-op.
+- **Ledger-recorded migrations** kept their exact ledger timestamp, so local
+  and remote agree. Note `applied_listing_visibility` (old `0010`) was actually
+  applied *after* `rls_least_privilege`/`applicant_profile_projection` (old
+  `0011`/`0012`) — the timestamps reflect the real order, not the old numbering.
+- **Four migrations were applied via the SQL Editor and never recorded**:
+  `resume_analysis`, `edge_function_errors`, `admin_panel_data`,
+  `signup_eligibility`. They carry synthetic timestamps (12:00/12:01 on 07-17,
+  09:00/09:01 on 07-18) chosen to preserve dependency order, and were inserted
+  into the remote ledger with `supabase migration repair --status applied` —
+  their SQL was already live, only the bookkeeping was missing.
+- **`20260717111711_is_admin_grants`** had a ledger row but no file: it re-ran
+  the `is_admin()` grant block from `security_hardening` 42 seconds later. The
+  file was reconstructed (idempotent) so every ledger row maps to a file.
+- **`20260717120100_edge_function_errors`** was itself a reconstruction: the
+  table existed only in the live database until the file was rebuilt from
+  `information_schema`/`pg_policy` on 2026-07-20.
 
 ## Verifying
+
+Local vs remote ledger:
+
+```sh
+npx supabase migration list --linked
+```
 
 To confirm this folder can still rebuild the database, compare the live object
 list against these files:
@@ -70,33 +75,3 @@ order by 1;
 ```
 
 Every result should be traceable to a file here.
-
-To read the ledger itself — what the database believes it has applied:
-
-```sql
-select version, name from supabase_migrations.schema_migrations order by version;
-```
-
-## Ship the migration and its code together
-
-A migration that changes RLS breaks the app the moment it lands, unless the
-code that queries around it ships at the same time. `0012` is the worked
-example: it dropped `profiles_select_applicants`, and the query in
-`fetchApplicants` had to move to the `applicant_profiles` view in the same
-breath. The file says so in its own header.
-
-That did not happen. `0012` went to the shared database on 2026-07-19 while
-the matching code sat unmerged on `fix/rls-least-privilege` until 2026-07-20.
-For a day, every machine except the author's rendered every applicant as
-"Unknown student" — because a blocked embed returns null rather than an
-error, so RLS denial arrives disguised as missing data.
-
-The database is shared; branches are not. Applying a migration deploys it to
-everyone instantly, so treat "applied to remote" as a deploy: merge the code
-first, or apply and merge together.
-
-## Avoiding future drift
-
-`supabase init` followed by `supabase db push` would apply migrations from this
-folder and record them, removing the copy-paste step that caused the gaps
-above.
