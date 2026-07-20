@@ -259,18 +259,18 @@ function ApplicantDetail({
     )}
 
     {applicant.status === 'Interview Scheduled' && applicant.nextStep && (
-      <section className="cp-card" style={{ background: 'var(--brand-orange-light)', borderColor: 'var(--brand-orange)' }}>
-        <h3 style={{ fontSize: '16px', margin: '0 0 16px 0', color: 'var(--brand-orange-dark)' }}>Interview Details</h3>
+      <section className="cp-card">
+        <h3 style={{ fontSize: '16px', margin: '0 0 16px 0', color: 'var(--brand-brown)' }}>Interview Details</h3>
         <div style={{ fontSize: '14px', color: 'var(--text)' }}>
           {(() => {
             try {
               const details = JSON.parse(applicant.nextStep)
               return (
                 <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
-                  <strong style={{ color: 'var(--brand-orange-dark)' }}>Date:</strong> <span>{details.date}</span>
-                  <strong style={{ color: 'var(--brand-orange-dark)' }}>Time:</strong> <span>{details.time}</span>
-                  <strong style={{ color: 'var(--brand-orange-dark)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
-                  <strong style={{ color: 'var(--brand-orange-dark)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                  <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date}</span>
+                  <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time}</span>
+                  <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
+                  <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
                 </div>
               )
             } catch {
@@ -565,7 +565,7 @@ function ScheduleInterviewModal({
         </div>
 
         <div className="cp-modal-footer" style={{ justifyContent: 'space-between' }}>
-          <button className="cp-secondary" onClick={onSkip} type="button">
+          <button className="cp-secondary" onClick={onSkip} type="button" style={{ border: '2px solid var(--brand-orange)', color: 'var(--brand-orange-dark)', fontWeight: 'bold' }}>
             Skip & Accept Directly
           </button>
           <div style={{ display: 'flex', gap: '12px' }}>

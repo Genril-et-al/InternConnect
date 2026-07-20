@@ -522,6 +522,7 @@ function ApplicationStrip({ application, onClick }: { application: Application; 
   let statusClass = 'pending'
   if (application.status === 'Accepted') statusClass = 'success'
   if (application.status === 'Rejected') statusClass = 'error'
+  if (application.status === 'Interview scheduled' || application.status === 'Under review') statusClass = 'warning'
 
   return (
     <article className="application-strip" role="button" tabIndex={0} onClick={onClick}>
@@ -630,18 +631,18 @@ function ProgressModal({
         </div>
 
         {application.status === 'Interview scheduled' && application.nextStep && (
-          <div className="progress-reqs-card" style={{ background: 'var(--brand-orange-light)', borderColor: 'var(--brand-orange)' }}>
-            <h3 style={{ margin: '0 0 16px 0', color: 'var(--brand-orange-dark)' }}>Interview Details</h3>
+          <div className="progress-reqs-card">
+            <h3 style={{ margin: '0 0 16px 0', color: 'var(--brand-brown)' }}>Interview Details</h3>
             <div style={{ fontSize: '14px', color: 'var(--text)' }}>
               {(() => {
                 try {
                   const details = JSON.parse(application.nextStep)
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
-                      <strong style={{ color: 'var(--brand-orange-dark)' }}>Date:</strong> <span>{details.date}</span>
-                      <strong style={{ color: 'var(--brand-orange-dark)' }}>Time:</strong> <span>{details.time}</span>
-                      <strong style={{ color: 'var(--brand-orange-dark)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
-                      <strong style={{ color: 'var(--brand-orange-dark)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                      <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date}</span>
+                      <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time}</span>
+                      <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
+                      <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
                     </div>
                   )
                 } catch {
