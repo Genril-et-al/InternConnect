@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Plus, Search, Trash2, X } from 'lucide-react'
 import type { CompanyApplicant, CompanyListing, PreEmploymentRequirement } from './companyData'
 import type { NewListingInput } from './companyQueries'
@@ -25,6 +25,15 @@ export function CompanyListings({
   const [isPosting, setIsPosting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [previewListing, setPreviewListing] = useState<CompanyListing | null>(null)
+
+  useEffect(() => {
+    if (highlightedListingId) {
+      setTimeout(() => {
+        const el = document.querySelector('.cp-card.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedListingId])
 
   const run = (action: () => Promise<void>) => {
     setActionError(null)

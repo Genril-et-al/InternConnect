@@ -24,6 +24,16 @@ export function AdminCompanies({
   const [filter, setFilter] = useState<'all' | VerifStatus>('all')
   const [tierFilter, setTierFilter] = useState('all')
   const [locationFilter, setLocationFilter] = useState('all')
+
+  useEffect(() => {
+    if (highlightedCompanyId) {
+      setTimeout(() => {
+        const el = document.querySelector('tr.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedCompanyId])
+
   const [showAddModal, setShowAddModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminCompany | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)

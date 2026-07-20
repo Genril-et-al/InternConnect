@@ -973,6 +973,16 @@ function StudentApplications({
 }) {
   const [searchQuery, setSearchQuery] = useState('')
 
+  useEffect(() => {
+    if (highlightedAppId) {
+      // Small delay to ensure render is complete
+      setTimeout(() => {
+        const el = document.querySelector('.application-strip.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedAppId])
+
   const visible = applications.filter((application) => {
     const matchesFilter = filter === 'All' || application.status === filter
     const matchesSearch = [application.company, application.role]

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -40,6 +40,15 @@ export function CompanyApplicants({
   const [statusFilter, setStatusFilter] = useState<'All' | ApplicantStatus>('All')
   const [matchFilter, setMatchFilter] = useState('Any match %')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (highlightedApplicantId) {
+      setTimeout(() => {
+        const el = document.querySelector('.cp-row.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedApplicantId])
 
   const filtered = useMemo(() => {
     const minMatch = MATCH_FILTERS[matchFilter] ?? 0

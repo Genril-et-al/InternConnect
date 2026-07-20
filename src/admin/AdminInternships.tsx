@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { AlertCircle, RefreshCw, Users } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
 import type { AdminListing, AdminListingStatus } from './adminData'
@@ -20,6 +20,15 @@ export function AdminInternships({
   const [scheduleFilter, setScheduleFilter] = useState<'all' | 'part-time' | 'full-time'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (highlightedListingId) {
+      setTimeout(() => {
+        const el = document.querySelector('.ad-row.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedListingId])
 
   const filtered = useMemo(
     () =>
