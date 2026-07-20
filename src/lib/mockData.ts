@@ -9,8 +9,11 @@ export type ApplicationStatus =
   | 'Under review'
   | 'Shortlisted'
   | 'Interview scheduled'
+  | 'Offered'
   | 'Accepted'
   | 'Rejected'
+  | 'Discarded'
+  | 'Withdrawn'
 
 export type Internship = {
   id: string

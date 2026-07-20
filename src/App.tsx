@@ -29,6 +29,9 @@ import {
   fetchOpenListings,
   matchPool,
   setBookmarked,
+  acceptOffer,
+  rejectOffer,
+  withdrawAcceptance,
   submitRequirementFile,
   submitRequirementText,
 } from './lib/listingsApi'
@@ -612,14 +615,15 @@ function BrowseInternships({
   )
 }
 
-function ApplicationStrip({ application, onClick, isHighlighted }: { application: Application; onClick: () => void; isHighlighted?: boolean }) {
+function ApplicationStrip({ application, onClick, isHighlighted, isShaded }: { application: Application; onClick: () => void; isHighlighted?: boolean; isShaded?: boolean }) {
   let statusClass = 'pending'
   if (application.status === 'Accepted') statusClass = 'success'
-  if (application.status === 'Rejected') statusClass = 'error'
+  if (application.status === 'Rejected' || application.status === 'Discarded') statusClass = 'error'
   if (application.status === 'Interview scheduled' || application.status === 'Under review') statusClass = 'warning'
+  if (application.status === 'Offered') statusClass = 'success' // Or maybe a different color, let's use success to highlight it
 
   return (
-    <article className={`application-strip ${isHighlighted ? 'highlighted' : ''}`} role="button" tabIndex={0} onClick={onClick}>
+    <article className={`application-strip ${isHighlighted ? 'highlighted' : ''} ${isShaded ? 'shaded' : ''}`} role="button" tabIndex={0} onClick={isShaded ? undefined : onClick}>
       {application.companyLogo ? (
         <img src={application.companyLogo} alt={application.company} className="strip-avatar" style={{ objectFit: 'contain' }} />
       ) : (
@@ -660,10 +664,11 @@ function ProgressModal({
     { label: 'Under Review', active: application.status !== 'Pending', done: application.status !== 'Pending', status: (application.status === 'Rejected' && !application.nextStep) ? 'error' : '' },
     { 
       label: 'Interview', 
-      active: ['Interview scheduled', 'Accepted'].includes(application.status) || rejectedAtInterview, 
-      done: ['Interview scheduled', 'Accepted'].includes(application.status) || rejectedAtInterview,
+      active: ['Interview scheduled', 'Offered', 'Accepted'].includes(application.status) || rejectedAtInterview, 
+      done: ['Interview scheduled', 'Offered', 'Accepted'].includes(application.status) || rejectedAtInterview,
       status: application.status === 'Interview scheduled' ? 'warning' : (rejectedAtInterview ? 'error' : '') 
     },
+    { label: 'Offer Extended', active: ['Offered', 'Accepted'].includes(application.status), done: ['Offered', 'Accepted'].includes(application.status), status: application.status === 'Offered' ? 'warning' : '' },
     { label: 'Pre-Employment Requirements', active: application.status === 'Accepted' && (application.approvedRequirements || 0) < (application.requirements?.length || 0), done: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length },
     { label: 'Ready to Start', active: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length, done: false },
     { label: 'Internship Started', active: false, done: false },
@@ -691,6 +696,12 @@ function ProgressModal({
                 Application Accepted
               </span>
             )}
+            {application.status === 'Offered' && (
+              <span className="status success">
+                <CheckCircle2 size={14} style={{ marginRight: 4 }} />
+                Offer Extended
+              </span>
+            )}
             {application.status === 'Pending' && (
               <span className="status warning">
                 Pending
@@ -704,6 +715,16 @@ function ProgressModal({
             {application.status === 'Rejected' && (
               <span className="status error">
                 Rejected
+              </span>
+            )}
+            {application.status === 'Discarded' && (
+              <span className="status error">
+                Discarded
+              </span>
+            )}
+            {application.status === 'Withdrawn' && (
+              <span className="status error">
+                Withdrawn
               </span>
             )}
           </div>
@@ -746,6 +767,47 @@ function ProgressModal({
           </div>
         )}
 
+        {application.status === 'Offered' && (
+          <div className="progress-reqs-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px' }}>
+            <h3 style={{ margin: 0, color: 'var(--brand-brown)', textAlign: 'center' }}>Congratulations! You have an offer.</h3>
+            <p style={{ margin: 0, color: 'var(--text)', textAlign: 'center', fontSize: '14px' }}>
+              The company has extended an internship offer to you. Please accept or decline the offer below.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+              <button 
+                className="sd-primary"
+                onClick={async () => {
+                  if (!userId) return;
+                  if (!window.confirm("Are you sure you want to accept this offer? All other pending applications and offers will be discarded.")) return;
+                  try {
+                    await acceptOffer(userId, application.id);
+                    onSubmitted?.();
+                  } catch (e) {
+                    alert(e instanceof Error ? e.message : 'An error occurred');
+                  }
+                }}
+              >
+                Accept Offer
+              </button>
+              <button 
+                className="sd-btn-secondary"
+                style={{ color: 'var(--brand-crimson)', borderColor: 'var(--brand-crimson)' }}
+                onClick={async () => {
+                  if (!window.confirm("Are you sure you want to reject this offer?")) return;
+                  try {
+                    await rejectOffer(application.id);
+                    onSubmitted?.();
+                  } catch (e) {
+                    alert(e instanceof Error ? e.message : 'An error occurred');
+                  }
+                }}
+              >
+                Decline Offer
+              </button>
+            </div>
+          </div>
+        )}
+
         {application.status === 'Accepted' && application.requirements && (
           <div className="progress-reqs-card">
             <div className="progress-reqs-header">
@@ -771,6 +833,25 @@ function ProgressModal({
                   userId={userId}
                 />
               ))}
+            </div>
+            
+            <div style={{ marginTop: '24px', textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+              <button 
+                className="sd-btn-secondary"
+                style={{ color: 'var(--brand-crimson)', borderColor: 'var(--brand-crimson)' }}
+                onClick={async () => {
+                  if (!userId) return;
+                  if (!window.confirm("Are you sure you want to withdraw your acceptance? This will cancel your internship and restore any discarded applications.")) return;
+                  try {
+                    await withdrawAcceptance(userId, application.id);
+                    onSubmitted?.();
+                  } catch (e) {
+                    alert(e instanceof Error ? e.message : 'An error occurred');
+                  }
+                }}
+              >
+                Withdraw Acceptance
+              </button>
             </div>
           </div>
         )}
@@ -993,6 +1074,7 @@ function StudentApplications({
   highlightedAppId?: string | null
 }) {
   const [searchQuery, setSearchQuery] = useState('')
+  const hasAccepted = applications.some(a => a.status === 'Accepted')
 
   useEffect(() => {
     if (highlightedAppId) {
@@ -1061,7 +1143,13 @@ function StudentApplications({
 
       <div className="application-strips">
         {visible.map(app => (
-          <ApplicationStrip key={app.id} application={app} onClick={() => onOpenProgress(app)} isHighlighted={app.id === highlightedAppId} />
+          <ApplicationStrip 
+            key={app.id} 
+            application={app} 
+            onClick={() => onOpenProgress(app)}
+            isHighlighted={app.id === highlightedAppId}
+            isShaded={hasAccepted && app.status !== 'Accepted'}
+          />
         ))}
       </div>
     </div>
