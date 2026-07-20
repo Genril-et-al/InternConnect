@@ -404,7 +404,7 @@ function BrowseInternships({
     const pillMin = matchThresholds[matchFilter] ?? 0
 
     return internships.filter((internship) => {
-      let textToSearch = ''
+      let textToSearch: string;
       if (searchField === 'Title') textToSearch = internship.title
       else if (searchField === 'Company') textToSearch = internship.company
       else if (searchField === 'Location') textToSearch = internship.location
@@ -1147,18 +1147,24 @@ function StudentApplications({
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
     return matchesFilter && matchesSearch
+  }).sort((a, b) => {
+    if (a.status === 'Accepted' && b.status !== 'Accepted') return -1
+    if (b.status === 'Accepted' && a.status !== 'Accepted') return 1
+    return 0
   })
 
   const pendingCount = applications.filter((a) => a.status === 'Pending').length
   const acceptedCount = applications.filter((a) => a.status === 'Accepted').length
   const rejectedCount = applications.filter((a) => a.status === 'Rejected').length
+  const withdrawnCount = applications.filter((a) => a.status === 'Withdrawn').length
   const total = applications.length
 
   const filters = [
     { label: 'All', count: total },
     { label: 'Pending', count: pendingCount },
     { label: 'Accepted', count: acceptedCount },
-    { label: 'Rejected', count: rejectedCount }
+    { label: 'Rejected', count: rejectedCount },
+    { label: 'Withdrawn', count: withdrawnCount }
   ]
 
   return (
