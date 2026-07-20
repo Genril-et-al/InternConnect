@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
-import { CheckCircle2, RefreshCw, XCircle, Plus, X, FileText, Download } from 'lucide-react'
+import { CheckCircle2, RefreshCw, XCircle, Plus, Upload, X, FileText, Download } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
+import { BulkUploadModal } from './AdminStudents'
 import { addApprovedCompany } from './allowlist'
 import { setCompanyVerification } from './adminQueries'
 import type { AdminCompany, VerifStatus } from './adminData'
@@ -21,6 +22,7 @@ export function AdminCompanies({
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | VerifStatus>('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminCompany | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -60,6 +62,9 @@ export function AdminCompanies({
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="ad-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Upload size={14} /> Add Bulk
+          </button>
           <button className="ad-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={14} /> Add Company
           </button>
@@ -146,6 +151,7 @@ export function AdminCompanies({
       </div>
 
       {showAddModal && <AddCompanyModal onClose={() => setShowAddModal(false)} onAdded={onRefresh} />}
+      {showBulkModal && <BulkUploadModal type="company" onClose={() => setShowBulkModal(false)} onDone={onRefresh} />}
       {viewTarget && (
         <ViewCompanyModal
           company={companies.find((c) => c.id === viewTarget.id) || viewTarget}

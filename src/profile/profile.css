@@ -354,6 +354,30 @@
   width: 18px;
 }
 
+.tag-add {
+  align-items: center;
+  background: var(--surface-strong);
+  border: 1.5px dashed var(--brand-orange);
+  border-radius: 50%;
+  box-sizing: border-box;
+  color: var(--brand-orange);
+  cursor: pointer;
+  display: flex;
+  flex: 0 0 30px;
+  height: 30px;
+  justify-content: center;
+  line-height: 1;
+  min-height: 0;
+  padding: 0;
+  transition: background 0.15s ease, transform 0.1s ease;
+  width: 30px;
+}
+
+.tag-add:hover {
+  background: rgba(231, 104, 20, 0.12);
+  transform: scale(1.05);
+}
+
 .tag-input input {
   background: transparent !important;
   border: none !important;

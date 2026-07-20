@@ -29,6 +29,7 @@ export function AdminStudents({
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminStudent | null>(null)
   const [deactivateTarget, setDeactivateTarget] = useState<AdminStudent | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -86,6 +87,9 @@ export function AdminStudents({
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="ad-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Upload size={14} /> Add Bulk
+          </button>
           <button className="ad-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={14} /> Add Student
           </button>
@@ -157,6 +161,7 @@ export function AdminStudents({
       </div>
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={onRefresh} />}
+      {showBulkModal && <BulkUploadModal type="student" onClose={() => setShowBulkModal(false)} onDone={onRefresh} />}
       {viewTarget && (
         <ViewStudentModal
           student={students.find((s) => s.id === viewTarget.id) || viewTarget}

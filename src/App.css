@@ -570,23 +570,25 @@ button.primary {
 .detail-back {
   align-self: flex-start;
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--brand-orange);
   border-radius: 8px;
-  color: var(--text-muted);
+  color: var(--brand-orange);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
   min-height: 36px;
   padding: 6px 14px;
   transition:
+    background 160ms ease,
     border-color 160ms ease,
     color 160ms ease;
 }
 
 .detail-back:hover {
-  border-color: var(--accent);
+  background: var(--brand-orange);
+  border-color: var(--brand-orange);
   box-shadow: none;
-  color: var(--accent);
+  color: #fff;
   transform: none;
 }
 
@@ -834,9 +836,9 @@ button.primary {
 .modal-close {
   align-items: center;
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--brand-orange);
   border-radius: 8px;
-  color: var(--text-muted);
+  color: var(--brand-orange);
   cursor: pointer;
   display: flex;
   font-size: 16px;
@@ -844,12 +846,17 @@ button.primary {
   justify-content: center;
   min-height: 32px;
   padding: 0;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
   width: 32px;
 }
 
 .modal-close:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--brand-orange);
+  border-color: var(--brand-orange);
+  color: #fff;
   box-shadow: none;
   transform: none;
 }
@@ -1344,6 +1351,10 @@ label {
   border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 24px;
+}
+
+.progress-modal > .modal-close {
+  align-self: flex-end;
 }
 
 .progress-header-card {

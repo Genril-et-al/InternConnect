@@ -716,7 +716,14 @@ function RequirementSubmitRow({
   }
 
   return (
-    <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 16px' }}>
+    <div
+      style={{
+        background: status === 'rejected' ? 'rgba(192, 57, 43, 0.06)' : 'var(--bg-subtle)',
+        border: status === 'rejected' ? '1.5px solid var(--brand-crimson)' : '1px solid var(--border)',
+        borderRadius: '12px',
+        padding: '12px 16px',
+      }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
         <div>
           <p style={{ margin: 0, fontWeight: 500, fontSize: '14px' }}>{requirement.name}</p>
@@ -770,10 +777,14 @@ function RequirementSubmitRow({
               <button 
                 className="sd-primary sm" 
                 onClick={() => setIsEditing(true)} 
-                style={{ flexShrink: 0, background: 'var(--border)', color: 'var(--text)', border: 'none' }}
+                style={
+                  status === 'rejected'
+                    ? { flexShrink: 0, background: 'var(--brand-crimson)', color: '#fff', border: 'none' }
+                    : { flexShrink: 0, background: 'var(--border)', color: 'var(--text)', border: 'none' }
+                }
                 type="button"
               >
-                Edit
+                {status === 'rejected' ? 'Resubmit' : 'Edit'}
               </button>
             )}
           </div>
@@ -892,6 +903,13 @@ function StudentApplications({
 }
 
 
+/** Browse-listing cards show only the opening sentence; the full text is on the detail view. */
+function firstSentence(text: string): string {
+  const trimmed = text.trim()
+  const match = trimmed.match(/^[^.!?]*[.!?]/)
+  return match ? match[0].trim() : trimmed
+}
+
 function InternshipStrip({
   internship,
   onClick,
@@ -916,7 +934,7 @@ function InternshipStrip({
           <p className="strip-subtitle">
             {internship.company} · {internship.location} · {internship.slots} slots · {internship.duration}
           </p>
-          <p className="strip-summary">{internship.summary}</p>
+          <p className="strip-summary">{firstSentence(internship.summary)}</p>
           <div className="strip-tags" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontStyle: 'italic', color: 'var(--text-light)', background: 'transparent', padding: 0 }}>Skills Required:</span>
             {internship.skills.slice(0, 3).map((skill) => (

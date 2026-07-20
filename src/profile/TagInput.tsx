@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Plus } from 'lucide-react'
 
 /**
- * Chip-style multi-value input. Type a value and press Enter or comma to add;
- * click × or press Backspace on an empty field to remove.
+ * Chip-style multi-value input. Tags render as chips with a "+" button at the
+ * end; clicking it reveals a text field to type a new value. Press Enter or
+ * comma to add it, or click × on a chip to remove it. Locked tags can't be
+ * removed and never render a remove button.
  */
 export function TagInput({
   tags,
@@ -16,6 +19,12 @@ export function TagInput({
   placeholder?: string
 }) {
   const [draft, setDraft] = useState('')
+  const [adding, setAdding] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (adding) inputRef.current?.focus()
+  }, [adding])
 
   function add(raw: string) {
     const value = raw.trim().replace(/,$/, '').trim()
@@ -32,6 +41,9 @@ export function TagInput({
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault()
       add(draft)
+    } else if (e.key === 'Escape') {
+      setDraft('')
+      setAdding(false)
     } else if (e.key === 'Backspace' && !draft && tags.length) {
       const lastTag = tags[tags.length - 1]
       const isLocked = lockedTags.some((t) => t.toLowerCase() === lastTag.toLowerCase())
@@ -39,6 +51,14 @@ export function TagInput({
         onChange(tags.slice(0, -1))
       }
     }
+  }
+
+  function handleBlur() {
+    add(draft)
+    setDraft((current) => {
+      if (!current.trim()) setAdding(false)
+      return current
+    })
   }
 
   return (
@@ -60,13 +80,25 @@ export function TagInput({
           </span>
         )
       })}
-      <input
-        onBlur={() => add(draft)}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={tags.length ? '' : placeholder}
-        value={draft}
-      />
+      {adding ? (
+        <input
+          onBlur={handleBlur}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={tags.length ? 'Add a skill…' : placeholder}
+          ref={inputRef}
+          value={draft}
+        />
+      ) : (
+        <button
+          aria-label="Add a skill"
+          className="tag-add"
+          onClick={() => setAdding(true)}
+          type="button"
+        >
+          <Plus size={14} />
+        </button>
+      )}
     </div>
   )
 }
