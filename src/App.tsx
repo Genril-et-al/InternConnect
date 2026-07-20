@@ -195,6 +195,7 @@ function StudentPortal({
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
   const [applicationFilter, setApplicationFilter] = useState('All')
   const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
+  const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null)
 
   // Live data — listings, my applications, my bookmarks (UC-S03..S05).
   const [internships, setInternships] = useState<Internship[]>([])
@@ -307,7 +308,7 @@ function StudentPortal({
           onSelectInternship={setSelectedInternship}
         />
       )}
-      {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} />}
+      {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} highlightedAppId={highlightedAppId} />}
       {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => handleNavigate('Dashboard')} />}
       {activeView === 'Dashboard' && (
         <StudentDashboard
@@ -325,6 +326,10 @@ function StudentPortal({
               setSelectedInternship(internship)
               onNavigate('Browse Internships')
             }
+          }}
+          onHighlightApplication={(id) => {
+            setHighlightedAppId(id)
+            if (id) setTimeout(() => setHighlightedAppId(null), 3000)
           }}
         />
       )}
@@ -606,14 +611,14 @@ function BrowseInternships({
   )
 }
 
-function ApplicationStrip({ application, onClick }: { application: Application; onClick: () => void }) {
+function ApplicationStrip({ application, onClick, isHighlighted }: { application: Application; onClick: () => void; isHighlighted?: boolean }) {
   let statusClass = 'pending'
   if (application.status === 'Accepted') statusClass = 'success'
   if (application.status === 'Rejected') statusClass = 'error'
   if (application.status === 'Interview scheduled' || application.status === 'Under review') statusClass = 'warning'
 
   return (
-    <article className="application-strip" role="button" tabIndex={0} onClick={onClick}>
+    <article className={`application-strip ${isHighlighted ? 'highlighted' : ''}`} role="button" tabIndex={0} onClick={onClick}>
       {application.companyLogo ? (
         <img src={application.companyLogo} alt={application.company} className="strip-avatar" style={{ objectFit: 'contain' }} />
       ) : (
@@ -957,12 +962,14 @@ function StudentApplications({
   applications,
   onOpenProgress,
   filter,
-  onFilterChange
+  onFilterChange,
+  highlightedAppId
 }: {
   applications: Application[]
   onOpenProgress: (app: Application) => void
   filter: string
   onFilterChange: (filter: string) => void
+  highlightedAppId?: string | null
 }) {
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -1023,7 +1030,7 @@ function StudentApplications({
 
       <div className="application-strips">
         {visible.map(app => (
-          <ApplicationStrip key={app.id} application={app} onClick={() => onOpenProgress(app)} />
+          <ApplicationStrip key={app.id} application={app} onClick={() => onOpenProgress(app)} isHighlighted={app.id === highlightedAppId} />
         ))}
       </div>
     </div>

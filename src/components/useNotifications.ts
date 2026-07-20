@@ -15,7 +15,7 @@ type Row = { id: string; message: string; date: string; read: boolean; navHint: 
  * the NotificationBell shape. `onNavHint` receives the row's nav_hint
  * ('Applications', 'Applicants', 'admin:2', …) when a notification is clicked.
  */
-export function useNotifications(onNavHint: (hint: string) => void): {
+export function useNotifications(onNavHint: (hint: string, notification?: { message: string }) => void): {
   notifications: Notification[]
   unreadCount: number
   hasMore: boolean
@@ -49,7 +49,7 @@ export function useNotifications(onNavHint: (hint: string) => void): {
       message: r.message,
       date: r.date,
       read: r.read,
-      onClick: r.navHint ? () => navHintRef.current(r.navHint!) : undefined,
+      onClick: r.navHint ? () => navHintRef.current(r.navHint!, r) : undefined,
     }),
     [],
   )

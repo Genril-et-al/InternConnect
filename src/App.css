@@ -415,6 +415,17 @@ button.primary {
   outline-offset: 2px;
 }
 
+.application-strip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.application-strip.highlighted {
+  outline: 2px solid var(--brand-orange);
+  outline-offset: -2px;
+  background: var(--brand-orange-light, #fff5eb);
+}
+
 .strip-top {
   display: flex;
   padding: 20px;
