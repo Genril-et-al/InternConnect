@@ -1,6 +1,7 @@
 .auth-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 100vh;
   min-height: 100svh;
 }
 
@@ -14,14 +15,12 @@
   justify-content: flex-start;
   padding: 16svh 64px 64px 64px;
   overflow: hidden;
-  /* Pin the panel to the viewport so it never grows with (or drifts against)
-     the form column when the sign-up steps make the page taller than the
-     screen. It stays put while only the form side scrolls. sticky is also a
-     positioning context, so the ::after glow still anchors to it. */
-  align-self: start;
-  position: sticky;
+  /* Pin the panel to the viewport so it never moves */
+  position: fixed;
   top: 0;
-  height: 100svh;
+  bottom: 0;
+  left: 0;
+  width: 50%;
 }
 
 /* With the carousel in place the panel is a three-band layout — brand, stage,
@@ -201,6 +200,7 @@
 /* ── Right form card ───────────────────────────────────────────────── */
 .auth-card {
   align-self: center;
+  grid-column: 2;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -621,7 +621,12 @@
        full screen of red above the form. */
     position: static;
     height: auto;
+    width: 100%;
     padding: 40px 32px;
+  }
+
+  .auth-card {
+    grid-column: 1;
   }
 
   .auth-hero h1 {
