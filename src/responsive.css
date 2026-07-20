@@ -1,0 +1,266 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Mobile adaptation layer.
+
+   Imported LAST (see main.tsx) so it lands after every other stylesheet in the
+   cascade. Most rules here tie on specificity with the ones they replace, and
+   win purely on source order — so the import position is load-bearing, not
+   cosmetic. Where a rule has to beat a `.sb-collapsed .x` descendant selector
+   (0,2,0) it is scoped under `.ad-sidebar` to match that weight.
+
+   Nothing here applies above the breakpoints; the desktop design is untouched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── 1. Stop iOS from zooming the page on input focus ──────────────────────
+   Safari zooms into any focused control whose font-size is under 16px, then
+   leaves the viewport scrolled sideways. Form controls inherit 13px from their
+   labels, so every text field in the app triggers it.
+
+   Scoped to coarse pointers: this is a touch-device bug, so a narrow desktop
+   window keeps the 13px design. The doubled :not() also lifts specificity to
+   (0,2,1) so it clears `.auth-form input` and friends. */
+@media (max-width: 1024px) and (pointer: coarse) {
+
+  input:not([type='checkbox']):not([type='radio']),
+  select:not([multiple]):not([hidden]),
+  textarea:not([hidden]):not([disabled]) {
+    font-size: 16px;
+  }
+}
+
+
+/* ── 2. Sidebar rail → bottom tab bar ─────────────────────────────────────
+   Below 760px the shells already shrank the sidebar to a 72px icon-only rail,
+   but on a 375px phone that is 19% of the screen permanently spent on
+   navigation, and the labels were hidden so the icons had to be guessed at.
+
+   Re-laying the same markup as a bottom bar returns the full width to content
+   and puts nav within thumb reach — and the labels come back. 760px matches
+   the rail breakpoint it replaces, so iPad portrait (768px) keeps the sidebar. */
+@media (max-width: 760px) {
+
+  /* Zero the offset both shells reserve for the rail. Listed with the
+     `.sb-collapsed` variants because those are (0,2,0) and would otherwise
+     re-apply their 76px on a shell the user had collapsed on desktop. */
+  .app-shell,
+  .app-shell.sb-collapsed,
+  .ad-shell,
+  .ad-shell.sb-collapsed {
+    --sb-w: 0px;
+  }
+
+  .ad-sidebar {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: stretch;
+    overflow: visible;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 -6px 20px rgba(28, 10, 4, 0.18);
+    /* Sits above page content but below .modal-overlay (z-index 1000). */
+    z-index: 60;
+    /* Keeps the bar clear of the iPhone home indicator. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* The width transition only makes sense for the rail it used to be. */
+    transition: none;
+  }
+
+  /* The brand block and the collapse toggle have no role in a bottom bar. */
+  .ad-sidebar .ad-brand,
+  .ad-sidebar .ad-collapse {
+    display: none;
+  }
+
+  .ad-sidebar .ad-nav {
+    flex: 1;
+    flex-direction: row;
+    gap: 2px;
+    padding: 6px 4px;
+    overflow: visible;
+  }
+
+  /* Icon stacked over its label, each item an equal share of the bar. */
+  .ad-sidebar .ad-nav button {
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    justify-content: center;
+    min-height: 52px;
+    min-width: 0;
+    padding: 6px 2px;
+    text-align: center;
+    white-space: normal;
+  }
+
+  /* Undo the rail's label collapse — max-width/opacity, not display, is what
+     hid these, so all three have to be restored. */
+  .ad-sidebar .ad-nav-label {
+    display: block;
+    max-width: none;
+    opacity: 1;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+  }
+
+  /* Avatar + sign-out become a trailing group, divided from the nav items. */
+  .ad-sidebar .ad-user {
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    border-top: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 6px 6px 6px 8px;
+  }
+
+  .ad-sidebar .ad-user-main {
+    display: none;
+  }
+
+  .ad-sidebar .ad-user-trigger {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 44px;
+    margin: 0;
+    padding: 6px;
+    justify-content: center;
+  }
+
+  /* Restore from the collapsed state, which hid this and pulled it out of the
+     tab order via visibility. */
+  .ad-sidebar .ad-signout {
+    max-width: 40px;
+    min-height: 44px;
+    opacity: 1;
+    visibility: visible;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    transition-delay: 0s;
+  }
+}
+
+
+/* ── 3. Content area: reclaim the width, clear the bar ─────────────────── */
+@media (max-width: 760px) {
+
+  .workspace,
+  .ad-main {
+    margin-left: 0;
+    /* Bottom padding clears the ~64px bar plus the home indicator, so the last
+       card in a list is never trapped underneath it. */
+    padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* `background-attachment: fixed` is the single worst offender for scroll jank
+     on mobile Safari — it repaints the whole layer every frame, and on older
+     iOS versions the watermark detaches and drifts. Pin the layers to normal
+     scrolling instead and centre the mark now that there is no rail to offset
+     it against. */
+  .workspace {
+    background-attachment: scroll, scroll, scroll;
+    background-position: 0 0, 50% 38%, right 12px top 12px;
+    background-size: auto, var(--wm-size) auto, 96px auto;
+  }
+
+  .ad-main {
+    background-attachment: scroll, scroll;
+    background-position: 0 0, 50% 38%;
+  }
+
+  /* 46vw put the watermark at ~172px on a phone — small enough to read as a
+     stray graphic rather than a ghosted brand mark. */
+  .app-shell,
+  .ad-shell {
+    --wm-size: min(340px, 66vw);
+  }
+
+  .topbar h2 {
+    font-size: 24px;
+  }
+
+  .ad-main .ad-topbar h2,
+  .ad-main h2 {
+    font-size: 24px;
+  }
+}
+
+
+/* ── 4. Touch targets ─────────────────────────────────────────────────────
+   The global button min-height is 38px, under the 44px comfortable-tap floor.
+   Kept at element specificity (0,0,1) on purpose so any button that sets its
+   own height through a class — the nav items and sign-out above, for one —
+   keeps it. */
+@media (max-width: 760px) {
+
+  button {
+    min-height: 44px;
+  }
+
+  /* Hover lift is meaningless on touch and leaves buttons stuck in the raised
+     state after a tap. */
+  button:hover {
+    transform: none;
+  }
+}
+
+
+/* ── 5. Overlays sized to the viewport ───────────────────────────────────── */
+@media (max-width: 760px) {
+
+  /* 320px fixed against a right-anchored trigger overflowed the screen edge on
+     a 375px device. */
+  .nb-dropdown {
+    width: min(320px, calc(100vw - 32px));
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  /* Modals become bottom sheets: reachable by thumb, and the slide-up
+     animation the panel already has now reads as intentional. */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-panel {
+    max-height: 90vh;
+    max-width: none;
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+    border-radius: 18px 18px 0 0;
+    border-bottom: none;
+  }
+}
+
+
+/* ── 6. Wide-content containment ──────────────────────────────────────────
+   Data tables keep their min-width and scroll inside their own wrapper — that
+   is deliberate, since squashing a 7-column table into 375px is worse than
+   swiping it. These just make that scroll feel native and stop it from
+   becoming a full-page sideways scroll. */
+@media (max-width: 760px) {
+
+  .table-wrap,
+  .ad-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* Safety net: any single overflowing child would otherwise let the whole
+     page pan sideways, which is the most common way a responsive layout feels
+     broken. Wrappers above scroll their own content, so nothing is lost. */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Mobile browsers use overlay scrollbars, so the reserved gutter in
+     index.css is dead space here. */
+  html {
+    scrollbar-gutter: auto;
+  }
+}
