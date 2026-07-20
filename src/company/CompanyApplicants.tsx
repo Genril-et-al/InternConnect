@@ -159,14 +159,17 @@ function ApplicantDetail({
   const [actionError, setActionError] = useState<string | null>(null)
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewDownloadUrl, setPreviewDownloadUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
 
   const handleOpenDocument = async (path: string, name?: string) => {
     try {
       setPreviewLoading(true)
-      const url = await signedDocumentUrl(path, name)
-      setPreviewUrl(url)
+      const pUrl = await signedDocumentUrl(path)
+      const dUrl = await signedDocumentUrl(path, name)
+      setPreviewUrl(pUrl)
+      setPreviewDownloadUrl(dUrl)
       setPreviewName(name ?? 'Document Preview')
     } catch {
       window.alert('Could not open the document. Please try again.')
@@ -430,12 +433,14 @@ function ApplicantDetail({
         />
       )}
 
-      {previewUrl && (
+      {previewUrl && previewDownloadUrl && (
         <DocumentPreviewModal
           url={previewUrl}
+          downloadUrl={previewDownloadUrl}
           name={previewName}
           onClose={() => {
             setPreviewUrl(null)
+            setPreviewDownloadUrl(null)
             setPreviewName('')
           }}
         />
@@ -448,10 +453,12 @@ function ApplicantDetail({
 
 function DocumentPreviewModal({
   url,
+  downloadUrl,
   name,
   onClose,
 }: {
   url: string
+  downloadUrl: string
   name: string
   onClose: () => void
 }) {
@@ -465,10 +472,20 @@ function DocumentPreviewModal({
     >
       <div className="modal-panel" style={{ width: '100%', maxWidth: '1000px', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <div className="modal-header">
-          <h3 style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</h3>
-          <button className="modal-close" onClick={onClose} type="button">
-            ✕
-          </button>
+          <h3 style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>{name}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <a 
+              href={downloadUrl} 
+              target="_blank" 
+              rel="noreferrer"
+              style={{ color: 'var(--brand-orange)', fontSize: '13px', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Download size={14} /> Download
+            </a>
+            <button className="modal-close" onClick={onClose} type="button">
+              ✕
+            </button>
+          </div>
         </div>
         <div style={{ flex: 1, marginTop: '16px', background: '#eee', borderRadius: '6px', overflow: 'hidden' }}>
           <iframe src={url} style={{ width: '100%', height: '100%', border: 'none' }} title={name} />
