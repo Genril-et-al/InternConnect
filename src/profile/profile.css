@@ -421,6 +421,23 @@
   opacity: 0.55;
 }
 
+.profile-file-info {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-file-link {
+  color: var(--brand-orange);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.profile-file-link:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 560px) {
   .profile-name-grid {
     grid-template-columns: 1fr 60px;
