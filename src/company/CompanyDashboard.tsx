@@ -22,7 +22,15 @@ export function CompanyDashboard({
     .filter((a) => a.status === 'Pending')
     .sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
 
-  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications(onNavigate)
+  const {
+    notifications,
+    unreadCount,
+    hasMore,
+    loadingMore,
+    loadMore,
+    handleMarkRead,
+    handleMarkAllRead,
+  } = useNotifications(onNavigate)
 
   return (
     <div className="cp-root">
@@ -41,6 +49,10 @@ export function CompanyDashboard({
           </button>
           <NotificationBell
             notifications={notifications}
+            unreadCount={unreadCount}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />

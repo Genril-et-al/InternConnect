@@ -38,7 +38,15 @@ export function StudentDashboard({
 
   const accepted = applications.filter((a) => a.status === 'Accepted').length
 
-  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications((hint) => {
+  const {
+    notifications,
+    unreadCount,
+    hasMore,
+    loadingMore,
+    loadMore,
+    handleMarkRead,
+    handleMarkAllRead,
+  } = useNotifications((hint) => {
     if (hint === 'Pending') onFilterApplications?.('Pending')
     else onNavigate(hint)
   })
@@ -83,6 +91,10 @@ export function StudentDashboard({
           </button>
           <NotificationBell
             notifications={notifications}
+            unreadCount={unreadCount}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />

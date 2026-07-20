@@ -34,7 +34,15 @@ export function AdminDashboard({
   const maxApps = Math.max(1, ...MONTHLY_APPLICATIONS.map((m) => m.apps))
 
   // Admin nav hints look like 'admin:<index>' — map to the sidebar index.
-  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications((hint) => {
+  const {
+    notifications,
+    unreadCount,
+    hasMore,
+    loadingMore,
+    loadMore,
+    handleMarkRead,
+    handleMarkAllRead,
+  } = useNotifications((hint) => {
     const index = Number(hint.split(':')[1])
     if (!Number.isNaN(index)) onNav(index)
   })
@@ -60,6 +68,10 @@ export function AdminDashboard({
           </button>
           <NotificationBell
             notifications={notifications}
+            unreadCount={unreadCount}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />

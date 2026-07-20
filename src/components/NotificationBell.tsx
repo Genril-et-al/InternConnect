@@ -13,13 +13,29 @@ interface NotificationBellProps {
   notifications: Notification[]
   onMarkAllRead?: () => void
   onMarkRead?: (id: string) => void
+  /** Unread total across all rows. Falls back to counting the loaded page. */
+  unreadCount?: number
+  /** Older rows exist beyond what is loaded. */
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
 }
 
-export function NotificationBell({ notifications, onMarkAllRead, onMarkRead }: NotificationBellProps) {
+export function NotificationBell({
+  notifications,
+  onMarkAllRead,
+  onMarkRead,
+  unreadCount: unreadCountProp,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
+}: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const unreadCount = notifications.filter((n) => !n.read).length
+  // Counting the loaded page would undercount once the list is paginated —
+  // unread rows can sit past the first page when newer ones are already read.
+  const unreadCount = unreadCountProp ?? notifications.filter((n) => !n.read).length
 
   useEffect(() => {
     if (!isOpen) return
@@ -113,6 +129,16 @@ export function NotificationBell({ notifications, onMarkAllRead, onMarkRead }: N
                     </div>
                   </div>
                 ))
+              )}
+              {hasMore && (
+                <button
+                  className="nb-load-more"
+                  onClick={onLoadMore}
+                  disabled={loadingMore}
+                  type="button"
+                >
+                  {loadingMore ? 'Loading…' : 'Load older notifications'}
+                </button>
               )}
             </div>
           </div>
