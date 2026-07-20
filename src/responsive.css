@@ -241,19 +241,23 @@
        on a 375px device.
 
      Positioning stays `absolute` from App.css — none of the ancestors
-     (.app-shell / .workspace / .topbar) set position, overflow, transform or
-     z-index, so there is no stacking context to trap the fixed scrim and no
-     clipping box to cut the card off. */
+     (.app-shell / .workspace / the dashboard headers) set position, overflow,
+     transform or z-index, so there is no stacking context to trap the fixed
+     scrim and no clipping box to cut the card off. */
 
-  /* Load-bearing for the card below. Under 720px App.css turns .topbar into a
-     one-column grid with `align-items: stretch`, so this group stops being the
-     right half of a space-between row and becomes a full-width band with its
-     contents packed left — putting the bell at around x=135 on a 375px screen.
-     A card anchored to the trigger's right edge would then start at x=-205 and
-     sit off the side of the screen entirely. Pushing the group back to the
-     right restores the anchor, and reads better under the stacked heading. */
+  /* Load-bearing for the card below. The three dashboard headers that hold a
+     bell (.sd-header, .cp-head, .ad-page-head) are all
+     `flex-wrap: wrap; justify-content: space-between`. On a phone the heading
+     and this group no longer fit on one line, so the group wraps onto a line of
+     its own — and `space-between` puts a lone item on a line at the START. The
+     bell ends up on the left, and a card anchored to its right edge hangs off
+     the side of the screen.
+
+     `margin-left: auto` is what moves the group itself; `justify-content` here
+     would only arrange its children inside a box that is already content-sized,
+     which is why it has no effect. */
   .topbar-actions {
-    justify-content: flex-end;
+    margin-left: auto;
   }
   .nb-backdrop {
     display: block;
