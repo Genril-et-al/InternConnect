@@ -63,7 +63,7 @@ export function AdminInternships({
         </select>
         <select
           className="ad-select"
-          onChange={(e) => setSetupFilter(e.target.value as any)}
+          onChange={(e) => setSetupFilter(e.target.value as 'all' | 'onsite' | 'remote' | 'hybrid')}
           value={setupFilter}
         >
           <option value="all">All Setups</option>
@@ -73,7 +73,7 @@ export function AdminInternships({
         </select>
         <select
           className="ad-select"
-          onChange={(e) => setPaidFilter(e.target.value as any)}
+          onChange={(e) => setPaidFilter(e.target.value as 'all' | 'paid' | 'unpaid')}
           value={paidFilter}
         >
           <option value="all">All Compensation</option>
@@ -82,7 +82,7 @@ export function AdminInternships({
         </select>
         <select
           className="ad-select"
-          onChange={(e) => setScheduleFilter(e.target.value as any)}
+          onChange={(e) => setScheduleFilter(e.target.value as 'all' | 'part-time' | 'full-time')}
           value={scheduleFilter}
         >
           <option value="all">All Schedules</option>

@@ -38,7 +38,10 @@ export function useNotifications(onNavHint: (hint: string) => void): {
   // Held in a ref so a new onNavHint identity each render neither invalidates
   // the callbacks below nor triggers a refetch.
   const navHintRef = useRef(onNavHint)
-  navHintRef.current = onNavHint
+
+  useEffect(() => {
+    navHintRef.current = onNavHint
+  }, [onNavHint])
 
   const adapt = useCallback(
     (r: Row): Notification => ({
