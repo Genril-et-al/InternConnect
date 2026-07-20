@@ -751,7 +751,7 @@ function RequirementSubmitRow({
                       setBusy(true)
                       const url = await signedDocumentUrl(requirement.submittedFilePath, requirement.name)
                       window.open(url, '_blank')
-                    } catch (e) {
+                    } catch {
                       setError('Failed to load document')
                     } finally {
                       setBusy(false)

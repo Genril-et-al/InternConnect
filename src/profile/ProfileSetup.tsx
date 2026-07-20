@@ -18,7 +18,7 @@ import { Pencil, Trash2, X } from 'lucide-react'
 import './profile.css'
 
 /** Case-insensitive union of manually typed and AI-extracted tags. */
-function mergeTags(current: string[], extracted: string[]): string[] {
+export function mergeTags(current: string[], extracted: string[]): string[] {
   const seen = new Set(current.map((t) => t.toLowerCase()))
   const merged = [...current]
   for (const tag of extracted) {
