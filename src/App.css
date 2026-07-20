@@ -108,6 +108,15 @@ button.primary {
   text-transform: capitalize;
 }
 
+/* The trailing action group in a dashboard topbar — primary button + bell.
+   Was three copies of the same inline style; it needs to be a class so the
+   mobile layer can re-align it once .topbar becomes a stacked grid. */
+.topbar-actions {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+}
+
 .quick-actions,
 .toolbar {
   gap: 10px;
@@ -1680,6 +1689,12 @@ label {
   font-weight: 600;
 }
 
+.nb-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .nb-mark-read {
   background: none;
   border: none;
@@ -1687,6 +1702,13 @@ label {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+
+/* The panel is a plain dropdown on desktop — clicking away is gesture enough,
+   so the explicit close and its scrim are mobile-only (see responsive.css). */
+.nb-close,
+.nb-backdrop {
+  display: none;
 }
 
 .nb-mark-read:hover {

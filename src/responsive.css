@@ -226,12 +226,115 @@
 /* ── 5. Overlays sized to the viewport ───────────────────────────────────── */
 @media (max-width: 760px) {
 
-  /* 320px fixed against a right-anchored trigger overflowed the screen edge on
-     a 375px device. */
+  /* The notification panel is a card that pops up and hovers under the bell,
+     over a dimmed page. It stays anchored to its trigger (so the connection
+     between the bell and the panel is obvious) but detaches from the screen
+     edges, which is what makes it read as floating rather than as part of the
+     layout.
+
+     Two things were wrong with it as a plain dropdown:
+
+     - It scrolled twice. `.nb-dropdown` got `overflow-y: auto` here while
+       `.nb-list` keeps its own `max-height: 360px` scroller from App.css, so a
+       long list had nested scroll areas and a header that scrolled away.
+     - A 320px panel against a right-anchored trigger ran off the screen edge
+       on a 375px device.
+
+     Positioning stays `absolute` from App.css — none of the ancestors
+     (.app-shell / .workspace / .topbar) set position, overflow, transform or
+     z-index, so there is no stacking context to trap the fixed scrim and no
+     clipping box to cut the card off. */
+
+  /* Load-bearing for the card below. Under 720px App.css turns .topbar into a
+     one-column grid with `align-items: stretch`, so this group stops being the
+     right half of a space-between row and becomes a full-width band with its
+     contents packed left — putting the bell at around x=135 on a 375px screen.
+     A card anchored to the trigger's right edge would then start at x=-205 and
+     sit off the side of the screen entirely. Pushing the group back to the
+     right restores the anchor, and reads better under the stacked heading. */
+  .topbar-actions {
+    justify-content: flex-end;
+  }
+  .nb-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 10, 4, 0.45);
+    /* Above the bottom tab bar (60), below .modal-overlay (1000). */
+    z-index: 900;
+    animation: modal-fade-in var(--dur-2) var(--ease-out);
+  }
+
+  /* `right: 0` inherited from App.css pins the card to the trigger's right
+     edge, which the 16px .workspace padding already insets from the screen.
+     The width leaves a matching gap on the left, so the card floats clear of
+     both edges instead of butting up against one. */
   .nb-dropdown {
-    width: min(320px, calc(100vw - 32px));
-    max-height: 70vh;
-    overflow-y: auto;
+    width: min(340px, calc(100vw - 32px));
+    margin-top: 10px;
+    max-height: 60vh;
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(28, 10, 4, 0.3);
+    z-index: 901;
+    transform-origin: top right;
+    animation: nb-pop var(--dur-3) var(--ease-out);
+  }
+
+  /* Grows out of the bell in the top-right rather than rising from below, so
+     the motion points back at the control that opened it. */
+  @keyframes nb-pop {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.96);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* The one scroll container. `flex: 1` over the fixed 360px cap lets it use
+     whatever the 60vh leaves after the header, and `overscroll-behavior`
+     stops a flick at the end of the list from scrolling the page behind. */
+  .nb-list {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* flex-shrink:0 so the header keeps its height when the list wants the
+     space — without it the flex column squeezes the title as the list grows. */
+  .nb-header {
+    flex-shrink: 0;
+    padding: 16px;
+  }
+
+  .nb-header h3 {
+    font-size: 16px;
+  }
+
+  .nb-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 4px;
+    min-width: 44px;
+    color: var(--text-muted);
+  }
+
+  /* Roomier rows: 13px text in a 14px box is a small tap target for a list
+     whose items navigate somewhere. */
+  .nb-item {
+    padding: 16px;
+  }
+
+  .nb-message {
+    font-size: 14px;
   }
 
   /* Modals become bottom sheets: reachable by thumb, and the slide-up

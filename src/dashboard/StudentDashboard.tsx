@@ -77,7 +77,7 @@ export function StudentDashboard({
               : 'All applications resolved.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="topbar-actions">
           <button className="sd-primary" onClick={() => onNavigate('Browse Internships')} type="button">
             <Search size={14} /> Browse Internships
           </button>
