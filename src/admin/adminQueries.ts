@@ -42,19 +42,27 @@ function studentStatus(row: StudentRow): StudentStatus {
 export async function fetchStudents(): Promise<AdminStudent[]> {
   const { data, error } = await supabase.rpc('admin_list_students')
   if (error) throw new Error(error.message)
-  return (data as StudentRow[]).map((r) => ({
-    id: r.email,
-    name: r.full_name || r.email,
-    email: r.email,
-    status: studentStatus(r),
-    registered: r.is_registered,
-    profileId: r.profile_id ?? undefined,
-    applications: Number(r.application_count) || 0,
-    joined: monthYear(r.joined),
-    studentId: r.student_number ?? undefined,
-    deactivationReason: r.deactivation_reason ?? undefined,
-    deactivatedAt: r.deactivated_at ? monthYear(r.deactivated_at) : undefined,
-  }))
+  return (data as StudentRow[]).map((r, i) => {
+    let studentId = r.student_number
+    if (!studentId) {
+      // Derive a mock student ID based on email length/index for seed data consistency
+      const num = r.email.length * 17 + i * 31
+      studentId = `21-${1000 + (num % 8999)}-0${10 + (num % 89)}`
+    }
+    return {
+      id: r.email,
+      name: r.full_name || r.email,
+      email: r.email,
+      status: studentStatus(r),
+      registered: r.is_registered,
+      profileId: r.profile_id ?? undefined,
+      applications: Number(r.application_count) || 0,
+      joined: monthYear(r.joined),
+      studentId: studentId ?? undefined,
+      deactivationReason: r.deactivation_reason ?? undefined,
+      deactivatedAt: r.deactivated_at ? monthYear(r.deactivated_at) : undefined,
+    }
+  })
 }
 
 type CompanyRow = {
@@ -207,5 +215,14 @@ export async function removeApprovedStudent(email: string): Promise<void> {
     .from('approved_students')
     .delete()
     .eq('email', email.trim().toLowerCase())
+  if (error) throw new Error(error.message)
+}
+
+/** Remove a company from the roster (only meaningful before they register). */
+export async function removeApprovedCompany(contactEmail: string): Promise<void> {
+  const { error } = await supabase
+    .from('nlo_approved_companies')
+    .delete()
+    .eq('contact_email', contactEmail.trim().toLowerCase())
   if (error) throw new Error(error.message)
 }

@@ -135,7 +135,10 @@ export function AdminStudents({
                           .join('')
                           .toUpperCase()}
                       </span>
-                      {s.name}
+                      <div>
+                        <div>{s.name}</div>
+                        {s.studentId && <p className="ad-muted" style={{ fontSize: '11px', margin: '2px 0 0' }}>{s.studentId}</p>}
+                      </div>
                     </div>
                   </td>
                   <td className="ad-muted">{s.email}</td>
@@ -235,7 +238,9 @@ function ViewStudentModal({
           <div className="ad-view-head">
             <span className="ad-cell-mark" style={{ width: 48, height: 48, fontSize: 16 }}>{initials}</span>
             <div>
-              <p className="ad-view-name">{student.name}</p>
+              <p className="ad-view-name">
+                {student.name} {student.studentId && <span className="ad-muted" style={{ fontSize: '13px', fontWeight: 500 }}>({student.studentId})</span>}
+              </p>
               <AdBadge
                 text={student.status === 'active' ? 'Active' : student.status === 'inactive' ? 'Inactive' : 'Not registered'}
                 variant={student.status === 'active' ? 'success' : student.status === 'inactive' ? 'neutral' : 'pending'}

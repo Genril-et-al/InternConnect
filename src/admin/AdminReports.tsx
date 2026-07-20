@@ -2,85 +2,137 @@ import { useMemo, useState } from 'react'
 import { BarChart3, Download } from 'lucide-react'
 import type { AdminAppStats, AdminCompany, AdminListing, AdminStudent } from './adminData'
 
-type ReportType = 'applications' | 'postings' | 'placement' | 'participation'
+type ReportType = 'student_records' | 'company_records' | 'company_verification'
 
 const REPORT_TITLES: Record<ReportType, string> = {
-  applications: 'Applications Report',
-  postings: 'Internship Postings Report',
-  placement: 'Placement Report',
-  participation: 'Student Participation Report',
+  student_records: 'Student Records Report',
+  company_records: 'Company Records Report',
+  company_verification: 'Company Verification Report',
 }
 
 /** UC-A06 — Generate and export platform reports (live data). */
 export function AdminReports({
   students,
   companies,
-  listings,
-  appStats,
 }: {
   students: AdminStudent[]
   companies: AdminCompany[]
   listings: AdminListing[]
   appStats: AdminAppStats
 }) {
-  const REPORT_DATA: Record<ReportType, { label: string; value: string | number }[]> = useMemo(() => {
-    const activeStudents = students.filter((s) => s.status === 'active').length
-    const appliedOnce = students.filter((s) => s.applications > 0).length
-    const activeCompanies = new Set(
-      listings.filter((l) => l.status === 'open').map((l) => l.company),
-    ).size
-    return {
-      applications: [
-        { label: 'Total Applications', value: appStats.total },
-        { label: 'Accepted', value: appStats.accepted },
-        { label: 'Pending', value: appStats.pending },
-        { label: 'Rejected', value: appStats.rejected },
-      ],
-      postings: [
-        { label: 'Total Listings', value: listings.length },
-        { label: 'Open', value: listings.filter((l) => l.status === 'open').length },
-        { label: 'Closed', value: listings.filter((l) => l.status === 'closed').length },
-        { label: 'Companies Active', value: activeCompanies },
-      ],
-      placement: [
-        { label: 'Placed Students', value: appStats.accepted },
-        {
-          label: 'Acceptance Rate',
-          value: appStats.total ? `${Math.round((appStats.accepted / appStats.total) * 100)}%` : '—',
-        },
-        { label: 'Verified Companies', value: companies.filter((c) => c.verification === 'verified').length },
-        { label: 'Flagged Listings', value: listings.filter((l) => l.status === 'flagged').length },
-      ],
-      participation: [
-        { label: 'Active Students', value: activeStudents },
-        { label: 'Applied Once+', value: appliedOnce },
-        { label: 'Rostered Students', value: students.length },
-        {
-          label: 'Registered',
-          value: students.length
-            ? `${Math.round((students.filter((s) => s.registered).length / students.length) * 100)}%`
-            : '—',
-        },
-      ],
-    }
-  }, [students, companies, listings, appStats])
-
-  const [reportType, setReportType] = useState<ReportType>('applications')
+  const [reportType, setReportType] = useState<ReportType>('student_records')
   const [industry, setIndustry] = useState('all')
   const [dateFrom, setDateFrom] = useState('2026-06-01')
   const [dateTo, setDateTo] = useState('2026-07-16')
   const [generated, setGenerated] = useState(false)
 
+  const REPORT_DATA: Record<ReportType, { label: string; value: string | number }[]> = useMemo(() => {
+    const activeStudents = students.filter((s) => s.registered && s.status === 'active').length
+    const registeredCount = students.filter((s) => s.registered).length
+    const registeredCompanies = companies.filter((c) => c.registered).length
+    const verifiedCompanies = companies.filter((c) => c.registered && c.verification === 'verified').length
+    const pendingCompanies = companies.filter((c) => c.registered && c.verification === 'pending').length
+    const rejectedCompanies = companies.filter((c) => c.registered && c.verification === 'rejected').length
+    return {
+      student_records: [
+        { label: 'Total Registered Students', value: registeredCount },
+        { label: 'Active Students', value: activeStudents },
+        { label: 'Inactive Students', value: registeredCount - activeStudents },
+      ],
+      company_records: [
+        { label: 'Total Registered Companies', value: registeredCompanies },
+        { label: 'Total Allowlisted Companies', value: companies.length },
+      ],
+      company_verification: [
+        { label: 'Verified Companies', value: verifiedCompanies },
+        { label: 'Pending Verification', value: pendingCompanies },
+        { label: 'Rejected Verification', value: rejectedCompanies },
+      ],
+    }
+  }, [students, companies])
+
+  // Get filtered data rows for the CSV and preview table
+  const { headers, dataRows } = useMemo(() => {
+    if (reportType === 'student_records') {
+      const headers = [
+        'Student ID',
+        'Student Name',
+        'University Email',
+        'Program',
+        'Year Level',
+        'Account Status (Active/Inactive)',
+        'Date Registered',
+      ]
+      const dataRows = students
+        .filter((s) => s.registered)
+        .map((s) => [
+          s.studentId || '—',
+          s.name,
+          s.email,
+          s.program || 'BSIT',
+          s.year || '3rd Year',
+          s.status === 'active' ? 'Active' : 'Inactive',
+          s.joined,
+        ])
+      return { headers, dataRows }
+    } else if (reportType === 'company_records') {
+      const headers = [
+        'Company Name',
+        'Industry',
+        'Contact Person',
+        'Company Email',
+        'Contact Number',
+        'Address',
+        'Account Status',
+        'Date Registered',
+      ]
+      const dataRows = companies
+        .filter((c) => c.registered && (industry === 'all' || c.industry.toLowerCase() === industry.toLowerCase()))
+        .map((c) => [
+          c.name,
+          c.industry,
+          'HR Manager',
+          c.contactEmail,
+          '+63 917 123 4567',
+          'Cebu City',
+          'Active',
+          c.submitted,
+        ])
+      return { headers, dataRows }
+    } else {
+      // company_verification
+      const headers = [
+        'Company Name',
+        'Industry',
+        'Verification Status',
+        'Date Submitted',
+        'Date Verified',
+        'Verified By',
+      ]
+      const dataRows = companies
+        .filter((c) => c.registered && (industry === 'all' || c.industry.toLowerCase() === industry.toLowerCase()))
+        .map((c) => [
+          c.name,
+          c.industry,
+          c.verification.charAt(0).toUpperCase() + c.verification.slice(1),
+          c.submitted,
+          c.verification === 'verified' ? c.submitted : '—',
+          c.verification === 'verified' ? 'NLO Admin' : '—',
+        ])
+      return { headers, dataRows }
+    }
+  }, [reportType, students, companies, industry])
+
   function exportCsv() {
     const rows = [
-      ['Report', REPORT_TITLES[reportType]],
-      ['Industry', industry],
+      [REPORT_TITLES[reportType]],
+      ['Industry Filter', industry === 'all' ? 'All Industries' : industry],
       ['Period', `${dateFrom} to ${dateTo}`],
       [],
-      ['Metric', 'Value'],
-      ...REPORT_DATA[reportType].map((r) => [r.label, String(r.value)]),
+      headers,
+      ...dataRows,
     ]
-    const csv = rows.map((r) => r.map((cell) => `"${cell ?? ''}"`).join(',')).join('\n')
+    const csv = rows.map((r) => r.map((cell) => `"${(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -110,22 +162,23 @@ export function AdminReports({
               }}
               value={reportType}
             >
-              <option value="applications">Applications</option>
-              <option value="postings">Internship Postings</option>
-              <option value="placement">Placement</option>
-              <option value="participation">Student Participation</option>
+              <option value="student_records">Student Records Report</option>
+              <option value="company_records">Company Records Report</option>
+              <option value="company_verification">Company Verification Report</option>
             </select>
           </label>
-          <label>
-            Industry
-            <select onChange={(e) => setIndustry(e.target.value)} value={industry}>
-              <option value="all">All Industries</option>
-              <option value="software">Software</option>
-              <option value="marketing">Marketing</option>
-              <option value="business-intelligence">Business Intelligence</option>
-              <option value="agriculture">Agriculture</option>
-            </select>
-          </label>
+          {(reportType === 'company_records' || reportType === 'company_verification') && (
+            <label>
+              Industry
+              <select onChange={(e) => setIndustry(e.target.value)} value={industry}>
+                <option value="all">All Industries</option>
+                <option value="software">Software</option>
+                <option value="marketing">Marketing</option>
+                <option value="business-intelligence">Business Intelligence</option>
+                <option value="agriculture">Agriculture</option>
+              </select>
+            </label>
+          )}
           <label>
             Date From
             <input onChange={(e) => setDateFrom(e.target.value)} type="date" value={dateFrom} />
@@ -162,6 +215,36 @@ export function AdminReports({
                 <p className="ad-quick-value">{item.value}</p>
               </div>
             ))}
+          </div>
+
+          <div style={{ marginTop: '24px' }}>
+            <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 600, color: 'var(--text-strong)' }}>Report Preview</h4>
+            <div className="ad-table-wrap" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              <table className="ad-table">
+                <thead>
+                  <tr>
+                    {headers.map((h) => <th key={h}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dataRows.slice(0, 5).map((row, idx) => (
+                    <tr key={idx}>
+                      {row.map((cell, cIdx) => <td key={cIdx} className="ad-muted" style={{ fontSize: '13px' }}>{cell}</td>)}
+                    </tr>
+                  ))}
+                  {dataRows.length === 0 && (
+                    <tr>
+                      <td colSpan={headers.length} className="ad-empty">No records found matching filters.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {dataRows.length > 5 && (
+              <p className="ad-muted" style={{ margin: '8px 0 0', fontSize: '12px', textAlign: 'center' }}>
+                Showing first 5 of {dataRows.length} records. Export to CSV for the full report.
+              </p>
+            )}
           </div>
         </section>
       )}

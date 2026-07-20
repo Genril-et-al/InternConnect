@@ -16,7 +16,6 @@ import { SignOutButton } from '../components/SignOutButton'
 import { TagInput } from './TagInput'
 import { Pencil, Trash2, X } from 'lucide-react'
 import './profile.css'
-
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) {
     return String((err as { message: unknown }).message)
@@ -472,16 +471,18 @@ export function ProfileSetup({
           </label>
           <label>
             Sex
-            <select
-              onChange={(e) => setSex(e.target.value)}
-              required
-              value={sex}
-            >
-              <option value="" disabled>Select...</option>
-              <option value="Female">Female</option>
-              <option value="Male">Male</option>
-              <option value="Prefer not to say">Prefer not to say</option>
-            </select>
+            <div className="profile-sex-toggle">
+              {['Male', 'Female', 'Prefer not to say'].map((option) => (
+                <button
+                  type="button"
+                  key={option}
+                  className={`profile-sex-btn ${sex === option ? 'active' : ''}`}
+                  onClick={() => setSex(option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
           </label>
           <label className="profile-field-span">
             Address

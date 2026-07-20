@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from 'react'
-import { CheckCircle2, RefreshCw, XCircle, Plus, X, FileText, Download } from 'lucide-react'
+import { CheckCircle2, RefreshCw, XCircle, Plus, X, FileText, Download, Trash2 } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
 import { addApprovedCompany } from './allowlist'
-import { setCompanyVerification } from './adminQueries'
+import { setCompanyVerification, removeApprovedCompany } from './adminQueries'
 import type { AdminCompany, VerifStatus } from './adminData'
 import { supabase } from '../lib/supabase'
 
@@ -45,6 +45,19 @@ export function AdminCompanies({
       await onRefresh()
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Could not update verification.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const remove = async (c: AdminCompany) => {
+    setBusyId(c.id)
+    setActionError(null)
+    try {
+      await removeApprovedCompany(c.contactEmail)
+      await onRefresh()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not remove company.')
     } finally {
       setBusyId(null)
     }
@@ -154,6 +167,10 @@ export function AdminCompanies({
           onVerif={async (c, v) => {
             await setVerif(c, v)
           }}
+          onRemove={(c) => {
+            remove(c)
+            setViewTarget(null)
+          }}
         />
       )}
     </div>
@@ -165,11 +182,13 @@ function ViewCompanyModal({
   busy,
   onClose,
   onVerif,
+  onRemove,
 }: {
   company: AdminCompany
   busy: boolean
   onClose: () => void
   onVerif: (c: AdminCompany, v: VerifStatus) => Promise<void>
+  onRemove: (c: AdminCompany) => void
 }) {
   const [details, setDetails] = useState<{
     description: string
@@ -417,6 +436,20 @@ function ViewCompanyModal({
                   <RefreshCw size={14} /> Reset
                 </button>
               )}
+            </div>
+          )}
+
+          {!company.registered && (
+            <div className="ad-view-actions" style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+              <button
+                className="ad-danger"
+                onClick={() => onRemove(company)}
+                type="button"
+                disabled={busy}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <Trash2 size={14} /> {busy ? 'Removing…' : 'Remove'}
+              </button>
             </div>
           )}
         </div>
