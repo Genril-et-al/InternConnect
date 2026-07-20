@@ -22,6 +22,11 @@ export function AdminReports({
 }) {
   const [reportType, setReportType] = useState<ReportType>('student_records')
   const [industry, setIndustry] = useState('all')
+  const [majorFilter, setMajorFilter] = useState('all')
+  const [yearFilter, setYearFilter] = useState('all')
+  const [skillFilter, setSkillFilter] = useState('')
+  const [tierFilter, setTierFilter] = useState('all')
+  const [locationFilter, setLocationFilter] = useState('all')
   const [dateFrom, setDateFrom] = useState('2026-06-01')
   const [dateTo, setDateTo] = useState('2026-07-16')
   const [generated, setGenerated] = useState(false)
@@ -64,7 +69,13 @@ export function AdminReports({
         'Date Registered',
       ]
       const dataRows = students
-        .filter((s) => s.registered)
+        .filter(
+          (s) =>
+            s.registered &&
+            (majorFilter === 'all' || s.program === majorFilter) &&
+            (yearFilter === 'all' || s.year === yearFilter) &&
+            (skillFilter === '' || (s.skills && s.skills.some((sk) => sk.toLowerCase().includes(skillFilter.toLowerCase()))))
+        )
         .map((s) => [
           s.studentId || '—',
           s.name,
@@ -87,14 +98,20 @@ export function AdminReports({
         'Date Registered',
       ]
       const dataRows = companies
-        .filter((c) => c.registered && (industry === 'all' || c.industry.toLowerCase() === industry.toLowerCase()))
+        .filter(
+          (c) =>
+            c.registered &&
+            (industry === 'all' || c.industry.toLowerCase() === industry.toLowerCase()) &&
+            (tierFilter === 'all' || c.tier === tierFilter) &&
+            (locationFilter === 'all' || (c.location && c.location.toLowerCase().includes(locationFilter.toLowerCase())))
+        )
         .map((c) => [
           c.name,
           c.industry,
           'HR Manager',
           c.contactEmail,
           '+63 917 123 4567',
-          'Cebu City',
+          c.location || 'Cebu City',
           'Active',
           c.submitted,
         ])
@@ -110,7 +127,13 @@ export function AdminReports({
         'Verified By',
       ]
       const dataRows = companies
-        .filter((c) => c.registered && (industry === 'all' || c.industry.toLowerCase() === industry.toLowerCase()))
+        .filter(
+          (c) =>
+            c.registered &&
+            (industry === 'all' || c.industry.toLowerCase() === industry.toLowerCase()) &&
+            (tierFilter === 'all' || c.tier === tierFilter) &&
+            (locationFilter === 'all' || (c.location && c.location.toLowerCase().includes(locationFilter.toLowerCase())))
+        )
         .map((c) => [
           c.name,
           c.industry,
@@ -121,12 +144,16 @@ export function AdminReports({
         ])
       return { headers, dataRows }
     }
-  }, [reportType, students, companies, industry])
+  }, [reportType, students, companies, industry, majorFilter, yearFilter, skillFilter, tierFilter, locationFilter])
 
   function exportCsv() {
     const rows = [
       [REPORT_TITLES[reportType]],
-      ['Industry Filter', industry === 'all' ? 'All Industries' : industry],
+      ['Major Filter', majorFilter],
+      ['Year Filter', yearFilter],
+      ['Skill Filter', skillFilter || 'None'],
+      ['Tier Filter', tierFilter],
+      ['Location Filter', locationFilter],
       ['Period', `${dateFrom} to ${dateTo}`],
       [],
       headers,
@@ -167,17 +194,69 @@ export function AdminReports({
               <option value="company_verification">Company Verification Report</option>
             </select>
           </label>
+          {reportType === 'student_records' && (
+            <>
+              <label>
+                Major / Course
+                <select onChange={(e) => setMajorFilter(e.target.value)} value={majorFilter}>
+                  <option value="all">All Majors</option>
+                  <option value="BSCS">BSCS</option>
+                  <option value="BSIT">BSIT</option>
+                  <option value="BSIS">BSIS</option>
+                </select>
+              </label>
+              <label>
+                Year Level
+                <select onChange={(e) => setYearFilter(e.target.value)} value={yearFilter}>
+                  <option value="all">All Year Levels</option>
+                  <option value="1st Year">1st Year</option>
+                  <option value="2nd Year">2nd Year</option>
+                  <option value="3rd Year">3rd Year</option>
+                  <option value="4th Year">4th Year</option>
+                </select>
+              </label>
+              <label>
+                Skills
+                <input
+                  type="text"
+                  placeholder="e.g. React, SQL"
+                  onChange={(e) => setSkillFilter(e.target.value)}
+                  value={skillFilter}
+                />
+              </label>
+            </>
+          )}
           {(reportType === 'company_records' || reportType === 'company_verification') && (
-            <label>
-              Industry
-              <select onChange={(e) => setIndustry(e.target.value)} value={industry}>
-                <option value="all">All Industries</option>
-                <option value="software">Software</option>
-                <option value="marketing">Marketing</option>
-                <option value="business-intelligence">Business Intelligence</option>
-                <option value="agriculture">Agriculture</option>
-              </select>
-            </label>
+            <>
+              <label>
+                Industry
+                <select onChange={(e) => setIndustry(e.target.value)} value={industry}>
+                  <option value="all">All Industries</option>
+                  <option value="software">Software</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="business-intelligence">Business Intelligence</option>
+                  <option value="agriculture">Agriculture</option>
+                </select>
+              </label>
+              <label>
+                Company Tier
+                <select onChange={(e) => setTierFilter(e.target.value)} value={tierFilter}>
+                  <option value="all">All Tiers</option>
+                  <option value="Tier 1">Tier 1</option>
+                  <option value="Tier 2">Tier 2</option>
+                  <option value="Tier 3">Tier 3</option>
+                </select>
+              </label>
+              <label>
+                Geographic Location
+                <select onChange={(e) => setLocationFilter(e.target.value)} value={locationFilter}>
+                  <option value="all">All Locations</option>
+                  <option value="Cebu City">Cebu City</option>
+                  <option value="Manila">Manila</option>
+                  <option value="Davao">Davao</option>
+                </select>
+              </label>
+            </>
           )}
           <label>
             Date From

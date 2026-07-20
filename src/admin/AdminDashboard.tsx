@@ -4,6 +4,8 @@ import {
   Building2,
   FileText,
   GraduationCap,
+  Percent,
+  Clock,
 } from 'lucide-react'
 import type { AdminAppStats, AdminCompany, AdminListing, AdminStudent } from './adminData'
 import { NotificationBell } from '../components/NotificationBell'
@@ -85,6 +87,14 @@ export function AdminDashboard({
         <Stat color="var(--brand-orange-soft)" icon={FileText} label="Applications" sub="This semester" value={totalApplications} />
       </div>
 
+      <div style={{ marginTop: '24px', marginBottom: '12px' }}>
+        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--brand-brown)' }}>Advanced Performance Metrics</h3>
+      </div>
+      <div className="ad-stats" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+        <Stat color="var(--brand-orange)" icon={Percent} label="Placement Rate" sub="Successfully placed students" value={`${appStats.placementRate}%`} />
+        <Stat color="var(--brand-dark-red)" icon={Clock} label="Avg Processing Time" sub=" responsiveness indicator" value={`${appStats.avgProcessingTimeDays} days`} />
+      </div>
+
       <div className="ad-charts">
         <section className="ad-card">
           <h3>Monthly Applications</h3>
@@ -160,7 +170,7 @@ function Stat({
   color,
 }: {
   label: string
-  value: number
+  value: number | string
   sub: string
   icon: React.ElementType
   color: string
@@ -176,7 +186,7 @@ function Stat({
           <Icon size={16} style={{ color }} />
         </span>
       </div>
-      <p className="ad-stat-value">{value.toLocaleString()}</p>
+      <p className="ad-stat-value">{typeof value === 'number' ? value.toLocaleString() : value}</p>
       <p className="ad-stat-sub">{sub}</p>
     </div>
   )
