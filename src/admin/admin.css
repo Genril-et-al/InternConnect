@@ -18,8 +18,16 @@
   flex-direction: column;
   position: fixed;
   top: 0;
+  /* Pinned to both edges rather than sized with a viewport unit. `100svh` is
+     the SMALL viewport height — the height with the browser's URL bar showing.
+     Once the bar collapses on scroll the visible viewport grows to `lvh`, and a
+     bar pinned to top:0 at 100svh ends short of the bottom, leaving a gap under
+     it. Most obvious in landscape, where the URL bar is a far bigger share of a
+     ~410px-tall viewport. top+bottom always resolves to the real viewport, and
+     tracks it as the chrome collapses — no unit does that except dvh, which
+     still repaints on every scroll frame. */
+  bottom: 0;
   left: 0;
-  height: 100svh;
   width: var(--sb-w);
   padding: 0;
   z-index: 50;
