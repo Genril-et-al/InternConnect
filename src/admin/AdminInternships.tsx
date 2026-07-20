@@ -7,9 +7,11 @@ import type { AdminListing, AdminListingStatus } from './adminData'
 export function AdminInternships({
   listings,
   onSetFlagged,
+  highlightedListingId,
 }: {
   listings: AdminListing[]
   onSetFlagged: (id: string, flagged: boolean) => Promise<void>
+  highlightedListingId?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | AdminListingStatus>('all')
@@ -101,7 +103,7 @@ export function AdminInternships({
             const isExpanded = expandedId === l.id
             return (
               <div
-                className={`ad-row ${isExpanded ? 'expanded' : ''}`}
+                className={`ad-row ${isExpanded ? 'expanded' : ''} ${l.id === highlightedListingId ? 'highlighted' : ''}`}
                 key={l.id}
                 onClick={() => setExpandedId(isExpanded ? null : l.id)}
                 style={{

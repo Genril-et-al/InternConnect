@@ -51,6 +51,9 @@ export function AdminApp() {
   const [companies, setCompanies] = useState<AdminCompany[]>([])
   const [listings, setListings] = useState<AdminListing[]>([])
   const [appStats, setAppStats] = useState<AdminAppStats>(EMPTY_APP_STATS)
+  
+  const [highlightedCompanyId, setHighlightedCompanyId] = useState<string | null>(null)
+  const [highlightedListingId, setHighlightedListingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -163,6 +166,8 @@ export function AdminApp() {
             listings={listings}
             onNav={setActive}
             students={students}
+            onHighlightCompany={(id) => { setHighlightedCompanyId(id); if (id) setTimeout(() => setHighlightedCompanyId(null), 3000) }}
+            onHighlightListing={(id) => { setHighlightedListingId(id); if (id) setTimeout(() => setHighlightedListingId(null), 3000) }}
           />
         )}
         {active === 1 && (
@@ -179,9 +184,10 @@ export function AdminApp() {
             loading={loading}
             loadError={loadError}
             onRefresh={refreshCompanies}
+            highlightedCompanyId={highlightedCompanyId}
           />
         )}
-        {active === 3 && <AdminInternships listings={listings} onSetFlagged={handleSetFlagged} />}
+        {active === 3 && <AdminInternships listings={listings} onSetFlagged={handleSetFlagged} highlightedListingId={highlightedListingId} />}
         {active === 4 && (
           <AdminReports
             appStats={appStats}

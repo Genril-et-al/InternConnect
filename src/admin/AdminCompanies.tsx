@@ -12,11 +12,13 @@ export function AdminCompanies({
   loading,
   loadError,
   onRefresh,
+  highlightedCompanyId,
 }: {
   companies: AdminCompany[]
   loading: boolean
   loadError: string | null
   onRefresh: () => Promise<void>
+  highlightedCompanyId?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | VerifStatus>('all')
@@ -133,7 +135,7 @@ export function AdminCompanies({
           <tbody>
             {filtered.map((c) => {
               return (
-                <tr key={c.id} onClick={() => setViewTarget(c)} style={{ cursor: 'pointer' }}>
+                <tr key={c.id} onClick={() => setViewTarget(c)} style={{ cursor: 'pointer' }} className={c.id === highlightedCompanyId ? 'highlighted' : ''}>
                   <td>
                     <div className="ad-cell-person">
                       <span className="ad-cell-mark square">{c.name.slice(0, 2).toUpperCase()}</span>

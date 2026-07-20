@@ -420,7 +420,12 @@ button.primary {
   outline-offset: 2px;
 }
 
-.application-strip.highlighted {
+.application-strip.highlighted,
+.cp-card.highlighted,
+.cp-row.highlighted,
+.ad-card.highlighted,
+.ad-row.highlighted,
+tr.highlighted {
   outline: 2px solid var(--brand-orange);
   outline-offset: -2px;
   background: var(--brand-orange-light, #fff5eb);

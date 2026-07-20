@@ -126,7 +126,7 @@ export function CompanyApplicants({
           <div className="cp-card cp-empty">No applications match the current filters.</div>
         ) : (
           filtered.map((a) => (
-            <button className="cp-row" key={a.id} onClick={() => setSelectedId(a.id)} type="button">
+            <button className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''}`} key={a.id} onClick={() => setSelectedId(a.id)} type="button">
               <span className="cp-row-avatar">{initials(a.name)}</span>
               <div className="cp-row-main">
                 <p className="cp-row-name">{a.name}</p>
