@@ -373,6 +373,7 @@ function BrowseInternships({
   onSelectInternship: (internship: Internship | null) => void
 }) {
   const [query, setQuery] = useState('')
+  const [searchField, setSearchField] = useState('All')
   const [matchFilter, setMatchFilter] = useState('All')
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
@@ -381,10 +382,14 @@ function BrowseInternships({
     const pillMin = matchThresholds[matchFilter] ?? 0
 
     return internships.filter((internship) => {
-      const matchesQuery = [internship.title, internship.company, internship.industry, ...internship.skills, internship.location]
-        .join(' ')
-        .toLowerCase()
-        .includes(query.toLowerCase())
+      let textToSearch = ''
+      if (searchField === 'Title') textToSearch = internship.title
+      else if (searchField === 'Company') textToSearch = internship.company
+      else if (searchField === 'Location') textToSearch = internship.location
+      else if (searchField === 'Skill') textToSearch = internship.skills.join(' ')
+      else textToSearch = [internship.title, internship.company, internship.industry, ...internship.skills, internship.location].join(' ')
+
+      const matchesQuery = textToSearch.toLowerCase().includes(query.toLowerCase())
       // An unscored listing can only satisfy the "All" pill.
       const matchesScore = internship.match === null 
         ? pillMin === 0 
@@ -392,7 +397,7 @@ function BrowseInternships({
       const matchesBookmarks = !showBookmarksOnly || bookmarkedIds.has(internship.id)
       return matchesQuery && matchesScore && matchesBookmarks
     })
-  }, [internships, query, matchFilter, showBookmarksOnly, bookmarkedIds])
+  }, [internships, query, searchField, matchFilter, showBookmarksOnly, bookmarkedIds])
 
   // Nothing could be scored — the profile carries no skills the AI or the
   // student has supplied.
@@ -462,9 +467,32 @@ function BrowseInternships({
             aria-label="Search internships"
             className="browse-search-input"
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by title, company, skill, or location..."
+            placeholder={searchField === 'All' ? "Search by title, company, skill, or location..." : `Search by ${searchField.toLowerCase()}...`}
             value={query}
           />
+          <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />
+          <select 
+            className="cp-select" 
+            style={{ 
+              margin: 0, 
+              border: 'none', 
+              background: 'transparent', 
+              fontWeight: 600, 
+              color: 'var(--brand-brown)', 
+              outline: 'none', 
+              cursor: 'pointer',
+              padding: '0 4px',
+              height: '100%'
+            }}
+            value={searchField}
+            onChange={(e) => setSearchField(e.target.value)}
+          >
+            <option value="All">All</option>
+            <option value="Location">Location</option>
+            <option value="Title">Title</option>
+            <option value="Company">Company</option>
+            <option value="Skill">Skill</option>
+          </select>
         </div>
         <button
           aria-label="Toggle bookmarks filter"
@@ -877,7 +905,16 @@ function StudentApplications({
   filter: string
   onFilterChange: (filter: string) => void
 }) {
-  const visible = applications.filter((application) => filter === 'All' || application.status === filter)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const visible = applications.filter((application) => {
+    const matchesFilter = filter === 'All' || application.status === filter
+    const matchesSearch = [application.company, application.role]
+      .join(' ')
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
 
   const pendingCount = applications.filter((a) => a.status === 'Pending').length
   const acceptedCount = applications.filter((a) => a.status === 'Accepted').length
@@ -896,6 +933,19 @@ function StudentApplications({
       <div className="applications-header">
         <h2 className="applications-title">My Applications</h2>
         <p className="applications-subtitle">{total} total applications</p>
+      </div>
+
+      <div className="browse-search-field" style={{ marginBottom: 16 }}>
+        <span className="browse-search-icon">
+          <Search size={16} />
+        </span>
+        <input
+          aria-label="Search applications"
+          className="browse-search-input"
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by role or company..."
+          value={searchQuery}
+        />
       </div>
 
       <div className="applications-filters">
