@@ -31,6 +31,7 @@ export function CompanyApplicants({
   applicants: CompanyApplicant[]
   listings: CompanyListing[]
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onScheduleInterview: (id: string, details: any) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
 }) {
   const [search, setSearch] = useState('')
@@ -59,6 +60,7 @@ export function CompanyApplicants({
         applicant={selected}
         onBack={() => setSelectedId(null)}
         onSetStatus={onSetStatus}
+        onScheduleInterview={onScheduleInterview}
         onReviewSubmission={onReviewSubmission}
       />
     )
@@ -147,14 +149,17 @@ function ApplicantDetail({
   applicant,
   onBack,
   onSetStatus,
+  onScheduleInterview,
   onReviewSubmission,
 }: {
   applicant: CompanyApplicant
   onBack: () => void
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onScheduleInterview: (id: string, details: any) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
 }) {
   const [rejectOpen, setRejectOpen] = useState(false)
+  const [scheduleInterviewOpen, setScheduleInterviewOpen] = useState(false)
   const [revisionOpen, setRevisionOpen] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -205,16 +210,30 @@ function ApplicantDetail({
         </div>
 
       <div className="cp-detail-actions" style={{ marginTop: 18 }}>
-        {applicant.status !== 'Accepted' && (
+        {applicant.status === 'Interview Scheduled' && (
+          <>
+            <button
+              className="cp-accept"
+              onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
+              type="button"
+            >
+              <CheckCircle2 size={13} /> Pass Interview
+            </button>
+            <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
+              <XCircle size={13} /> Fail Interview
+            </button>
+          </>
+        )}
+        {applicant.status !== 'Accepted' && applicant.status !== 'Rejected' && applicant.status !== 'Interview Scheduled' && (
           <button
             className="cp-accept"
-            onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
+            onClick={() => setScheduleInterviewOpen(true)}
             type="button"
           >
             <CheckCircle2 size={13} /> Accept
           </button>
         )}
-        {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && (
+        {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && applicant.status !== 'Interview Scheduled' && (
           <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
             <XCircle size={13} /> Reject
           </button>
@@ -236,6 +255,29 @@ function ApplicantDetail({
       <p className="cp-notice rejected">
         <strong>Feedback sent to applicant:</strong> {applicant.feedback}
       </p>
+    )}
+
+    {applicant.status === 'Interview Scheduled' && applicant.nextStep && (
+      <section className="cp-card" style={{ background: 'var(--brand-orange-light)', borderColor: 'var(--brand-orange)' }}>
+        <h3 style={{ fontSize: '16px', margin: '0 0 16px 0', color: 'var(--brand-orange-dark)' }}>Interview Details</h3>
+        <div style={{ fontSize: '14px', color: 'var(--text)' }}>
+          {(() => {
+            try {
+              const details = JSON.parse(applicant.nextStep)
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                  <strong style={{ color: 'var(--brand-orange-dark)' }}>Date:</strong> <span>{details.date}</span>
+                  <strong style={{ color: 'var(--brand-orange-dark)' }}>Time:</strong> <span>{details.time}</span>
+                  <strong style={{ color: 'var(--brand-orange-dark)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
+                  <strong style={{ color: 'var(--brand-orange-dark)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                </div>
+              )
+            } catch {
+              return <p>{applicant.nextStep}</p>
+            }
+          })()}
+        </div>
+      </section>
     )}
 
     {applicant.status === 'Accepted' && (
@@ -393,6 +435,20 @@ function ApplicantDetail({
         />
       )}
 
+      {scheduleInterviewOpen && (
+        <ScheduleInterviewModal
+          onClose={() => setScheduleInterviewOpen(false)}
+          onSubmit={(details) => {
+            run(() => onScheduleInterview(applicant.id, details))
+            setScheduleInterviewOpen(false)
+          }}
+          onSkip={() => {
+            run(() => onSetStatus(applicant.id, 'Accepted'))
+            setScheduleInterviewOpen(false)
+          }}
+        />
+      )}
+
       {previewUrl && (
         <div 
           className="modal-overlay" 
@@ -445,6 +501,88 @@ function ApplicantDetail({
           }}
         />
       )}
+    </div>
+  )
+}
+
+/* ── Schedule Interview Modal ────────────────────────────── */
+
+function ScheduleInterviewModal({
+  onClose,
+  onSubmit,
+  onSkip,
+}: {
+  onClose: () => void
+  onSubmit: (details: { date: string; time: string; mode: string; locationOrLink: string }) => void
+  onSkip: () => void
+}) {
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
+  const [mode, setMode] = useState<'online' | 'in-person'>('online')
+  const [locationOrLink, setLocationOrLink] = useState('')
+
+  const isValid = date && time && locationOrLink.trim()
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal-panel">
+        <div className="modal-header">
+          <h3>Schedule Interview</h3>
+          <button className="modal-close" onClick={onClose} type="button">
+            ✕
+          </button>
+        </div>
+        <p className="cp-muted" style={{ marginBottom: '16px' }}>
+          Schedule an interview or skip directly to accepting the applicant.
+        </p>
+        
+        <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+          <label className="cp-modal-label">
+            Date *
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+          </label>
+          <label className="cp-modal-label">
+            Time *
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+          </label>
+          <label className="cp-modal-label">
+            Format *
+            <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }}>
+              <option value="online">Online</option>
+              <option value="in-person">In-person</option>
+            </select>
+          </label>
+          <label className="cp-modal-label">
+            {mode === 'online' ? 'Meeting Link *' : 'Location Address *'}
+            <input type="text" placeholder={mode === 'online' ? "https://meet.google.com/..." : "123 Office Bldg, Floor 4"} value={locationOrLink} onChange={(e) => setLocationOrLink(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+          </label>
+        </div>
+
+        <div className="cp-modal-footer" style={{ justifyContent: 'space-between' }}>
+          <button className="cp-secondary" onClick={onSkip} type="button">
+            Skip & Accept Directly
+          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="cp-secondary" onClick={onClose} type="button">
+              Cancel
+            </button>
+            <button
+              className="cp-accept"
+              disabled={!isValid}
+              onClick={() => onSubmit({ date, time, mode, locationOrLink: locationOrLink.trim() })}
+              type="button"
+              style={{ border: 'none', background: 'var(--brand-orange)', color: 'white' }}
+            >
+              <CheckCircle2 size={13} /> Schedule Interview
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

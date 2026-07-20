@@ -29,7 +29,7 @@ const APPLICANT_STATUS_FROM_DB: Record<string, ApplicantStatus> = {
   pending: 'Pending',
   under_review: 'Reviewed',
   shortlisted: 'Reviewed',
-  interview_scheduled: 'Reviewed',
+  interview_scheduled: 'Interview Scheduled',
   accepted: 'Accepted',
   rejected: 'Rejected',
 }
@@ -37,6 +37,7 @@ const APPLICANT_STATUS_FROM_DB: Record<string, ApplicantStatus> = {
 const APPLICANT_STATUS_TO_DB: Record<ApplicantStatus, string> = {
   Pending: 'pending',
   Reviewed: 'under_review',
+  'Interview Scheduled': 'interview_scheduled',
   Accepted: 'accepted',
   Rejected: 'rejected',
 }
@@ -171,6 +172,7 @@ type ApplicantRow = {
   status: string
   cover_letter: string | null
   feedback: string | null
+  next_step: string | null
   created_at: string
   listings: {
     title: string
@@ -190,7 +192,7 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
   const { data, error } = await supabase
     .from('applications')
     .select(
-      'id, listing_id, student_id, status, cover_letter, feedback, created_at, ' +
+      'id, listing_id, student_id, status, cover_letter, feedback, next_step, created_at, ' +
         'listings!inner(title, skills, company_id, listing_requirements(id, name)), ' +
         'requirement_submissions(id, requirement_id, status, file_path, text_value)',
     )
@@ -260,6 +262,7 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
       portfolioFile: profile?.portfolio_file_url ?? undefined,
       coverLetter: r.cover_letter ?? '',
       feedback: r.feedback ?? undefined,
+      nextStep: r.next_step ?? undefined,
       submittedRequirements: submitted,
     }
   })
@@ -271,13 +274,22 @@ export async function updateApplicationStatus(
   status: ApplicantStatus,
   feedback?: string,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('applications')
-    .update({
-      status: APPLICANT_STATUS_TO_DB[status],
-      feedback: feedback ?? null,
-    })
-    .eq('id', applicationId)
+  const payload: any = { status: APPLICANT_STATUS_TO_DB[status] }
+  if (feedback !== undefined) payload.feedback = feedback
+  
+  const { error } = await supabase.from('applications').update(payload).eq('id', applicationId)
+  if (error) throw new Error(error.message)
+}
+
+export async function scheduleInterview(
+  applicationId: string,
+  interviewDetails: { date: string; time: string; mode: string; locationOrLink: string }
+): Promise<void> {
+  const payload = {
+    status: 'interview_scheduled',
+    next_step: JSON.stringify(interviewDetails),
+  }
+  const { error } = await supabase.from('applications').update(payload).eq('id', applicationId)
   if (error) throw new Error(error.message)
 }
 

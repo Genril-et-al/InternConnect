@@ -22,7 +22,7 @@ export type CompanyListing = {
   requirements?: PreEmploymentRequirement[]
 }
 
-export type ApplicantStatus = 'Pending' | 'Reviewed' | 'Accepted' | 'Rejected'
+export type ApplicantStatus = 'Pending' | 'Reviewed' | 'Interview Scheduled' | 'Accepted' | 'Rejected'
 
 /** A file the company sends to an accepted applicant (UC-C05 extension). */
 export type RequirementFile = {
@@ -49,6 +49,8 @@ export type CompanyApplicant = {
   /** null when the applicant has no skill data to score against. */
   match: number | null
   status: ApplicantStatus
+  nextStep?: string
+  feedback?: string
   applied: string
   skills: string[]
   specializations: string[]

@@ -602,6 +602,11 @@ function ProgressModal({
                 Pending
               </span>
             )}
+            {application.status === 'Interview scheduled' && (
+              <span className="status warning">
+                Interview Scheduled
+              </span>
+            )}
             {application.status === 'Rejected' && (
               <span className="status error">
                 Rejected
@@ -623,6 +628,29 @@ function ProgressModal({
             ))}
           </div>
         </div>
+
+        {application.status === 'Interview scheduled' && application.nextStep && (
+          <div className="progress-reqs-card" style={{ background: 'var(--brand-orange-light)', borderColor: 'var(--brand-orange)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: 'var(--brand-orange-dark)' }}>Interview Details</h3>
+            <div style={{ fontSize: '14px', color: 'var(--text)' }}>
+              {(() => {
+                try {
+                  const details = JSON.parse(application.nextStep)
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                      <strong style={{ color: 'var(--brand-orange-dark)' }}>Date:</strong> <span>{details.date}</span>
+                      <strong style={{ color: 'var(--brand-orange-dark)' }}>Time:</strong> <span>{details.time}</span>
+                      <strong style={{ color: 'var(--brand-orange-dark)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
+                      <strong style={{ color: 'var(--brand-orange-dark)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                    </div>
+                  )
+                } catch {
+                  return <p>{application.nextStep}</p>
+                }
+              })()}
+            </div>
+          </div>
+        )}
 
         {application.status === 'Accepted' && application.requirements && (
           <div className="progress-reqs-card">
