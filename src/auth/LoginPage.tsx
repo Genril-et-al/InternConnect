@@ -348,6 +348,8 @@ function SignupFlow({
   // `email` itself for companies. Kept separate so verify/resend always target
   // the delivery inbox while `email` stays the roster identity.
   const [personalEmail, setPersonalEmail] = useState('')
+  const [address, setAddress] = useState('')
+  const [contactNumber, setContactNumber] = useState('')
   const [code, setCode] = useState('')
   const [attempts, setAttempts] = useState(0)
   const [password, setPasswordValue] = useState('')
@@ -368,6 +370,9 @@ function SignupFlow({
     middleInitial: accountType === 'company' ? '' : middleInitial,
     lastName: accountType === 'company' ? '' : lastName,
     suffix: accountType === 'company' ? '' : suffix,
+    address: accountType === 'company' ? '' : address,
+    contactNumber: accountType === 'company' ? '' : contactNumber,
+    personalEmail: accountType === 'company' ? '' : personalEmail,
   }
 
   /**
@@ -715,6 +720,29 @@ function SignupFlow({
             />
           </label>
         </div>
+      )}
+      {accountType !== 'company' && (
+        <>
+          <label>
+            Address
+            <input
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Your home address"
+              required
+              value={address}
+            />
+          </label>
+          <label>
+            Contact Number
+            <input
+              onChange={(e) => setContactNumber(e.target.value)}
+              placeholder="09123456789"
+              required
+              type="tel"
+              value={contactNumber}
+            />
+          </label>
+        </>
       )}
       <label>
         {accountType === 'company' ? 'Work email' : 'University email'}
