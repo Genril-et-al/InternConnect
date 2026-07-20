@@ -1014,6 +1014,79 @@ tr.highlighted {
   margin: 0;
 }
 
+/* Read-only document rows in the apply modal. Deliberately not .upload-zone:
+   that is a drop target (dashed border, pointer cursor, hover glow) and lays
+   its children out as blocks, which left the View button stranded under the
+   filename against the left edge. */
+.apply-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.apply-doc {
+  align-items: center;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.apply-doc-icon {
+  align-items: center;
+  color: var(--accent);
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* min-width:0 lets a long filename or URL shrink and wrap instead of forcing
+   the row wider than the modal. */
+.apply-doc-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.apply-doc-label {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.apply-doc-name {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.apply-doc-view {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-strong);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.apply-doc-view:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.apply-doc-view:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .upload-remove {
   background: none;
   border: 1px solid var(--border);
