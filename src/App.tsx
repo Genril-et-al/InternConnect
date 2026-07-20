@@ -577,7 +577,6 @@ function ProgressModal({
       done: ['Interview scheduled', 'Accepted'].includes(application.status) || rejectedAtInterview,
       status: application.status === 'Interview scheduled' ? 'warning' : (rejectedAtInterview ? 'error' : '') 
     },
-    { label: 'Offer Accepted', active: application.status === 'Accepted', done: application.status === 'Accepted' },
     { label: 'Pre-Employment Requirements', active: application.status === 'Accepted' && (application.approvedRequirements || 0) < (application.requirements?.length || 0), done: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length },
     { label: 'Ready to Start', active: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length, done: false },
     { label: 'Internship Started', active: false, done: false },
@@ -602,7 +601,7 @@ function ProgressModal({
             {application.status === 'Accepted' && (
               <span className="status success">
                 <CheckCircle2 size={14} style={{ marginRight: 4 }} />
-                Offer Accepted
+                Application Accepted
               </span>
             )}
             {application.status === 'Pending' && (
