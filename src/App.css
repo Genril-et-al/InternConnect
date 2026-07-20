@@ -1324,7 +1324,7 @@ label {
     transform var(--dur-2) var(--ease-out);
 }
 
-.application-strip:hover {
+.application-strip:not(.highlighted):hover {
   border-color: var(--accent);
   box-shadow: 0 8px 24px rgba(231, 104, 20, 0.1);
   transform: translateY(-1px);

@@ -790,7 +790,7 @@
   border-bottom: 0;
 }
 
-.ad-table tbody tr:hover {
+.ad-table tbody tr:not(.highlighted):hover {
   background: rgba(240, 237, 228, 0.4);
 }
 
@@ -880,7 +880,7 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.ad-row:hover {
+.ad-row:not(.highlighted):hover {
   border-color: var(--accent);
   box-shadow: 0 8px 24px rgba(231, 104, 20, 0.1);
   transform: translateY(-1px);
