@@ -53,7 +53,10 @@
   display: flex;
   gap: 16px;
   position: relative;
-  z-index: 1;
+  /* Above .cf (also z-index 1, and later in the DOM, so it would otherwise win
+     the tie). The slides are sized not to reach up here any more, but the logo
+     and app name are the one thing that must never end up behind artwork. */
+  z-index: 2;
 }
 
 .auth-logo {
@@ -143,6 +146,12 @@
     opacity 780ms var(--ease-out),
     transform 780ms var(--ease-out);
   width: min(74%, 460px);
+  /* Hard stop so a slide can never spill out of its stage and paint over the
+     logo, whatever the panel's proportions. Sizing is width-driven here, so
+     this only ever binds on a stage too short for the derived height — the
+     short-viewport block below sizes from height instead, which keeps the
+     aspect ratio rather than letterboxing. */
+  max-height: 100%;
   will-change: transform;
 }
 
@@ -651,9 +660,9 @@
     min-height: 150px;
   }
 
-  /* The slides are 4:3, so their width sets their height. The desktop `74%`
-     resolved to ~238px here, i.e. 179px tall inside a 150px stage — cropped top
-     and bottom. Capping the width at 200px makes a slide exactly 150px tall. */
+  /* Slides are 4:3, so width sets height. The desktop 74% resolves to ~238px
+     here — 179px tall in a 150px stage, cropped top and bottom. 200px wide is
+     exactly 150px tall. */
   .cf-item {
     width: min(62%, 200px);
   }
@@ -678,6 +687,42 @@
 
   .auth-hero {
     padding: 24px 28px;
+  }
+}
+
+/* Short viewports — overwhelmingly a phone held sideways, where height is the
+   scarce axis and the panel's fixed furniture (a 96px logo, generous padding)
+   eats most of it. Placed after the width blocks above so it wins the ties on
+   .auth-logo and .cf-stage. */
+@media (max-height: 500px) {
+  .auth-hero.has-carousel {
+    gap: 12px;
+    padding: 14px 28px;
+  }
+
+  .auth-logo {
+    height: 48px;
+    width: 48px;
+  }
+
+  .cf {
+    gap: 12px;
+  }
+
+  .cf-stage {
+    min-height: 90px;
+  }
+
+  /* The one place sizing flips to height-driven. A landscape stage is short and
+     wide, so deriving width from the stage's height keeps 4:3 intact and
+     guarantees the slide fits — where a width-driven size would be clamped by
+     max-height into a letterbox. The max-width never binds at these
+     proportions, so the ratio survives. 345px is the desktop 460px width
+     expressed as a height. */
+  .cf-item {
+    height: min(100%, 345px);
+    width: auto;
+    max-width: min(74%, 460px);
   }
 }
 
