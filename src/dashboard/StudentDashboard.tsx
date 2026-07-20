@@ -162,7 +162,13 @@ export function StudentDashboard({
             <p className="sd-muted sd-empty">No internships posted yet.</p>
           )}
           {internships.slice(0, 3).map((job) => (
-            <div className="sd-list-row" key={job.id}>
+            <div 
+              className="sd-list-row clickable" 
+              key={job.id}
+              onClick={() => onOpenInternship?.(job.id)}
+              role="button"
+              tabIndex={0}
+            >
               {job.companyLogo ? (
                 <img src={job.companyLogo} alt={job.company} className="sd-mark" style={{ objectFit: 'contain' }} />
               ) : (
