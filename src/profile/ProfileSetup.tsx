@@ -16,20 +16,6 @@ import { SignOutButton } from '../components/SignOutButton'
 import { TagInput } from './TagInput'
 import { Pencil, Trash2, X } from 'lucide-react'
 import './profile.css'
-
-/** Case-insensitive union of manually typed and AI-extracted tags. */
-export function mergeTags(current: string[], extracted: string[]): string[] {
-  const seen = new Set(current.map((t) => t.toLowerCase()))
-  const merged = [...current]
-  for (const tag of extracted) {
-    if (!seen.has(tag.toLowerCase())) {
-      seen.add(tag.toLowerCase())
-      merged.push(tag)
-    }
-  }
-  return merged
-}
-
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) {
     return String((err as { message: unknown }).message)
@@ -73,6 +59,7 @@ export function ProfileSetup({
   const [photoPreview, setPhotoPreview] = useState<string | null>(profile?.photo_url ?? null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [resume, setResume] = useState<File | null>(null)
+  const [coverLetter, setCoverLetter] = useState<File | null>(null)
   const [portfolioLink, setPortfolioLink] = useState(profile?.portfolio_link ?? '')
   const [portfolioFile, setPortfolioFile] = useState<File | null>(null)
   // Personal details — filled here on the profile (not during sign-up).
@@ -111,6 +98,12 @@ export function ProfileSetup({
     ? (last ? `${last}_resume.${resume.name.split('.').pop()}` : resume.name)
     : profile?.resume_url 
       ? (last ? `${last}_resume.${profile.resume_url.split('.').pop()}` : profile.resume_url.split('/').pop())
+      : null
+
+  const displayCoverLetterName = coverLetter
+    ? (last ? `${last}_cover_letter.${coverLetter.name.split('.').pop()}` : coverLetter.name)
+    : profile?.cover_letter_url
+      ? (last ? `${last}_cover_letter.${profile.cover_letter_url.split('.').pop()}` : profile.cover_letter_url.split('/').pop())
       : null
 
   function handlePhoto(file: File | null) {
@@ -219,6 +212,7 @@ export function ProfileSetup({
         ai_specializations: aiSpecializations,
         photo_url: photoPreview ?? null,
         resume_url: resume ? resume.name : profile?.resume_url ?? null,
+        cover_letter_url: coverLetter ? coverLetter.name : profile?.cover_letter_url ?? null,
         portfolio_link: portfolioLink.trim() || null,
         portfolio_file_url: portfolioFile ? portfolioFile.name : profile?.portfolio_file_url ?? null,
         age: Number.parseInt(age, 10) || null,
@@ -237,6 +231,7 @@ export function ProfileSetup({
     // the profile row commits, never before.
     const prevPhotoUrl = profile?.photo_url ?? null
     const prevResumePath = profile?.resume_url ?? null
+    const prevCoverLetterPath = profile?.cover_letter_url ?? null
     const prevPortfolioPath = profile?.portfolio_file_url ?? null
     try {
       const photoUrl = photo
@@ -245,6 +240,9 @@ export function ProfileSetup({
       const resumePath = resume
         ? await uploadDocument(userId, 'resume', resume)
         : profile?.resume_url ?? null
+      const coverLetterPath = coverLetter
+        ? await uploadDocument(userId, 'cover_letter', coverLetter)
+        : profile?.cover_letter_url ?? null
 
       // A new resume invalidates the previous AI verdict immediately, so a
       // stale rejection can't outlive the file it was about.
@@ -320,6 +318,7 @@ export function ProfileSetup({
         aiSpecializations: finalAiSpecializations,
         photoUrl,
         resumePath,
+        coverLetterPath,
         portfolioLink: portfolioLink.trim() || null,
         portfolioFilePath,
         age: age.trim() ? Number(age) : null,
@@ -334,6 +333,7 @@ export function ProfileSetup({
       // drop. Best-effort: an orphaned file is harmless, a missing one is not.
       try {
         if (resumePath !== prevResumePath) await removeDocument(userId, prevResumePath)
+        if (coverLetterPath !== prevCoverLetterPath) await removeDocument(userId, prevCoverLetterPath)
         if (portfolioFilePath !== prevPortfolioPath) await removeDocument(userId, prevPortfolioPath)
         if (photoUrl !== prevPhotoUrl) await removeAvatar(userId, prevPhotoUrl)
       } catch {
@@ -485,16 +485,18 @@ export function ProfileSetup({
           </label>
           <label>
             Sex
-            <select
-              onChange={(e) => setSex(e.target.value)}
-              required
-              value={sex}
-            >
-              <option value="" disabled>Select...</option>
-              <option value="Female">Female</option>
-              <option value="Male">Male</option>
-              <option value="Prefer not to say">Prefer not to say</option>
-            </select>
+            <div className="profile-sex-toggle">
+              {['Male', 'Female', 'Prefer not to say'].map((option) => (
+                <button
+                  type="button"
+                  key={option}
+                  className={`profile-sex-btn ${sex === option ? 'active' : ''}`}
+                  onClick={() => setSex(option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
           </label>
           <label className="profile-field-span">
             Address
@@ -553,61 +555,128 @@ export function ProfileSetup({
         />
       </section>
 
-      {/* Resume — upload */}
+      {/* Resume & Cover Letter — upload */}
       <section className="profile-section">
         <div className="profile-section-head">
-          <h2>Resume / CV</h2>
-          <span className="profile-optional">PDF or DOCX</span>
+          <h2>Resume & Cover Letter</h2>
         </div>
+        <div style={{ marginBottom: '24px' }}>
+          <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Resume <span className="profile-optional" style={{ fontWeight: 400 }}>PDF or DOCX</span></h4>
+          <div>
+            {resume || profile?.resume_url ? (
+              <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'default' }}>
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (resume) {
+                      window.open(URL.createObjectURL(resume), '_blank')
+                    } else {
+                      handleViewDocument(profile?.resume_url)
+                    }
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--brand-orange)', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+                >
+                  {displayResumeName}
+                </button>
+                {resume && (
+                  <span style={{ fontSize: '12px', color: 'var(--brand-orange)', fontWeight: 500 }}>
+                    New file selected: {resume.name} — save to apply
+                  </span>
+                )}
+                </span>
+                <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {!resume && profile?.resume_url && !demo && (
+                    <button
+                      disabled={analyzing || busy}
+                      onClick={handleAnalyzeExisting}
+                      style={{ cursor: analyzing ? 'wait' : 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}
+                      title="Run the AI over the resume already on file"
+                      type="button"
+                    >
+                      {analyzing ? 'Analyzing…' : 'Analyze with AI'}
+                    </button>
+                  )}
+                  <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
+                    Change
+                    <input
+                      accept=".pdf,.doc,.docx"
+                      hidden
+                      onChange={(e) => {
+                        handlePickResume(e.target.files?.[0] ?? null)
+                        e.target.value = ''
+                      }}
+                      type="file"
+                    />
+                  </label>
+                </span>
+              </div>
+            ) : (
+              <label className="profile-upload block">
+                <input
+                  accept=".pdf,.doc,.docx"
+                  hidden
+                  onChange={(e) => {
+                    handlePickResume(e.target.files?.[0] ?? null)
+                    e.target.value = ''
+                  }}
+                  type="file"
+                />
+                {resumeRejected ? 'Upload a new resume' : 'Upload resume'}
+              </label>
+            )}
+          </div>
+          {!resume && resumeRejected && (
+            <p className="profile-resume-rejected" role="alert">
+              <strong>{resumeRejected.message}</strong>{' '}
+              The resume you submitted ({resumeRejected.fileName}) could not be
+              matched — please upload a new one.
+              {resumeRejected.suggestion && (
+                <>
+                  {' '}
+                  <em>Recommendation: {resumeRejected.suggestion}</em>
+                </>
+              )}
+            </p>
+          )}
+          <p className="profile-info" style={{ marginTop: '8px' }}>
+            Your resume is read by our AI (in the cloud) to auto-fill your
+            skills and specializations for matching.
+          </p>
+        </div>
+
         <div>
-          {resume || profile?.resume_url ? (
+          <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Cover Letter <span className="profile-optional" style={{ fontWeight: 400 }}>Optional · PDF only</span></h4>
+          {coverLetter || profile?.cover_letter_url ? (
             <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'default' }}>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
               <button
                 type="button"
                 onClick={() => {
-                  if (resume) {
-                    window.open(URL.createObjectURL(resume), '_blank')
+                  if (coverLetter) {
+                    window.open(URL.createObjectURL(coverLetter), '_blank')
                   } else {
-                    handleViewDocument(profile?.resume_url)
+                    handleViewDocument(profile?.cover_letter_url)
                   }
                 }}
                 style={{ background: 'none', border: 'none', color: 'var(--brand-orange)', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
               >
-                {displayResumeName}
+                {displayCoverLetterName}
               </button>
-              {/*
-                The display name is derived from the surname, so picking a new
-                file of the same type produces an identical label and the card
-                looks unchanged. Name the pending file explicitly.
-              */}
-              {resume && (
+              {coverLetter && (
                 <span style={{ fontSize: '12px', color: 'var(--brand-orange)', fontWeight: 500 }}>
-                  New file selected: {resume.name} — save to apply
+                  New file selected: {coverLetter.name} — save to apply
                 </span>
               )}
               </span>
               <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {!resume && profile?.resume_url && !demo && (
-                  <button
-                    disabled={analyzing || busy}
-                    onClick={handleAnalyzeExisting}
-                    style={{ cursor: analyzing ? 'wait' : 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}
-                    title="Run the AI over the resume already on file"
-                    type="button"
-                  >
-                    {analyzing ? 'Analyzing…' : 'Analyze with AI'}
-                  </button>
-                )}
                 <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
                   Change
                   <input
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf"
                     hidden
                     onChange={(e) => {
-                      handlePickResume(e.target.files?.[0] ?? null)
-                      // Clearing the value lets re-selecting the SAME filename
-                      // fire change again; otherwise the picker looks dead.
+                      setCoverLetter(e.target.files?.[0] ?? null)
                       e.target.value = ''
                     }}
                     type="file"
@@ -618,35 +687,18 @@ export function ProfileSetup({
           ) : (
             <label className="profile-upload block">
               <input
-                accept=".pdf,.doc,.docx"
+                accept=".pdf"
                 hidden
                 onChange={(e) => {
-                  handlePickResume(e.target.files?.[0] ?? null)
+                  setCoverLetter(e.target.files?.[0] ?? null)
                   e.target.value = ''
                 }}
                 type="file"
               />
-              {resumeRejected ? 'Upload a new resume' : 'Upload resume'}
+              Upload cover letter
             </label>
           )}
         </div>
-        {!resume && resumeRejected && (
-          <p className="profile-resume-rejected" role="alert">
-            <strong>{resumeRejected.message}</strong>{' '}
-            The resume you submitted ({resumeRejected.fileName}) could not be
-            matched — please upload a new one.
-            {resumeRejected.suggestion && (
-              <>
-                {' '}
-                <em>Recommendation: {resumeRejected.suggestion}</em>
-              </>
-            )}
-          </p>
-        )}
-        <p className="profile-info">
-          Your resume is read by our AI (in the cloud) to auto-fill your
-          skills and specializations for matching.
-        </p>
       </section>
 
       {/* Portfolio — link OR file */}
@@ -716,6 +768,15 @@ export function ProfileSetup({
               ? 'Save changes'
               : 'Save and continue'}
       </button>
+
+      {/* Edit mode only: on a phone the sign-out moves off the bottom tab bar
+          and lands here, under Save changes. Setup mode keeps its own sign-out
+          in the page header, so adding it here would double it up. Hidden above
+          the mobile breakpoint — the sidebar still owns sign-out on desktop.
+          SignOutButton sets type="button", so it never submits the form. */}
+      {isEdit && (
+        <SignOutButton className="profile-mobile-signout">Sign out</SignOutButton>
+      )}
     </form>
     </>
   )

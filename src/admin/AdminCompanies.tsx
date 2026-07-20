@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from 'react'
-import { CheckCircle2, RefreshCw, XCircle, Plus, X, FileText, Download } from 'lucide-react'
+import { CheckCircle2, RefreshCw, XCircle, Plus, X, FileText, Download, Trash2 } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
 import { addApprovedCompany } from './allowlist'
-import { setCompanyVerification } from './adminQueries'
+import { setCompanyVerification, removeApprovedCompany } from './adminQueries'
 import type { AdminCompany, VerifStatus } from './adminData'
 import { supabase } from '../lib/supabase'
 
@@ -20,6 +20,8 @@ export function AdminCompanies({
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | VerifStatus>('all')
+  const [tierFilter, setTierFilter] = useState('all')
+  const [locationFilter, setLocationFilter] = useState('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminCompany | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -30,10 +32,12 @@ export function AdminCompanies({
       companies.filter(
         (c) =>
           (filter === 'all' || c.verification === filter) &&
+          (tierFilter === 'all' || c.tier === tierFilter) &&
+          (locationFilter === 'all' || (c.location && c.location.toLowerCase().includes(locationFilter.toLowerCase()))) &&
           (c.name.toLowerCase().includes(search.toLowerCase()) ||
             c.industry.toLowerCase().includes(search.toLowerCase())),
       ),
-    [companies, search, filter],
+    [companies, search, filter, tierFilter, locationFilter],
   )
 
   const setVerif = async (c: AdminCompany, v: VerifStatus) => {
@@ -45,6 +49,19 @@ export function AdminCompanies({
       await onRefresh()
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Could not update verification.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const remove = async (c: AdminCompany) => {
+    setBusyId(c.id)
+    setActionError(null)
+    try {
+      await removeApprovedCompany(c.contactEmail)
+      await onRefresh()
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not remove company.')
     } finally {
       setBusyId(null)
     }
@@ -66,7 +83,7 @@ export function AdminCompanies({
         </div>
       </div>
 
-      <div className="ad-toolbar">
+      <div className="ad-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search companies…" value={search} />
         <select
           className="ad-select"
@@ -77,6 +94,26 @@ export function AdminCompanies({
           <option value="verified">Verified</option>
           <option value="pending">Pending</option>
           <option value="rejected">Rejected</option>
+        </select>
+        <select
+          className="ad-select"
+          onChange={(e) => setTierFilter(e.target.value)}
+          value={tierFilter}
+        >
+          <option value="all">All Tiers</option>
+          <option value="Tier 1">Tier 1</option>
+          <option value="Tier 2">Tier 2</option>
+          <option value="Tier 3">Tier 3</option>
+        </select>
+        <select
+          className="ad-select"
+          onChange={(e) => setLocationFilter(e.target.value)}
+          value={locationFilter}
+        >
+          <option value="all">All Locations</option>
+          <option value="Cebu City">Cebu City</option>
+          <option value="Manila">Manila</option>
+          <option value="Davao">Davao</option>
         </select>
       </div>
 
@@ -154,6 +191,10 @@ export function AdminCompanies({
           onVerif={async (c, v) => {
             await setVerif(c, v)
           }}
+          onRemove={(c) => {
+            remove(c)
+            setViewTarget(null)
+          }}
         />
       )}
     </div>
@@ -165,11 +206,13 @@ function ViewCompanyModal({
   busy,
   onClose,
   onVerif,
+  onRemove,
 }: {
   company: AdminCompany
   busy: boolean
   onClose: () => void
   onVerif: (c: AdminCompany, v: VerifStatus) => Promise<void>
+  onRemove: (c: AdminCompany) => void
 }) {
   const [details, setDetails] = useState<{
     description: string
@@ -417,6 +460,20 @@ function ViewCompanyModal({
                   <RefreshCw size={14} /> Reset
                 </button>
               )}
+            </div>
+          )}
+
+          {!company.registered && (
+            <div className="ad-view-actions" style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+              <button
+                className="ad-danger"
+                onClick={() => onRemove(company)}
+                type="button"
+                disabled={busy}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <Trash2 size={14} /> {busy ? 'Removing…' : 'Remove'}
+              </button>
             </div>
           )}
         </div>

@@ -1,0 +1,402 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Mobile adaptation layer.
+
+   Imported LAST (see main.tsx) so it lands after every other stylesheet in the
+   cascade. Most rules here tie on specificity with the ones they replace, and
+   win purely on source order — so the import position is load-bearing, not
+   cosmetic. Where a rule has to beat a `.sb-collapsed .x` descendant selector
+   (0,2,0) it is scoped under `.ad-sidebar` to match that weight.
+
+   Nothing here applies above the breakpoints; the desktop design is untouched.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── 1. Stop iOS from zooming the page on input focus ──────────────────────
+   Safari zooms into any focused control whose font-size is under 16px, then
+   leaves the viewport scrolled sideways. Form controls inherit 13px from their
+   labels, so every text field in the app triggers it.
+
+   Scoped to coarse pointers: this is a touch-device bug, so a narrow desktop
+   window keeps the 13px design. The doubled :not() also lifts specificity to
+   (0,2,1) so it clears `.auth-form input` and friends. */
+@media (max-width: 1024px) and (pointer: coarse) {
+
+  input:not([type='checkbox']):not([type='radio']),
+  select:not([multiple]):not([hidden]),
+  textarea:not([hidden]):not([disabled]) {
+    font-size: 16px;
+  }
+}
+
+/* Belt and braces: the rule above is the precise one, but it silently does
+   nothing if `pointer` reports `fine` (some Android browsers, and anything
+   proxying the viewport). Under 760px it is a phone regardless, and 16px
+   controls are correct there anyway. */
+@media (max-width: 760px) {
+
+  input:not([type='checkbox']):not([type='radio']),
+  select:not([multiple]):not([hidden]),
+  textarea:not([hidden]):not([disabled]) {
+    font-size: 16px;
+  }
+}
+
+
+/* ── 2. Sidebar rail → bottom tab bar ─────────────────────────────────────
+   Below 760px the shells already shrank the sidebar to a 72px icon-only rail,
+   but on a 375px phone that is 19% of the screen permanently spent on
+   navigation, and the labels were hidden so the icons had to be guessed at.
+
+   Re-laying the same markup as a bottom bar returns the full width to content
+   and puts nav within thumb reach — and the labels come back. 760px matches
+   the rail breakpoint it replaces, so iPad portrait (768px) keeps the sidebar. */
+@media (max-width: 760px) {
+
+  /* Zero the offset both shells reserve for the rail. Listed with the
+     `.sb-collapsed` variants because those are (0,2,0) and would otherwise
+     re-apply their 76px on a shell the user had collapsed on desktop. */
+  .app-shell,
+  .app-shell.sb-collapsed,
+  .ad-shell,
+  .ad-shell.sb-collapsed {
+    --sb-w: 0px;
+  }
+
+  .ad-sidebar {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: stretch;
+    overflow: visible;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 -6px 20px rgba(28, 10, 4, 0.18);
+    /* Sits above page content but below .modal-overlay (z-index 1000). */
+    z-index: 60;
+    /* Keeps the bar clear of the iPhone home indicator. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* The width transition only makes sense for the rail it used to be. */
+    transition: none;
+  }
+
+  /* The brand block and the collapse toggle have no role in a bottom bar. */
+  .ad-sidebar .ad-brand,
+  .ad-sidebar .ad-collapse {
+    display: none;
+  }
+
+  .ad-sidebar .ad-nav {
+    flex: 1;
+    flex-direction: row;
+    gap: 2px;
+    padding: 6px 4px;
+    overflow: visible;
+  }
+
+  /* Icon stacked over its label, each item an equal share of the bar. */
+  .ad-sidebar .ad-nav button {
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    justify-content: center;
+    min-height: 52px;
+    min-width: 0;
+    padding: 6px 2px;
+    text-align: center;
+    white-space: normal;
+  }
+
+  /* Undo the rail's label collapse — max-width/opacity, not display, is what
+     hid these, so all three have to be restored. */
+  .ad-sidebar .ad-nav-label {
+    display: block;
+    max-width: none;
+    opacity: 1;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+  }
+
+  /* Avatar + sign-out become a trailing group, divided from the nav items. */
+  .ad-sidebar .ad-user {
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    border-top: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 6px 6px 6px 8px;
+  }
+
+  .ad-sidebar .ad-user-main {
+    display: none;
+  }
+
+  .ad-sidebar .ad-user-trigger {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 44px;
+    margin: 0;
+    padding: 6px;
+    justify-content: center;
+  }
+
+  /* Restore from the collapsed state, which hid this and pulled it out of the
+     tab order via visibility. */
+  .ad-sidebar .ad-signout {
+    max-width: 40px;
+    min-height: 44px;
+    opacity: 1;
+    visibility: visible;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    transition-delay: 0s;
+  }
+
+  /* Sign-out moves off the tab bar and onto the profile page, under Save
+     changes — the avatar beside it already goes to Profile, so it is one tap
+     away and the bar gets the space back.
+
+     Scoped to .app-shell deliberately. The admin shell (.ad-shell) has no
+     profile page — ProfileSetup is only rendered by App.tsx, and the admin
+     avatar is not a button — so hiding its sign-out too would leave an admin
+     with no way to sign out on a phone at all. */
+  .app-shell .ad-signout {
+    display: none;
+  }
+
+  .profile-mobile-signout {
+    display: block;
+  }
+}
+
+
+/* ── 3. Content area: reclaim the width, clear the bar ─────────────────── */
+@media (max-width: 760px) {
+
+  .workspace,
+  .ad-main {
+    margin-left: 0;
+    /* Bottom padding clears the ~64px bar plus the home indicator, so the last
+       card in a list is never trapped underneath it. */
+    padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* `background-attachment: fixed` is the single worst offender for scroll jank
+     on mobile Safari — it repaints the whole layer every frame, and on older
+     iOS versions the watermark detaches and drifts. Pin the layers to normal
+     scrolling instead and centre the mark now that there is no rail to offset
+     it against. */
+  .workspace {
+    background-attachment: scroll, scroll, scroll;
+    background-position: 0 0, 50% 38%, right 12px top 12px;
+    background-size: auto, var(--wm-size) auto, 96px auto;
+  }
+
+  .ad-main {
+    background-attachment: scroll, scroll;
+    background-position: 0 0, 50% 38%;
+  }
+
+  /* 46vw put the watermark at ~172px on a phone — small enough to read as a
+     stray graphic rather than a ghosted brand mark. */
+  .app-shell,
+  .ad-shell {
+    --wm-size: min(340px, 66vw);
+  }
+
+  .topbar h2 {
+    font-size: 24px;
+  }
+
+  .ad-main .ad-topbar h2,
+  .ad-main h2 {
+    font-size: 24px;
+  }
+}
+
+
+/* ── 4. Touch targets ─────────────────────────────────────────────────────
+   The global button min-height is 38px, under the 44px comfortable-tap floor.
+   Kept at element specificity (0,0,1) on purpose so any button that sets its
+   own height through a class — the nav items and sign-out above, for one —
+   keeps it. */
+@media (max-width: 760px) {
+
+  button {
+    min-height: 44px;
+  }
+
+  /* Hover lift is meaningless on touch and leaves buttons stuck in the raised
+     state after a tap. */
+  button:hover {
+    transform: none;
+  }
+}
+
+
+/* ── 5. Overlays sized to the viewport ───────────────────────────────────── */
+@media (max-width: 760px) {
+
+  /* The notification panel is a card that pops up and hovers under the bell,
+     over a dimmed page. It stays anchored to its trigger (so the connection
+     between the bell and the panel is obvious) but detaches from the screen
+     edges, which is what makes it read as floating rather than as part of the
+     layout.
+
+     Two things were wrong with it as a plain dropdown:
+
+     - It scrolled twice. `.nb-dropdown` got `overflow-y: auto` here while
+       `.nb-list` keeps its own `max-height: 360px` scroller from App.css, so a
+       long list had nested scroll areas and a header that scrolled away.
+     - A 320px panel against a right-anchored trigger ran off the screen edge
+       on a 375px device.
+
+     Positioning stays `absolute` from App.css — none of the ancestors
+     (.app-shell / .workspace / the dashboard headers) set position, overflow,
+     transform or z-index, so there is no stacking context to trap the fixed
+     scrim and no clipping box to cut the card off. */
+
+  /* Load-bearing for the card below. The three dashboard headers that hold a
+     bell (.sd-header, .cp-head, .ad-page-head) are all
+     `flex-wrap: wrap; justify-content: space-between`. On a phone the heading
+     and this group no longer fit on one line, so the group wraps onto a line of
+     its own — and `space-between` puts a lone item on a line at the START. The
+     bell ends up on the left, and a card anchored to its right edge hangs off
+     the side of the screen.
+
+     `margin-left: auto` is what moves the group itself; `justify-content` here
+     would only arrange its children inside a box that is already content-sized,
+     which is why it has no effect. */
+  .topbar-actions {
+    margin-left: auto;
+  }
+  .nb-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 10, 4, 0.45);
+    /* Above the bottom tab bar (60), below .modal-overlay (1000). */
+    z-index: 900;
+    animation: modal-fade-in var(--dur-2) var(--ease-out);
+  }
+
+  /* `right: 0` inherited from App.css pins the card to the trigger's right
+     edge, which the 16px .workspace padding already insets from the screen.
+     The width leaves a matching gap on the left, so the card floats clear of
+     both edges instead of butting up against one. */
+  .nb-dropdown {
+    width: min(340px, calc(100vw - 32px));
+    margin-top: 10px;
+    max-height: 60vh;
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(28, 10, 4, 0.3);
+    z-index: 901;
+    transform-origin: top right;
+    animation: nb-pop var(--dur-3) var(--ease-out);
+  }
+
+  /* Grows out of the bell in the top-right rather than rising from below, so
+     the motion points back at the control that opened it. */
+  @keyframes nb-pop {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.96);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* The one scroll container. `flex: 1` over the fixed 360px cap lets it use
+     whatever the 60vh leaves after the header, and `overscroll-behavior`
+     stops a flick at the end of the list from scrolling the page behind. */
+  .nb-list {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* flex-shrink:0 so the header keeps its height when the list wants the
+     space — without it the flex column squeezes the title as the list grows. */
+  .nb-header {
+    flex-shrink: 0;
+    padding: 16px;
+  }
+
+  .nb-header h3 {
+    font-size: 16px;
+  }
+
+  .nb-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 4px;
+    min-width: 44px;
+    color: var(--text-muted);
+  }
+
+  /* Roomier rows: 13px text in a 14px box is a small tap target for a list
+     whose items navigate somewhere. */
+  .nb-item {
+    padding: 16px;
+  }
+
+  .nb-message {
+    font-size: 14px;
+  }
+
+  /* Modals become bottom sheets: reachable by thumb, and the slide-up
+     animation the panel already has now reads as intentional. */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-panel {
+    max-height: 90vh;
+    max-width: none;
+    padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+    border-radius: 18px 18px 0 0;
+    border-bottom: none;
+  }
+}
+
+
+/* ── 6. Wide-content containment ──────────────────────────────────────────
+   Data tables keep their min-width and scroll inside their own wrapper — that
+   is deliberate, since squashing a 7-column table into 375px is worse than
+   swiping it. These just make that scroll feel native and stop it from
+   becoming a full-page sideways scroll. */
+@media (max-width: 760px) {
+
+  .table-wrap,
+  .ad-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  /* Safety net: any single overflowing child would otherwise let the whole
+     page pan sideways, which is the most common way a responsive layout feels
+     broken. Wrappers above scroll their own content, so nothing is lost. */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Mobile browsers use overlay scrollbars, so the reserved gutter in
+     index.css is dead space here. */
+  html {
+    scrollbar-gutter: auto;
+  }
+}

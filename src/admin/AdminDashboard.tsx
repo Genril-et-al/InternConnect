@@ -4,6 +4,8 @@ import {
   Building2,
   FileText,
   GraduationCap,
+  Percent,
+  Clock,
 } from 'lucide-react'
 import type { AdminAppStats, AdminCompany, AdminListing, AdminStudent } from './adminData'
 import { NotificationBell } from '../components/NotificationBell'
@@ -34,7 +36,15 @@ export function AdminDashboard({
   const maxApps = Math.max(1, ...MONTHLY_APPLICATIONS.map((m) => m.apps))
 
   // Admin nav hints look like 'admin:<index>' — map to the sidebar index.
-  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications((hint) => {
+  const {
+    notifications,
+    unreadCount,
+    hasMore,
+    loadingMore,
+    loadMore,
+    handleMarkRead,
+    handleMarkAllRead,
+  } = useNotifications((hint) => {
     const index = Number(hint.split(':')[1])
     if (!Number.isNaN(index)) onNav(index)
   })
@@ -54,12 +64,16 @@ export function AdminDashboard({
           <h1 className="ad-title">Platform Overview</h1>
           <p className="ad-subtitle">Welcome back, NLO Admin</p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="topbar-actions">
           <button className="ad-primary" onClick={() => onNav(4)} type="button">
             <BarChart3 size={14} /> Generate Report
           </button>
           <NotificationBell
             notifications={notifications}
+            unreadCount={unreadCount}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />
@@ -71,6 +85,14 @@ export function AdminDashboard({
         <Stat color="var(--brand-brown)" icon={Building2} label="Verified Companies" sub={`${pendingVerifs} pending review`} value={verified} />
         <Stat color="var(--brand-dark-red)" icon={Briefcase} label="Open Listings" sub="Across all companies" value={openListings} />
         <Stat color="var(--brand-orange-soft)" icon={FileText} label="Applications" sub="This semester" value={totalApplications} />
+      </div>
+
+      <div style={{ marginTop: '24px', marginBottom: '12px' }}>
+        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--brand-brown)' }}>Advanced Performance Metrics</h3>
+      </div>
+      <div className="ad-stats" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+        <Stat color="var(--brand-orange)" icon={Percent} label="Placement Rate" sub="Successfully placed students" value={`${appStats.placementRate}%`} />
+        <Stat color="var(--brand-dark-red)" icon={Clock} label="Avg Processing Time" sub=" responsiveness indicator" value={`${appStats.avgProcessingTimeDays} days`} />
       </div>
 
       <div className="ad-charts">
@@ -148,7 +170,7 @@ function Stat({
   color,
 }: {
   label: string
-  value: number
+  value: number | string
   sub: string
   icon: React.ElementType
   color: string
@@ -164,7 +186,7 @@ function Stat({
           <Icon size={16} style={{ color }} />
         </span>
       </div>
-      <p className="ad-stat-value">{value.toLocaleString()}</p>
+      <p className="ad-stat-value">{typeof value === 'number' ? value.toLocaleString() : value}</p>
       <p className="ad-stat-sub">{sub}</p>
     </div>
   )

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
  * Coverflow carousel for the login/sign-up brand panel.
@@ -68,9 +68,28 @@ export function HeroCarousel() {
   // in background tabs to about once a minute, so the guard saves almost
   // nothing, and it leaves the carousel frozen in embedded browser views that
   // report themselves as permanently hidden.
+  // Set while the pointer rests on the panel, so the resume below can tell an
+  // unhover apart from a first mount — the mount must not skip the opening
+  // slide, but an unhover should not sit on a slide the user has already been
+  // looking at for the length of their hover.
+  const resumingFromHover = useRef(false)
+
   useEffect(() => {
-    if (total < 2 || paused) return
+    if (total < 2) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (paused) {
+      resumingFromHover.current = true
+      return
+    }
+
+    // Move on straight away rather than making the user wait out a fresh
+    // interval, which reads as the carousel having failed to restart. Safe to
+    // call during the effect: `advance` and the deps below are unchanged by it,
+    // so this does not re-run and cannot loop.
+    if (resumingFromHover.current) {
+      resumingFromHover.current = false
+      advance()
+    }
 
     const timer = window.setInterval(advance, AUTOPLAY_MS)
     return () => window.clearInterval(timer)

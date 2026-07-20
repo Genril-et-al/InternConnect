@@ -28,6 +28,9 @@ export function AdminStudents({
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all')
+  const [majorFilter, setMajorFilter] = useState('all')
+  const [yearFilter, setYearFilter] = useState('all')
+  const [skillFilter, setSkillFilter] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminStudent | null>(null)
   const [deactivateTarget, setDeactivateTarget] = useState<AdminStudent | null>(null)
@@ -39,10 +42,13 @@ export function AdminStudents({
       students.filter(
         (s) =>
           (filter === 'all' || s.status === filter) &&
+          (majorFilter === 'all' || s.program === majorFilter) &&
+          (yearFilter === 'all' || s.year === yearFilter) &&
+          (skillFilter === '' || (s.skills && s.skills.some((sk) => sk.toLowerCase().includes(skillFilter.toLowerCase())))) &&
           (s.name.toLowerCase().includes(search.toLowerCase()) ||
             s.email.toLowerCase().includes(search.toLowerCase())),
       ),
-    [students, search, filter],
+    [students, search, filter, majorFilter, yearFilter, skillFilter],
   )
 
   async function runAction(id: string, fn: () => Promise<void>) {
@@ -92,7 +98,7 @@ export function AdminStudents({
         </div>
       </div>
 
-      <div className="ad-toolbar">
+      <div className="ad-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search by name or email…" value={search} />
         <select
           className="ad-select"
@@ -104,6 +110,35 @@ export function AdminStudents({
           <option value="inactive">Inactive</option>
           <option value="pending">Not registered</option>
         </select>
+        <select
+          className="ad-select"
+          onChange={(e) => setMajorFilter(e.target.value)}
+          value={majorFilter}
+        >
+          <option value="all">All Majors</option>
+          <option value="BSCS">BSCS</option>
+          <option value="BSIT">BSIT</option>
+          <option value="BSIS">BSIS</option>
+        </select>
+        <select
+          className="ad-select"
+          onChange={(e) => setYearFilter(e.target.value)}
+          value={yearFilter}
+        >
+          <option value="all">All Years</option>
+          <option value="1st Year">1st Year</option>
+          <option value="2nd Year">2nd Year</option>
+          <option value="3rd Year">3rd Year</option>
+          <option value="4th Year">4th Year</option>
+        </select>
+        <input
+          className="ad-select"
+          style={{ padding: '8px 12px', minWidth: '130px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface)', fontSize: '13px' }}
+          type="text"
+          placeholder="Filter by skill…"
+          value={skillFilter}
+          onChange={(e) => setSkillFilter(e.target.value)}
+        />
       </div>
 
       {actionError && (
@@ -135,7 +170,10 @@ export function AdminStudents({
                           .join('')
                           .toUpperCase()}
                       </span>
-                      {s.name}
+                      <div>
+                        <div>{s.name}</div>
+                        {s.studentId && <p className="ad-muted" style={{ fontSize: '11px', margin: '2px 0 0' }}>{s.studentId}</p>}
+                      </div>
                     </div>
                   </td>
                   <td className="ad-muted">{s.email}</td>
@@ -235,7 +273,9 @@ function ViewStudentModal({
           <div className="ad-view-head">
             <span className="ad-cell-mark" style={{ width: 48, height: 48, fontSize: 16 }}>{initials}</span>
             <div>
-              <p className="ad-view-name">{student.name}</p>
+              <p className="ad-view-name">
+                {student.name} {student.studentId && <span className="ad-muted" style={{ fontSize: '13px', fontWeight: 500 }}>({student.studentId})</span>}
+              </p>
               <AdBadge
                 text={student.status === 'active' ? 'Active' : student.status === 'inactive' ? 'Inactive' : 'Not registered'}
                 variant={student.status === 'active' ? 'success' : student.status === 'inactive' ? 'neutral' : 'pending'}

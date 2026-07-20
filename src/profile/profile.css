@@ -51,15 +51,27 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
+/* Sign-out under Save changes, phone only. Hidden here and revealed by
+   responsive.css below 760px, where the bottom tab bar gives up its own
+   sign-out. Outlined rather than filled so it does not compete with the orange
+   Save changes directly above it. */
+.profile-mobile-signout {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--brand-dark-red);
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 48px;
+  width: 100%;
+}
+
 /* Embedded variant — rendered inside the workspace (student Profile tab) */
 .profile-card.embedded {
   max-width: none;
   margin: 0;
   width: 100%;
-  padding: 0;
-  border: none;
-  box-shadow: none;
-  background: transparent;
 }
 
 /* Card */
@@ -421,6 +433,23 @@
   opacity: 0.55;
 }
 
+.profile-file-info {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-file-link {
+  color: var(--brand-orange);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.profile-file-link:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 560px) {
   .profile-name-grid {
     grid-template-columns: 1fr 60px;
@@ -438,4 +467,40 @@
   .profile-card {
     padding: 24px;
   }
+}
+
+.profile-sex-toggle {
+  display: flex;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.profile-sex-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 36px;
+  padding: 0 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.profile-sex-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-strong);
+}
+
+.profile-sex-btn.active {
+  background: var(--brand-orange);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(231, 104, 20, 0.15);
 }

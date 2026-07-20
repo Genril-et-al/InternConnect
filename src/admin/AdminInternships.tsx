@@ -13,6 +13,9 @@ export function AdminInternships({
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | AdminListingStatus>('all')
+  const [setupFilter, setSetupFilter] = useState<'all' | 'onsite' | 'remote' | 'hybrid'>('all')
+  const [paidFilter, setPaidFilter] = useState<'all' | 'paid' | 'unpaid'>('all')
+  const [scheduleFilter, setScheduleFilter] = useState<'all' | 'part-time' | 'full-time'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -21,10 +24,13 @@ export function AdminInternships({
       listings.filter(
         (l) =>
           (filter === 'all' || l.status === filter) &&
+          (setupFilter === 'all' || l.setup === setupFilter) &&
+          (paidFilter === 'all' || (paidFilter === 'paid' ? l.isPaid : !l.isPaid)) &&
+          (scheduleFilter === 'all' || (scheduleFilter === 'full-time' ? l.isFullTime : !l.isFullTime)) &&
           (l.title.toLowerCase().includes(search.toLowerCase()) ||
             l.company.toLowerCase().includes(search.toLowerCase())),
       ),
-    [listings, search, filter],
+    [listings, search, filter, setupFilter, paidFilter, scheduleFilter],
   )
 
   const setFlagged = (id: string, flagged: boolean) => {
@@ -43,17 +49,45 @@ export function AdminInternships({
         </div>
       </div>
 
-      <div className="ad-toolbar">
+      <div className="ad-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search by title or company…" value={search} />
         <select
           className="ad-select"
           onChange={(e) => setFilter(e.target.value as 'all' | AdminListingStatus)}
           value={filter}
         >
-          <option value="all">All</option>
+          <option value="all">All Moderation</option>
           <option value="open">Open</option>
           <option value="closed">Closed</option>
           <option value="flagged">Flagged</option>
+        </select>
+        <select
+          className="ad-select"
+          onChange={(e) => setSetupFilter(e.target.value as 'all' | 'onsite' | 'remote' | 'hybrid')}
+          value={setupFilter}
+        >
+          <option value="all">All Setups</option>
+          <option value="onsite">On-site</option>
+          <option value="remote">Remote</option>
+          <option value="hybrid">Hybrid</option>
+        </select>
+        <select
+          className="ad-select"
+          onChange={(e) => setPaidFilter(e.target.value as 'all' | 'paid' | 'unpaid')}
+          value={paidFilter}
+        >
+          <option value="all">All Compensation</option>
+          <option value="paid">Paid</option>
+          <option value="unpaid">Unpaid</option>
+        </select>
+        <select
+          className="ad-select"
+          onChange={(e) => setScheduleFilter(e.target.value as 'all' | 'part-time' | 'full-time')}
+          value={scheduleFilter}
+        >
+          <option value="all">All Schedules</option>
+          <option value="part-time">Part-time</option>
+          <option value="full-time">Full-time</option>
         </select>
       </div>
 

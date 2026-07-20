@@ -328,7 +328,10 @@ export async function reviewSubmission(
       if (appData?.feedback) {
         try {
           parsedFeedback = JSON.parse(appData.feedback)
-        } catch {}
+        } catch {
+          // Legacy rows hold a plain rejection string, not the per-requirement
+          // JSON map. Start fresh rather than losing the new feedback.
+        }
       }
       
       parsedFeedback[subData.requirement_id] = feedback

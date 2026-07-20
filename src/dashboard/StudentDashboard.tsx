@@ -38,7 +38,15 @@ export function StudentDashboard({
 
   const accepted = applications.filter((a) => a.status === 'Accepted').length
 
-  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications((hint) => {
+  const {
+    notifications,
+    unreadCount,
+    hasMore,
+    loadingMore,
+    loadMore,
+    handleMarkRead,
+    handleMarkAllRead,
+  } = useNotifications((hint) => {
     if (hint === 'Pending') onFilterApplications?.('Pending')
     else onNavigate(hint)
   })
@@ -77,12 +85,16 @@ export function StudentDashboard({
               : 'All applications resolved.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="topbar-actions">
           <button className="sd-primary" onClick={() => onNavigate('Browse Internships')} type="button">
             <Search size={14} /> Browse Internships
           </button>
           <NotificationBell
             notifications={notifications}
+            unreadCount={unreadCount}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />

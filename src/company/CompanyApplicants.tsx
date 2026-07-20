@@ -801,10 +801,3 @@ function docLabel(path: string, applicant: string, kind: string): string {
   const ext = path.split('.').pop()?.toLowerCase()
   return `${applicant} — ${kind}${ext ? `.${ext}` : ''}`
 }
-
-/** Open a private document from the documents bucket via a signed URL. */
-function openDocument(path: string, downloadName?: string) {
-  signedDocumentUrl(path, downloadName)
-    .then((url) => window.open(url, '_blank', 'noopener'))
-    .catch(() => window.alert('Could not open the document. Please try again.'))
-}

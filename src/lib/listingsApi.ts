@@ -121,7 +121,10 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
     if (r.feedback) {
       try {
         parsedFeedback = JSON.parse(r.feedback)
-      } catch {}
+      } catch {
+        // Not a JSON object — a legacy plain-text rejection reason. Leave the
+        // per-requirement map empty.
+      }
     }
 
     const reqs: PreEmploymentRequirement[] = (r.listings?.listing_requirements ?? []).map((q) => {

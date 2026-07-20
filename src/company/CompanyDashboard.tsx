@@ -22,7 +22,15 @@ export function CompanyDashboard({
     .filter((a) => a.status === 'Pending')
     .sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
 
-  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications(onNavigate)
+  const {
+    notifications,
+    unreadCount,
+    hasMore,
+    loadingMore,
+    loadMore,
+    handleMarkRead,
+    handleMarkAllRead,
+  } = useNotifications(onNavigate)
 
   return (
     <div className="cp-root">
@@ -35,12 +43,16 @@ export function CompanyDashboard({
               : 'No applications waiting for review.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="topbar-actions">
           <button className="cp-primary" onClick={() => onNavigate('Applicants')} type="button">
             <Users size={14} /> Review Applications
           </button>
           <NotificationBell
             notifications={notifications}
+            unreadCount={unreadCount}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />
