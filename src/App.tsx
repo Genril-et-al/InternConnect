@@ -657,7 +657,56 @@ function ProgressModal({
   onClose: () => void
 }) {
   const internship = useMemo(() => internships.find(i => i.id === application.internshipId), [internships, application.internshipId])
-  
+
+  // In-app confirmation for offer/acceptance actions (replaces window.confirm).
+  const [confirmAction, setConfirmAction] = useState<'accept' | 'decline' | 'withdraw' | null>(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
+
+  const confirmCopy = {
+    accept: {
+      title: 'Accept Offer',
+      message: 'Are you sure you want to accept this offer? All other pending applications and offers will be discarded.',
+      cta: 'Accept Offer',
+      danger: false,
+    },
+    decline: {
+      title: 'Decline Offer',
+      message: 'Are you sure you want to decline this offer?',
+      cta: 'Decline Offer',
+      danger: true,
+    },
+    withdraw: {
+      title: 'Withdraw Acceptance',
+      message: 'Are you sure you want to withdraw your acceptance? This will cancel your internship and restore any discarded applications.',
+      cta: 'Withdraw',
+      danger: true,
+    },
+  } as const
+
+  async function runConfirmedAction() {
+    if (!confirmAction || confirmBusy) return
+    setConfirmBusy(true)
+    setConfirmError(null)
+    try {
+      if (confirmAction === 'accept') {
+        if (!userId) return
+        await acceptOffer(userId, application.id)
+      } else if (confirmAction === 'decline') {
+        await rejectOffer(application.id)
+      } else {
+        if (!userId) return
+        await withdrawAcceptance(userId, application.id)
+      }
+      setConfirmAction(null)
+      onSubmitted?.()
+    } catch (e) {
+      setConfirmError(e instanceof Error ? e.message : 'An error occurred')
+    } finally {
+      setConfirmBusy(false)
+    }
+  }
+
   const rejectedAtInterview = application.status === 'Rejected' && !!application.nextStep
   const steps = [
     { label: 'Application Submitted', active: true, done: true },
@@ -776,31 +825,14 @@ function ProgressModal({
             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
               <button 
                 className="sd-primary"
-                onClick={async () => {
-                  if (!userId) return;
-                  if (!window.confirm("Are you sure you want to accept this offer? All other pending applications and offers will be discarded.")) return;
-                  try {
-                    await acceptOffer(userId, application.id);
-                    onSubmitted?.();
-                  } catch (e) {
-                    alert(e instanceof Error ? e.message : 'An error occurred');
-                  }
-                }}
+                onClick={() => setConfirmAction('accept')}
               >
                 Accept Offer
               </button>
               <button 
                 className="sd-btn-secondary"
                 style={{ color: 'var(--brand-crimson)', borderColor: 'var(--brand-crimson)' }}
-                onClick={async () => {
-                  if (!window.confirm("Are you sure you want to reject this offer?")) return;
-                  try {
-                    await rejectOffer(application.id);
-                    onSubmitted?.();
-                  } catch (e) {
-                    alert(e instanceof Error ? e.message : 'An error occurred');
-                  }
-                }}
+                onClick={() => setConfirmAction('decline')}
               >
                 Decline Offer
               </button>
@@ -839,19 +871,41 @@ function ProgressModal({
               <button 
                 className="sd-btn-secondary"
                 style={{ color: 'var(--brand-crimson)', borderColor: 'var(--brand-crimson)' }}
-                onClick={async () => {
-                  if (!userId) return;
-                  if (!window.confirm("Are you sure you want to withdraw your acceptance? This will cancel your internship and restore any discarded applications.")) return;
-                  try {
-                    await withdrawAcceptance(userId, application.id);
-                    onSubmitted?.();
-                  } catch (e) {
-                    alert(e instanceof Error ? e.message : 'An error occurred');
-                  }
-                }}
+                onClick={() => setConfirmAction('withdraw')}
               >
                 Withdraw Acceptance
               </button>
+            </div>
+          </div>
+        )}
+
+        {confirmAction && (
+          <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget && !confirmBusy) { setConfirmAction(null); setConfirmError(null) } }}>
+            <div className="modal-panel" style={{ width: '400px' }}>
+              <h3 style={{ margin: '0 0 12px', color: 'var(--brand-brown)' }}>{confirmCopy[confirmAction].title}</h3>
+              <p style={{ margin: '0 0 20px', fontSize: '14px', color: 'var(--text)' }}>{confirmCopy[confirmAction].message}</p>
+              {confirmError && (
+                <p style={{ margin: '0 0 16px', color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{confirmError}</p>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  className="sd-btn-secondary"
+                  disabled={confirmBusy}
+                  onClick={() => { setConfirmAction(null); setConfirmError(null) }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className={confirmCopy[confirmAction].danger ? 'sd-btn-secondary' : 'sd-primary'}
+                  disabled={confirmBusy}
+                  onClick={runConfirmedAction}
+                  style={confirmCopy[confirmAction].danger ? { color: 'var(--brand-crimson)', borderColor: 'var(--brand-crimson)' } : undefined}
+                  type="button"
+                >
+                  {confirmBusy ? 'Working…' : confirmCopy[confirmAction].cta}
+                </button>
+              </div>
             </div>
           </div>
         )}
