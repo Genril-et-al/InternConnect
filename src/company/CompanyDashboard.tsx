@@ -35,7 +35,7 @@ export function CompanyDashboard({
               : 'No applications waiting for review.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="topbar-actions">
           <button className="cp-primary" onClick={() => onNavigate('Applicants')} type="button">
             <Users size={14} /> Review Applications
           </button>

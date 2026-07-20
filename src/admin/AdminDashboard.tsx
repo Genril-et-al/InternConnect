@@ -54,7 +54,7 @@ export function AdminDashboard({
           <h1 className="ad-title">Platform Overview</h1>
           <p className="ad-subtitle">Welcome back, NLO Admin</p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="topbar-actions">
           <button className="ad-primary" onClick={() => onNav(4)} type="button">
             <BarChart3 size={14} /> Generate Report
           </button>
