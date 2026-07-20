@@ -56,6 +56,14 @@
 
 .ad-brand-text {
   min-width: 0;
+  /* Collapsed via max-width rather than display:none, so the label slides away
+     with the rail instead of vanishing in one frame. */
+  max-width: 200px;
+  overflow: hidden;
+  transition:
+    max-width var(--dur-2) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
+  white-space: nowrap;
 }
 
 .ad-brand {
@@ -63,7 +71,15 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   gap: 10px;
+  /* Locked height. Collapsing used to restack this block into a column, which
+     grew it 87px -> 125px and shoved the whole nav down 38px in a single frame
+     — while the rail itself was still smoothly animating its width. Pinning the
+     height (and keeping the row below) means the header never moves at all. */
+  min-height: 87px;
   padding: 20px 22px;
+  transition:
+    gap var(--dur-2) var(--ease-out),
+    padding var(--dur-2) var(--ease-out);
 }
 
 .ad-logo {
@@ -74,6 +90,9 @@
   object-fit: contain;
   width: 46px;
   filter: drop-shadow(1px 1px 0 white) drop-shadow(-1px -1px 0 white) drop-shadow(1px -1px 0 white) drop-shadow(-1px 1px 0 white);
+  transition:
+    opacity var(--dur-1) var(--ease-out),
+    width var(--dur-2) var(--ease-out);
 }
 
 .ad-brand-name {
@@ -111,7 +130,11 @@
   gap: 12px;
   padding: 10px 12px;
   text-align: left;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    gap var(--dur-2) var(--ease-out),
+    padding var(--dur-2) var(--ease-out);
   width: 100%;
   /* Keep each item one line so labels revealed mid-expand don't wrap and
      briefly overflow the still-narrow rail (which flashed a scrollbar). */
@@ -119,8 +142,12 @@
 }
 
 .ad-nav-label {
+  max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition:
+    max-width var(--dur-2) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
 }
 
 .ad-nav button:hover {
@@ -141,6 +168,9 @@
   display: flex;
   gap: 10px;
   padding: 16px;
+  transition:
+    gap var(--dur-2) var(--ease-out),
+    padding var(--dur-2) var(--ease-out);
 }
 
 /* Clickable account card — opens the signed-in user's own profile. */
@@ -159,7 +189,12 @@
   min-width: 0;
   padding: 8px;
   text-align: left;
-  transition: background 0.15s ease;
+  /* One declaration — a second `transition` here would silently replace the
+     first, which is how the collapse animation got lost before. */
+  transition:
+    background 0.15s ease,
+    gap var(--dur-2) var(--ease-out),
+    margin var(--dur-2) var(--ease-out);
 }
 
 .ad-user-trigger:hover {
@@ -198,6 +233,13 @@
 .ad-user-main {
   flex: 1;
   min-width: 0;
+  /* Same collapse-by-max-width treatment as the brand and nav labels. */
+  max-width: 180px;
+  overflow: hidden;
+  transition:
+    max-width var(--dur-2) var(--ease-out),
+    opacity var(--dur-1) var(--ease-out);
+  white-space: nowrap;
 }
 
 .ad-user-name {
@@ -223,7 +265,15 @@
   cursor: pointer;
   display: flex;
   min-height: auto;
+  max-width: 40px;
+  overflow: hidden;
   padding: 6px;
+  /* Longhand because the collapsed rule needs a per-property delay: visibility
+     must flip only AFTER the width finishes collapsing (see below). */
+  transition-property: max-width, opacity, padding, visibility;
+  transition-duration: var(--dur-2), var(--dur-1), var(--dur-2), 0s;
+  transition-timing-function: var(--ease-out);
+  transition-delay: 0s, 0s, 0s, 0s;
 }
 
 .ad-signout:hover {
@@ -234,7 +284,17 @@
 
 /* ── Content ───────────────────────────────────────────────────────── */
 .ad-main {
-  background: #faf9f6;
+  /* Centred brand watermark under an almost-opaque wash of the page colour —
+     same construction as .workspace, see the note there and --wm-size in
+     index.css. */
+  background-color: #faf9f6;
+  background-image:
+    linear-gradient(rgba(250, 249, 246, 0.94), rgba(250, 249, 246, 0.94)),
+    url('/logo.png');
+  background-position: 0 0, calc(50% + var(--sb-w) / 2) 50%;
+  background-repeat: no-repeat, no-repeat;
+  background-size: auto, var(--wm-size) auto;
+  background-attachment: scroll, fixed;
   margin-left: var(--sb-w);
   min-height: 100svh;
   padding: 32px;
@@ -242,14 +302,25 @@
 }
 
 /* ── Collapsed rail state (shared by every sidebar) ────────────────── */
+
+/* Stays a row. The logo was the only reason this had to stack into a column —
+   at 46px it cannot sit beside the 30px toggle inside a 76px rail — so the
+   logo is collapsed away instead and the toggle simply centres. The header
+   keeps its height and nothing below it moves. */
 .sb-collapsed .ad-brand {
-  flex-direction: column;
-  gap: 12px;
-  padding: 18px 8px;
+  gap: 0;
+  justify-content: center;
+  padding: 20px 8px;
+}
+
+.sb-collapsed .ad-logo {
+  opacity: 0;
+  width: 0;
 }
 
 .sb-collapsed .ad-brand-text {
-  display: none;
+  max-width: 0;
+  opacity: 0;
 }
 
 .sb-collapsed .ad-collapse {
@@ -260,28 +331,55 @@
   padding: 14px 10px;
 }
 
+/* gap:0 as well as the label collapse — a 12px gap beside a zero-width label
+   would push each icon off-centre in the rail. */
 .sb-collapsed .ad-nav button {
+  gap: 0;
   justify-content: center;
   padding: 10px 0;
 }
 
 .sb-collapsed .ad-nav-label {
-  display: none;
+  max-width: 0;
+  opacity: 0;
 }
 
+/* Stays a row, for the same reason the brand does: the sign-out button was the
+   only thing that could not sit beside the avatar in a 76px rail, so it is
+   collapsed away and the avatar simply centres. Keeps this block at its
+   expanded 68px instead of restacking to 124px and jolting the rail. */
 .sb-collapsed .ad-user {
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 8px;
+  gap: 0;
+  justify-content: center;
+  /* Vertical padding matches the expanded state exactly; only the horizontal
+     tightens. Anything else reintroduces a height change here. */
+  padding: 16px 8px;
+}
+
+.sb-collapsed .ad-signout {
+  max-width: 0;
+  opacity: 0;
+  padding-left: 0;
+  padding-right: 0;
+  /* Pulled out of the tab order once hidden — a keyboard user must not be able
+     to land on an invisible sign-out. Delayed by the collapse duration so it
+     disappears only after shrinking; expanding restores it immediately via the
+     0s delay on the base rule. */
+  visibility: hidden;
+  transition-delay: 0s, 0s, 0s, var(--dur-2);
 }
 
 .sb-collapsed .ad-user-main {
-  display: none;
+  max-width: 0;
+  opacity: 0;
 }
 
 .sb-collapsed .ad-user-trigger {
+  gap: 0;
   justify-content: center;
-  margin: 0;
+  /* Keeps the vertical pull-in (only the left inset is dropped) — zeroing it
+     outright added 16px of height to the block on every collapse. */
+  margin: -8px 0;
   width: 100%;
 }
 

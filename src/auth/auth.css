@@ -24,6 +24,16 @@
   height: 100svh;
 }
 
+/* With the carousel in place the panel is a three-band layout — brand, stage,
+   tagline — so the deep top padding that centred the old headline is dropped
+   and the stage takes the slack instead. */
+.auth-hero.has-carousel {
+  gap: 20px;
+  /* Narrower side gutters than the default panel so the tagline (and the
+     carousel) reach closer to the edges while still keeping clear of them. */
+  padding: 6svh 34px 5svh;
+}
+
 .auth-hero::after {
   /* soft brand glow */
   background: radial-gradient(circle at 30% 20%, rgba(231, 104, 20, 0.35), transparent 60%);
@@ -53,7 +63,7 @@
 .auth-brand-name {
   color: #ffffff;
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 34px;
   font-weight: 700;
 }
 
@@ -75,11 +85,117 @@
 }
 
 .auth-hero-sub {
-  font-size: 18px;
-  line-height: 1.6;
-  max-width: 44ch;
+  font-size: 14px;
+  line-height: 1.55;
+  /* max-width keeps the measure readable; the auto margins then centre that
+     block inside the panel, since .auth-hero stretches its children by
+     default and would otherwise leave it flush left. */
+  margin-inline: auto;
+  /* Wide enough to run nearly the full panel on a laptop, but still capped so
+     the line never gets unreadably long on a large monitor. */
+  max-width: 68ch;
+  position: relative;
+  text-align: center;
+  z-index: 1;
+}
+
+/* ── Coverflow carousel (HeroCarousel.tsx) ─────────────────────────── */
+.cf {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 22px;
+  justify-content: center;
+  /* min-height:0 lets the stage shrink inside the fixed-height panel instead
+     of forcing it to overflow on short screens. */
+  min-height: 0;
   position: relative;
   z-index: 1;
+}
+
+.cf-stage {
+  flex: 1;
+  min-height: 0;
+  /* The vanishing point every slide's rotateY/translateZ is measured against —
+     without it the ring is flat and the effect collapses to a plain row. */
+  perspective: 1400px;
+  position: relative;
+  width: 100%;
+}
+
+.cf-item {
+  aspect-ratio: 4 / 3;
+  border-radius: 18px;
+  box-shadow: 0 22px 45px rgba(0, 0, 0, 0.45);
+  left: 50%;
+  overflow: hidden;
+  position: absolute;
+  top: 50%;
+  transform-style: preserve-3d;
+  transition:
+    opacity 780ms var(--ease-out),
+    transform 780ms var(--ease-out);
+  width: min(74%, 460px);
+  will-change: transform;
+}
+
+.cf-item img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  width: 100%;
+}
+
+/* A brighter rim on the centre slide separates it from the ones behind. */
+.cf-item.is-active {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 30px 60px rgba(0, 0, 0, 0.5);
+}
+
+.cf-dots {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.cf-dot {
+  background: rgba(255, 255, 255, 0.32);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  height: 8px;
+  /* The global `button` rule in App.css sets min-height:38px, which beats a
+     plain height and stretched these into tall bars. Reset it (and the
+     inherited padding) so the dot is genuinely 8px square. */
+  min-height: 0;
+  padding: 0;
+  transition:
+    background var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out);
+  width: 8px;
+}
+
+/* Neutralise the global button:hover lift — it shifts and shadows the dots. */
+.cf-dot:hover {
+  background: rgba(255, 255, 255, 0.65);
+  box-shadow: none;
+  transform: none;
+}
+
+/* Scaled rather than widened, so the active dot stays a circle and the row
+   never reflows as it moves. */
+.cf-dot.is-active,
+.cf-dot.is-active:hover {
+  background: #ffffff;
+  transform: scale(1.45);
+}
+
+.cf-dot:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
 }
 
 /* ── Right form card ───────────────────────────────────────────────── */
@@ -403,7 +519,20 @@
 .auth-loading {
   align-items: center;
   animation: auth-fade-in 0.4s ease both;
-  background: #faf9f6;
+  /* Centred brand watermark under an almost-opaque wash of the page colour —
+     same construction as .workspace / .ad-main, see index.css (--wm-size).
+     The --sb-w fallback of 0px matters: these screens render both full-page
+     (no sidebar, so centre on the viewport) and nested inside the workspace
+     for in-app loads, where inheriting the real sidebar width lines this mark
+     up with the one already behind the page. */
+  background-color: #faf9f6;
+  background-image:
+    linear-gradient(rgba(250, 249, 246, 0.94), rgba(250, 249, 246, 0.94)),
+    url('/logo.png');
+  background-position: 0 0, calc(50% + var(--sb-w, 0px) / 2) 50%;
+  background-repeat: no-repeat, no-repeat;
+  background-size: auto, var(--wm-size) auto;
+  background-attachment: scroll, fixed;
   color: var(--text);
   display: flex;
   flex-direction: column;

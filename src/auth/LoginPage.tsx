@@ -9,6 +9,7 @@ import {
   verifyPasswordResetCode,
   verifySignupCode,
 } from '../lib/auth'
+import { HeroCarousel, hasHeroSlides } from './HeroCarousel'
 import { PasswordField } from './PasswordField'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { DEMO_ADMIN, DEMO_COMPANY, DEMO_STUDENT } from '../lib/demo'
@@ -41,7 +42,7 @@ export function LoginPage() {
 
   return (
     <div className="auth-shell">
-      <section className="auth-hero">
+      <section className={`auth-hero${hasHeroSlides ? ' has-carousel' : ''}`}>
         <div className="auth-brand">
           <img className="auth-logo" src="/logo.png" alt="InternConnect" />
           <div>
@@ -49,7 +50,14 @@ export function LoginPage() {
             <div className="auth-brand-sub">Where Skills Meet Opportunity</div>
           </div>
         </div>
-        <h1>Find Your Perfect Internship.</h1>
+        {/* The carousel is the panel's centrepiece once slides exist. Until
+            then it renders nothing, so the original headline stays rather than
+            leaving a hole — drop images in ./slides to switch over. */}
+        {hasHeroSlides ? (
+          <HeroCarousel />
+        ) : (
+          <h1>Find Your Perfect Internship.</h1>
+        )}
         <p className="auth-hero-sub">
           Explore verified opportunities, apply with ease, and track your internship journey—all in one platform designed for students and the industry.
         </p>
