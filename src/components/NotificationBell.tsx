@@ -31,6 +31,7 @@ export function NotificationBell({
   onLoadMore,
 }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [clickedId, setClickedId] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Counting the loaded page would undercount once the list is paginated —
@@ -109,12 +110,16 @@ export function NotificationBell({
                 notifications.map((n) => (
                   <div
                     key={n.id}
-                    className={`nb-item ${n.read ? 'read' : 'unread'} ${n.onClick ? 'clickable' : ''}`}
+                    className={`nb-item ${n.read ? 'read' : 'unread'} ${n.onClick ? 'clickable' : ''} ${clickedId === n.id ? 'clicked' : ''}`}
                     onClick={() => {
+                      setClickedId(n.id)
                       if (onMarkRead) onMarkRead(n.id)
                       if (n.onClick) {
-                        n.onClick()
-                        setIsOpen(false)
+                        // Small delay to show the outline before routing/closing
+                        setTimeout(() => {
+                          n.onClick!()
+                          setIsOpen(false)
+                        }, 150)
                       }
                     }}
                     role={n.onClick ? "button" : undefined}

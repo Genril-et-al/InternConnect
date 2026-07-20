@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Plus, Search, Trash2, X } from 'lucide-react'
 import type { CompanyApplicant, CompanyListing, PreEmploymentRequirement } from './companyData'
 import type { NewListingInput } from './companyQueries'
@@ -18,12 +18,22 @@ export function CompanyListings({
   onCreate: (input: NewListingInput) => Promise<void>
   onSetStatus: (id: string, status: CompanyListing['status']) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  highlightedListingId?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [isPosting, setIsPosting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [previewListing, setPreviewListing] = useState<CompanyListing | null>(null)
+
+  useEffect(() => {
+    if (highlightedListingId) {
+      setTimeout(() => {
+        const el = document.querySelector('.cp-card.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedListingId])
 
   const run = (action: () => Promise<void>) => {
     setActionError(null)
@@ -102,7 +112,7 @@ export function CompanyListings({
           <div className="cp-card cp-empty">No listings found.</div>
         ) : (
           filtered.map((l) => (
-            <div className="cp-card" key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px', cursor: 'pointer' }} onClick={() => setPreviewListing(l)}>
+            <div className={`cp-card ${l.id === highlightedListingId ? 'highlighted' : ''}`} key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px', cursor: 'pointer' }} onClick={() => setPreviewListing(l)}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>{l.title}</h3>

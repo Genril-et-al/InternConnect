@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Briefcase,
   Bookmark,
@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Search,
+  Upload,
   Users,
   XCircle,
 } from 'lucide-react'
@@ -198,6 +199,7 @@ function StudentPortal({
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
   const [applicationFilter, setApplicationFilter] = useState('All')
   const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
+  const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null)
 
   // Live data — listings, my applications, my bookmarks (UC-S03..S05).
   const [internships, setInternships] = useState<Internship[]>([])
@@ -310,7 +312,7 @@ function StudentPortal({
           onSelectInternship={setSelectedInternship}
         />
       )}
-      {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} />}
+      {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} highlightedAppId={highlightedAppId} />}
       {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => handleNavigate('Dashboard')} />}
       {activeView === 'Dashboard' && (
         <StudentDashboard
@@ -328,6 +330,10 @@ function StudentPortal({
               setSelectedInternship(internship)
               onNavigate('Browse Internships')
             }
+          }}
+          onHighlightApplication={(id) => {
+            setHighlightedAppId(id)
+            if (id) setTimeout(() => setHighlightedAppId(null), 3000)
           }}
         />
       )}
@@ -376,18 +382,36 @@ function BrowseInternships({
   onSelectInternship: (internship: Internship | null) => void
 }) {
   const [query, setQuery] = useState('')
+  const [searchField, setSearchField] = useState('All')
   const [matchFilter, setMatchFilter] = useState('All')
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
+  
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const filtered = useMemo(() => {
     const pillMin = matchThresholds[matchFilter] ?? 0
 
     return internships.filter((internship) => {
-      const matchesQuery = [internship.title, internship.company, internship.industry, ...internship.skills, internship.location]
-        .join(' ')
-        .toLowerCase()
-        .includes(query.toLowerCase())
+      let textToSearch = ''
+      if (searchField === 'Title') textToSearch = internship.title
+      else if (searchField === 'Company') textToSearch = internship.company
+      else if (searchField === 'Location') textToSearch = internship.location
+      else if (searchField === 'Skill') textToSearch = internship.skills.join(' ')
+      else textToSearch = [internship.title, internship.company, internship.industry, ...internship.skills, internship.location].join(' ')
+
+      const matchesQuery = textToSearch.toLowerCase().includes(query.toLowerCase())
       // An unscored listing can only satisfy the "All" pill.
       const matchesScore = internship.match === null 
         ? pillMin === 0 
@@ -395,7 +419,7 @@ function BrowseInternships({
       const matchesBookmarks = !showBookmarksOnly || bookmarkedIds.has(internship.id)
       return matchesQuery && matchesScore && matchesBookmarks
     })
-  }, [internships, query, matchFilter, showBookmarksOnly, bookmarkedIds])
+  }, [internships, query, searchField, matchFilter, showBookmarksOnly, bookmarkedIds])
 
   // Nothing could be scored — the profile carries no skills the AI or the
   // student has supplied.
@@ -465,9 +489,78 @@ function BrowseInternships({
             aria-label="Search internships"
             className="browse-search-input"
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by title, company, skill, or location..."
+            placeholder={searchField === 'All' ? "Search by title, company, skill, or location..." : `Search by ${searchField.toLowerCase()}...`}
             value={query}
           />
+          <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />
+          <div style={{ position: 'relative', height: '100%' }} ref={dropdownRef}>
+            <button 
+              type="button"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              style={{ 
+                margin: 0, 
+                border: 'none', 
+                background: 'transparent', 
+                fontWeight: 600, 
+                color: 'var(--text)', 
+                cursor: 'pointer',
+                padding: '0 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '100%',
+                outline: 'none',
+                fontSize: '14px'
+              }}
+            >
+              {searchField}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            {isDropdownOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                background: 'white',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                zIndex: 100,
+                minWidth: '140px',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                {['All', 'Location', 'Title', 'Company', 'Skill'].map(opt => (
+                  <div 
+                    key={opt}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => { setSearchField(opt); setIsDropdownOpen(false) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { setSearchField(opt); setIsDropdownOpen(false) } }}
+                    style={{
+                      padding: '10px 16px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: searchField === opt ? 'var(--accent)' : 'var(--text)',
+                      background: searchField === opt ? 'var(--accent-soft)' : 'transparent',
+                      fontWeight: searchField === opt ? 600 : 400,
+                      transition: 'background 0.2s',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (searchField !== opt) e.currentTarget.style.background = 'var(--surface-strong)'
+                    }}
+                    onMouseLeave={(e) => {
+                      if (searchField !== opt) e.currentTarget.style.background = 'transparent'
+                    }}
+                  >
+                    {opt}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <button
           aria-label="Toggle bookmarks filter"
@@ -522,7 +615,7 @@ function BrowseInternships({
   )
 }
 
-function ApplicationStrip({ application, onClick, isShaded }: { application: Application; onClick: () => void; isShaded?: boolean }) {
+function ApplicationStrip({ application, onClick, isHighlighted, isShaded }: { application: Application; onClick: () => void; isHighlighted?: boolean; isShaded?: boolean }) {
   let statusClass = 'pending'
   if (application.status === 'Accepted') statusClass = 'success'
   if (application.status === 'Rejected' || application.status === 'Discarded') statusClass = 'error'
@@ -530,7 +623,7 @@ function ApplicationStrip({ application, onClick, isShaded }: { application: App
   if (application.status === 'Offered') statusClass = 'success' // Or maybe a different color, let's use success to highlight it
 
   return (
-    <article className={`application-strip ${isShaded ? 'shaded' : ''}`} role="button" tabIndex={0} onClick={isShaded ? undefined : onClick}>
+    <article className={`application-strip ${isHighlighted ? 'highlighted' : ''} ${isShaded ? 'shaded' : ''}`} role="button" tabIndex={0} onClick={isShaded ? undefined : onClick}>
       {application.companyLogo ? (
         <img src={application.companyLogo} alt={application.company} className="strip-avatar" style={{ objectFit: 'contain' }} />
       ) : (
@@ -952,12 +1045,32 @@ function RequirementSubmitRow({
       {isEditing && (
         <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {requirement.type === 'file' ? (
-            <input
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              style={{ fontSize: '12px' }}
-              type="file"
-            />
+            <label className={`upload-zone ${file ? 'has-file' : ''}`}>
+              <input
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                type="file"
+              />
+              {file ? (
+                <div className="upload-file-info">
+                  <span className="upload-file-icon">📄</span>
+                  <div>
+                    <p className="upload-file-name">{file.name}</p>
+                    <p className="muted">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="upload-placeholder">
+                  <div className="upload-icon">
+                    <Upload size={18} />
+                  </div>
+                  <p>
+                    <strong>Click to browse</strong> or drag file here
+                  </p>
+                  <p className="muted">Supported: PDF, DOCX, JPG, PNG</p>
+                </div>
+              )}
+            </label>
           ) : (
             <textarea
               onChange={(e) => setText(e.target.value)}
@@ -1005,15 +1118,36 @@ function StudentApplications({
   applications,
   onOpenProgress,
   filter,
-  onFilterChange
+  onFilterChange,
+  highlightedAppId
 }: {
   applications: Application[]
   onOpenProgress: (app: Application) => void
   filter: string
   onFilterChange: (filter: string) => void
+  highlightedAppId?: string | null
 }) {
-  const visible = applications.filter((application) => filter === 'All' || application.status === filter)
-  const hasAccepted = applications.some((a) => a.status === 'Accepted')
+  const [searchQuery, setSearchQuery] = useState('')
+  const hasAccepted = applications.some(a => a.status === 'Accepted')
+
+  useEffect(() => {
+    if (highlightedAppId) {
+      // Small delay to ensure render is complete
+      setTimeout(() => {
+        const el = document.querySelector('.application-strip.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedAppId])
+
+  const visible = applications.filter((application) => {
+    const matchesFilter = filter === 'All' || application.status === filter
+    const matchesSearch = [application.company, application.role]
+      .join(' ')
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
 
   const pendingCount = applications.filter((a) => a.status === 'Pending').length
   const acceptedCount = applications.filter((a) => a.status === 'Accepted').length
@@ -1034,7 +1168,21 @@ function StudentApplications({
         <p className="applications-subtitle">{total} total applications</p>
       </div>
 
-      <div className="applications-filters">
+      <div className="browse-search-field">
+        <span className="browse-search-icon">
+          <Search size={16} />
+        </span>
+        <input
+          aria-label="Search applications"
+          className="browse-search-input"
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by role or company..."
+          value={searchQuery}
+        />
+      </div>
+
+      <div className="applications-filters" style={{ alignItems: 'center' }}>
+        <span className="browse-pills-label" style={{ marginRight: 4 }}>Filter by status:</span>
         {filters.map(f => (
           <button
             key={f.label}
@@ -1053,6 +1201,7 @@ function StudentApplications({
             key={app.id} 
             application={app} 
             onClick={() => onOpenProgress(app)}
+            isHighlighted={app.id === highlightedAppId}
             isShaded={hasAccepted && app.status !== 'Accepted'}
           />
         ))}

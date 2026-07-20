@@ -10,10 +10,14 @@ export function CompanyDashboard({
   listings,
   applicants,
   onNavigate,
+  onHighlightListing,
+  onHighlightApplicant,
 }: {
   listings: CompanyListing[]
   applicants: CompanyApplicant[]
   onNavigate: (view: string) => void
+  onHighlightListing?: (id: string) => void
+  onHighlightApplicant?: (id: string) => void
 }) {
   const active = listings.filter((l) => l.status === 'Open').length
   const pending = applicants.filter((a) => a.status === 'Pending').length
@@ -30,7 +34,18 @@ export function CompanyDashboard({
     loadMore,
     handleMarkRead,
     handleMarkAllRead,
-  } = useNotifications(onNavigate)
+  } = useNotifications((hint, notification) => {
+    onNavigate(hint)
+    
+    if (hint === 'Applicants' && notification) {
+      const matched = applicants.find(a => notification.message.includes(a.listingTitle))
+      if (matched) onHighlightApplicant?.(matched.id)
+    }
+    if (hint === 'Listings' && notification) {
+      const matched = listings.find(l => notification.message.includes(l.title))
+      if (matched) onHighlightListing?.(matched.id)
+    }
+  })
 
   return (
     <div className="cp-root">

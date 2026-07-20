@@ -17,12 +17,16 @@ export function AdminDashboard({
   listings,
   appStats,
   onNav,
+  onHighlightCompany,
+  onHighlightListing,
 }: {
   students: AdminStudent[]
   companies: AdminCompany[]
   listings: AdminListing[]
   appStats: AdminAppStats
   onNav: (index: number) => void
+  onHighlightCompany?: (id: string) => void
+  onHighlightListing?: (id: string) => void
 }) {
   const verified = companies.filter((c) => c.verification === 'verified').length
   const pendingVerifs = companies.filter((c) => c.verification === 'pending').length
@@ -44,9 +48,19 @@ export function AdminDashboard({
     loadMore,
     handleMarkRead,
     handleMarkAllRead,
-  } = useNotifications((hint) => {
+  } = useNotifications((hint, notification) => {
     const index = Number(hint.split(':')[1])
     if (!Number.isNaN(index)) onNav(index)
+    
+    if (notification) {
+      if (index === 2) {
+        const match = companies.find(c => notification.message.includes(c.name))
+        if (match) onHighlightCompany?.(match.id)
+      } else if (index === 3) {
+        const match = listings.find(l => notification.message.includes(l.title))
+        if (match) onHighlightListing?.(match.id)
+      }
+    }
   })
 
   // Donut segments via conic-gradient (cumulative start/end stops).

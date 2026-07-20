@@ -37,6 +37,9 @@ export function CompanyPortal({
   const [applicants, setApplicants] = useState<CompanyApplicant[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  
+  const [highlightedListingId, setHighlightedListingId] = useState<string | null>(null)
+  const [highlightedApplicantId, setHighlightedApplicantId] = useState<string | null>(null)
 
   const refresh = useCallback(async (id: string) => {
     const [l, a] = await Promise.all([fetchCompanyListings(id), fetchApplicants(id)])
@@ -122,6 +125,7 @@ export function CompanyPortal({
         onCreate={handleCreate}
         onSetStatus={handleSetStatus}
         onDelete={handleDelete}
+        highlightedListingId={highlightedListingId}
       />
     )
   }
@@ -133,6 +137,7 @@ export function CompanyPortal({
         onSetStatus={handleApplicantStatus}
         onScheduleInterview={handleScheduleInterview}
         onReviewSubmission={handleReviewSubmission}
+        highlightedApplicantId={highlightedApplicantId}
       />
     )
   }
@@ -141,6 +146,12 @@ export function CompanyPortal({
   }
 
   return (
-    <CompanyDashboard applicants={applicants} listings={listings} onNavigate={onNavigate} />
+    <CompanyDashboard 
+      applicants={applicants} 
+      listings={listings} 
+      onNavigate={onNavigate} 
+      onHighlightListing={(id) => { setHighlightedListingId(id); if (id) setTimeout(() => setHighlightedListingId(null), 3000); }}
+      onHighlightApplicant={(id) => { setHighlightedApplicantId(id); if (id) setTimeout(() => setHighlightedApplicantId(null), 3000); }}
+    />
   )
 }

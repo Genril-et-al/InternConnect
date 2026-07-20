@@ -161,7 +161,7 @@
     transform var(--dur-2) var(--ease-out);
 }
 
-.cp-card:hover {
+.cp-card:not(.highlighted):hover {
   border-color: var(--accent);
   box-shadow: 0 8px 24px rgba(231, 104, 20, 0.1);
   transform: translateY(-1px);
@@ -245,7 +245,7 @@
   width: 100%;
 }
 
-.cp-row:hover {
+.cp-row:not(.highlighted):hover {
   border-color: rgba(231, 104, 20, 0.45);
   box-shadow: 0 4px 14px rgba(231, 104, 20, 0.1);
   transform: none;

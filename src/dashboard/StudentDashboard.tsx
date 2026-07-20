@@ -26,6 +26,7 @@ export function StudentDashboard({
   onOpenProgress,
   onFilterApplications,
   onOpenInternship,
+  onHighlightApplication,
 }: {
   internships: Internship[]
   applications: Application[]
@@ -33,6 +34,7 @@ export function StudentDashboard({
   onOpenProgress?: (app: Application) => void
   onFilterApplications?: (filter: string) => void
   onOpenInternship?: (id: string) => void
+  onHighlightApplication?: (id: string) => void
 }) {
   const { profile } = useAuth()
 
@@ -46,9 +48,20 @@ export function StudentDashboard({
     loadMore,
     handleMarkRead,
     handleMarkAllRead,
-  } = useNotifications((hint) => {
-    if (hint === 'Pending') onFilterApplications?.('Pending')
-    else onNavigate(hint)
+  } = useNotifications((hint, notification) => {
+    if (hint === 'Pending') {
+      onFilterApplications?.('Pending')
+    } else {
+      onNavigate(hint)
+    }
+
+    if (hint === 'Applications' && notification) {
+      // Find which application this notification refers to by checking if the role is in the message
+      const matchedApp = applications.find(a => notification.message.includes(a.role))
+      if (matchedApp) {
+        onHighlightApplication?.(matchedApp.id)
+      }
+    }
   })
   const rejected = applications.filter((a) => a.status === 'Rejected').length
   const pending = applications.length - accepted - rejected
@@ -149,7 +162,13 @@ export function StudentDashboard({
             <p className="sd-muted sd-empty">No internships posted yet.</p>
           )}
           {internships.slice(0, 3).map((job) => (
-            <div className="sd-list-row" key={job.id}>
+            <div 
+              className="sd-list-row clickable" 
+              key={job.id}
+              onClick={() => onOpenInternship?.(job.id)}
+              role="button"
+              tabIndex={0}
+            >
               {job.companyLogo ? (
                 <img src={job.companyLogo} alt={job.company} className="sd-mark" style={{ objectFit: 'contain' }} />
               ) : (

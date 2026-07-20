@@ -13,16 +13,28 @@ export function AdminCompanies({
   loading,
   loadError,
   onRefresh,
+  highlightedCompanyId,
 }: {
   companies: AdminCompany[]
   loading: boolean
   loadError: string | null
   onRefresh: () => Promise<void>
+  highlightedCompanyId?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | VerifStatus>('all')
   const [tierFilter, setTierFilter] = useState('all')
   const [locationFilter, setLocationFilter] = useState('all')
+
+  useEffect(() => {
+    if (highlightedCompanyId) {
+      setTimeout(() => {
+        const el = document.querySelector('tr.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedCompanyId])
+
   const [showAddModal, setShowAddModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminCompany | null>(null)
@@ -138,7 +150,7 @@ export function AdminCompanies({
           <tbody>
             {filtered.map((c) => {
               return (
-                <tr key={c.id} onClick={() => setViewTarget(c)} style={{ cursor: 'pointer' }}>
+                <tr key={c.id} onClick={() => setViewTarget(c)} style={{ cursor: 'pointer' }} className={c.id === highlightedCompanyId ? 'highlighted' : ''}>
                   <td>
                     <div className="ad-cell-person">
                       <span className="ad-cell-mark square">{c.name.slice(0, 2).toUpperCase()}</span>
