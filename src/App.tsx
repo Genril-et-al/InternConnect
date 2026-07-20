@@ -274,9 +274,9 @@ function StudentPortal({
   const openProgress = (app: Application) => setSelectedAppId(app.id)
 
   const handleApply = useCallback(
-    async (listingId: string, coverLetter: string) => {
+    async (listingId: string) => {
       if (!userId) throw new Error('Not signed in.')
-      await applyToListing(userId, listingId, coverLetter)
+      await applyToListing(userId, listingId)
       await refresh()
     },
     [userId, refresh],
@@ -377,7 +377,7 @@ function BrowseInternships({
   appliedIds: Set<string>
   bookmarkedIds: Set<string>
   onToggleBookmark: (listingId: string) => void
-  onApply: (listingId: string, coverLetter: string) => Promise<void>
+  onApply: (listingId: string) => Promise<void>
   selectedInternship: Internship | null
   onSelectInternship: (internship: Internship | null) => void
 }) {
@@ -454,7 +454,7 @@ function BrowseInternships({
         />
         <ApplyModal
           internship={selectedInternship}
-          onSubmit={(coverLetter) => onApply(selectedInternship.id, coverLetter)}
+          onSubmit={() => onApply(selectedInternship.id)}
           onClose={() => setShowApplyModal(false)}
         />
       </>
@@ -634,7 +634,6 @@ function ApplicationStrip({ application, onClick, isHighlighted, isShaded }: { a
         <p className="strip-subtitle">
           {application.company} · Applied {application.dateApplied}
         </p>
-        <p className="strip-summary">I am passionate about {application.role.toLowerCase()} and eager to contribute to {application.company}.</p>
       </div>
       <div className="strip-right">
         <span className={`status ${statusClass}`}>{application.status}</span>
@@ -1363,28 +1362,85 @@ function InternshipDetailView({
   )
 }
 
+/** Last path segment of a stored document path, for display. */
+function documentFileName(path?: string | null): string {
+  if (!path) return ''
+  return decodeURIComponent(path.split('/').pop() ?? path)
+}
+
+/** One profile document listed in the apply modal, with a view action. */
+function ApplyDocumentRow({
+  label,
+  name,
+  onView,
+  busy,
+  required,
+}: {
+  label: string
+  name: string
+  onView: () => void
+  busy?: boolean
+  required?: boolean
+}) {
+  return (
+    <div className="upload-zone has-file" style={{ marginBottom: '8px' }}>
+      <div className="upload-file-info">
+        <span className="upload-file-icon">📄</span>
+        <div style={{ minWidth: 0 }}>
+          <p className="upload-file-name">
+            {label} {required && <span className="required">*</span>}
+          </p>
+          <p className="muted" style={{ overflowWrap: 'anywhere' }}>{name}</p>
+        </div>
+      </div>
+      <button className="sd-link" disabled={busy} onClick={onView} type="button">
+        {busy ? 'Opening…' : 'View'}
+      </button>
+    </div>
+  )
+}
+
 function ApplyModal({
   internship,
   onSubmit,
   onClose,
 }: {
   internship: Internship
-  onSubmit: (coverLetter: string) => Promise<void>
+  onSubmit: () => Promise<void>
   onClose: () => void
 }) {
-  const { profile } = useAuth()
-  const [coverLetter, setCoverLetter] = useState('')
+  const { profile, demo } = useAuth()
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [openingDoc, setOpeningDoc] = useState(false)
 
   const hasResume = Boolean(profile?.resume_url)
+
+  /** Open a stored profile document in a new tab via a short-lived signed URL. */
+  const viewDocument = async (path: string | null | undefined, downloadName: string) => {
+    if (!path) return
+    if (demo) {
+      setSubmitError('In demo mode, files are not uploaded to the server, so they cannot be viewed.')
+      return
+    }
+    setOpeningDoc(true)
+    setSubmitError(null)
+    try {
+      const url = await signedDocumentUrl(path, downloadName)
+      window.open(url, '_blank')
+    } catch {
+      setSubmitError('Failed to load the document.')
+    } finally {
+      setOpeningDoc(false)
+    }
+  }
 
   const handleSubmit = async () => {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      await onSubmit(coverLetter)
+      await onSubmit()
       setSubmitted(true)
       setTimeout(() => {
         onClose()
@@ -1434,41 +1490,56 @@ function ApplyModal({
               </div>
             </div>
 
-            {/* Resume from profile + cover letter */}
+            {/* Documents pulled straight from the student's profile — nothing is
+                typed or uploaded here, so they can see exactly what gets sent. */}
             <div className="modal-uploads">
               <div className="modal-upload-field">
-                <label>
-                  Resume <span className="required">*</span>
-                </label>
+                <label>What {internship.company} will receive</label>
+
                 {hasResume ? (
-                  <div className="upload-zone has-file">
-                    <div className="upload-file-info">
-                      <span className="upload-file-icon">📄</span>
-                      <div>
-                        <p className="upload-file-name">Your profile resume will be shared</p>
-                        <p className="muted">Update it anytime from your profile.</p>
-                      </div>
-                    </div>
-                  </div>
+                  <ApplyDocumentRow
+                    busy={openingDoc}
+                    label="Resume"
+                    name={documentFileName(profile?.resume_url)}
+                    onView={() => viewDocument(profile?.resume_url, 'resume')}
+                    required
+                  />
                 ) : (
                   <p className="muted">
                     No resume on your profile yet — upload one from your profile before applying.
                   </p>
                 )}
-              </div>
 
-              <div className="modal-upload-field">
-                <label htmlFor="cover-letter-text">
-                  Cover Letter <span className="optional">(optional)</span>
-                </label>
-                <textarea
-                  id="cover-letter-text"
-                  onChange={(e) => setCoverLetter(e.target.value)}
-                  placeholder={`Tell ${internship.company} why you're a great fit…`}
-                  rows={5}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', resize: 'vertical', color: 'var(--text)' }}
-                  value={coverLetter}
-                />
+                {profile?.cover_letter_url && (
+                  <ApplyDocumentRow
+                    busy={openingDoc}
+                    label="Cover Letter"
+                    name={documentFileName(profile.cover_letter_url)}
+                    onView={() => viewDocument(profile.cover_letter_url, 'cover_letter')}
+                  />
+                )}
+
+                {profile?.portfolio_file_url && (
+                  <ApplyDocumentRow
+                    busy={openingDoc}
+                    label="Portfolio"
+                    name={documentFileName(profile.portfolio_file_url)}
+                    onView={() => viewDocument(profile.portfolio_file_url, 'portfolio')}
+                  />
+                )}
+
+                {profile?.portfolio_link && (
+                  <ApplyDocumentRow
+                    busy={openingDoc}
+                    label="Portfolio Link"
+                    name={profile.portfolio_link}
+                    onView={() => window.open(profile.portfolio_link!, '_blank', 'noopener,noreferrer')}
+                  />
+                )}
+
+                <p className="muted" style={{ marginTop: '8px' }}>
+                  These come from your profile — update them there to change what is sent.
+                </p>
               </div>
             </div>
 

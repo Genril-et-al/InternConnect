@@ -433,7 +433,23 @@ function ApplicantDetail({
 
       <section className="cp-card">
         <p className="cp-section-label">Cover letter</p>
-        <p className="cp-cover">{applicant.coverLetter}</p>
+        {applicant.coverLetterFile ? (
+          <div className="cp-doc">
+            <FileText size={14} />
+            <span className="cp-doc-name">
+              {docLabel(applicant.coverLetterFile, applicant.name, 'Cover Letter')}
+            </span>
+            <button
+              onClick={() => handleOpenDocument(applicant.coverLetterFile!, docLabel(applicant.coverLetterFile!, applicant.name, 'Cover Letter'))}
+              type="button"
+              disabled={previewLoading}
+            >
+              <Download size={12} /> View
+            </button>
+          </div>
+        ) : (
+          <p className="cp-muted">No cover letter uploaded.</p>
+        )}
       </section>
 
       {rejectOpen && (

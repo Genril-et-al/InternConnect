@@ -65,7 +65,8 @@ export type CompanyApplicant = {
   portfolioLink?: string
   /** Storage path of the student's portfolio file. */
   portfolioFile?: string
-  coverLetter: string
+  /** Storage path of the student's cover letter file, if they uploaded one. */
+  coverLetterFile?: string
   /** Feedback sent to the applicant when rejected. */
   feedback?: string
   /** Additional requirement files sent when accepted (student can download). */

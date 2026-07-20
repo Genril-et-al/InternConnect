@@ -161,6 +161,7 @@ type ApplicantProfile = {
   skills: string[]
   specializations: string[]
   resume_url: string | null
+  cover_letter_url: string | null
   portfolio_link: string | null
   portfolio_file_url: string | null
 }
@@ -170,7 +171,6 @@ type ApplicantRow = {
   listing_id: string
   student_id: string
   status: string
-  cover_letter: string | null
   feedback: string | null
   next_step: string | null
   created_at: string
@@ -192,7 +192,7 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
   const { data, error } = await supabase
     .from('applications')
     .select(
-      'id, listing_id, student_id, status, cover_letter, feedback, next_step, created_at, ' +
+      'id, listing_id, student_id, status, feedback, next_step, created_at, ' +
         'listings!inner(title, skills, company_id, listing_requirements(id, name)), ' +
         'requirement_submissions(id, requirement_id, status, file_path, text_value)',
     )
@@ -210,7 +210,7 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
   if (studentIds.length > 0) {
     const { data: profiles, error: profilesError } = await supabase
       .from('applicant_profiles')
-      .select('id, full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url')
+      .select('id, full_name, email, skills, specializations, resume_url, cover_letter_url, portfolio_link, portfolio_file_url')
       .in('id', studentIds)
     if (profilesError) throw new Error(profilesError.message)
     for (const p of (profiles ?? []) as ApplicantProfile[]) profileById.set(p.id, p)
@@ -260,7 +260,8 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
       resume: profile?.resume_url ?? '',
       portfolioLink: profile?.portfolio_link ?? undefined,
       portfolioFile: profile?.portfolio_file_url ?? undefined,
-      coverLetter: r.cover_letter ?? '',
+      // Cover letters are files on the student's profile now, not typed text.
+      coverLetterFile: profile?.cover_letter_url ?? undefined,
       feedback: r.feedback ?? undefined,
       nextStep: r.next_step ?? undefined,
       submittedRequirements: submitted,

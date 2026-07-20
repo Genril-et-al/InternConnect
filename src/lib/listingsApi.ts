@@ -97,7 +97,6 @@ type ApplicationRow = {
   listing_id: string
   status: string
   next_step: string | null
-  cover_letter: string | null
   feedback: string | null
   created_at: string
   listings: {
@@ -113,7 +112,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
   const { data, error } = await supabase
     .from('applications')
     .select(
-      'id, listing_id, status, next_step, cover_letter, feedback, created_at, ' +
+      'id, listing_id, status, next_step, feedback, created_at, ' +
         'listings(title, companies(name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
         'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
@@ -160,7 +159,6 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
       dateApplied: formatDate(r.created_at),
       status: STATUS_LABELS[r.status] ?? 'Pending',
       nextStep: r.next_step ?? '',
-      coverLetter: r.cover_letter ?? undefined,
       requirements: reqs,
       approvedRequirements: approved,
     }
@@ -171,12 +169,10 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
 export async function applyToListing(
   studentId: string,
   listingId: string,
-  coverLetter: string,
 ): Promise<void> {
   const { error } = await supabase.from('applications').insert({
     listing_id: listingId,
     student_id: studentId,
-    cover_letter: coverLetter.trim() || null,
   })
   if (error) {
     if (error.code === '23505') throw new Error('You have already applied to this internship.')

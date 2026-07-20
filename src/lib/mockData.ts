@@ -56,7 +56,6 @@ export type Application = {
   dateApplied: string
   status: ApplicationStatus
   nextStep: string
-  coverLetter?: string
   requirements?: PreEmploymentRequirement[]
   approvedRequirements?: number
 }
