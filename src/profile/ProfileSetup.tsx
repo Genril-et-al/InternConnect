@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import {
   completeProfile,
+  markResumeReplaced,
+  removeAvatar,
+  removeDocument,
   uploadAvatar,
   uploadDocument,
   signedDocumentUrl,
@@ -121,6 +124,52 @@ export function ProfileSetup({
     }
   }
 
+  /**
+   * Re-run the AI over the resume already on file. Without this, analysis only
+   * ever ran on a fresh upload, so a resume stored before the AI worked could
+   * never get a status without re-uploading the same document.
+   */
+  async function handleAnalyzeExisting() {
+    if (!profile?.resume_url || demo) return
+    setAnalyzing(true)
+    setError('')
+    try {
+      const result = await analyzeResume(profile.resume_url)
+      if (result.status === 'no_skills_found') {
+        setResumeRejected({
+          fileName: displayResumeName ?? 'your current resume',
+          message: result.message || NO_SKILLS_MESSAGE,
+          suggestion: result.suggestion ?? null,
+        })
+      } else if (result.status === 'unsupported_format') {
+        setError(result.message)
+      } else {
+        setSkills((prev) => mergeTags(prev, result.skills))
+        setSpecializations((prev) => mergeTags(prev, result.specializations))
+        setResumeRejected(null)
+      }
+      await refreshProfile()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  /**
+   * Picking a new resume clears the previous AI rejection straight away — that
+   * banner described the old file, so leaving it up makes a fresh upload look
+   * rejected before it has even been analyzed.
+   */
+  function handlePickResume(file: File | null) {
+    setResume(file)
+    if (file) {
+      setResumeRejected(null)
+      setError('')
+    }
+
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setError('')
@@ -164,13 +213,24 @@ export function ProfileSetup({
     }
 
     setBusy(true)
+    // Captured up front so the files being replaced can be cleaned up *after*
+    // the profile row commits, never before.
+    const prevPhotoUrl = profile?.photo_url ?? null
+    const prevResumePath = profile?.resume_url ?? null
+    const prevPortfolioPath = profile?.portfolio_file_url ?? null
     try {
-      const photoUrl = photo 
-        ? await uploadAvatar(userId, photo) 
+      const photoUrl = photo
+        ? await uploadAvatar(userId, photo)
         : (photoPreview ? profile?.photo_url : null)
       const resumePath = resume
         ? await uploadDocument(userId, 'resume', resume)
         : profile?.resume_url ?? null
+
+      // A new resume invalidates the previous AI verdict immediately, so a
+      // stale rejection can't outlive the file it was about.
+      if (resume && resumePath) {
+        await markResumeReplaced(userId)
+      }
 
       // AI analysis (cloud-side): read the new resume with Gemini and extract
       // skills/specializations. Runs only when a new resume was uploaded.
@@ -241,6 +301,17 @@ export function ProfileSetup({
         contactNumber: contactNumber.trim() || null,
       })
       await refreshProfile()
+
+      // The row now points at the new files, so the replaced ones are safe to
+      // drop. Best-effort: an orphaned file is harmless, a missing one is not.
+      try {
+        if (resumePath !== prevResumePath) await removeDocument(userId, prevResumePath)
+        if (portfolioFilePath !== prevPortfolioPath) await removeDocument(userId, prevPortfolioPath)
+        if (photoUrl !== prevPhotoUrl) await removeAvatar(userId, prevPhotoUrl)
+      } catch {
+        /* cleanup failure must not fail the save */
+      }
+
       onDone?.() // Redirect to the dashboard after saving.
     } catch (err) {
       setError(errorMessage(err))
@@ -274,8 +345,8 @@ export function ProfileSetup({
         <h1>{isEdit ? 'My Profile' : 'Set up your profile'}</h1>
         <p>
           {isEdit
-            ? 'Keep your skills, documents, and portfolio up to date — changes feed the AI matching system.'
-            : 'Complete your profile so companies and the AI matching system can see your qualifications.'}
+            ? 'Keep your skills, documents, and portfolio up to date — changes feed the matching system.'
+            : 'Complete your profile so companies and the matching system can see your qualifications.'}
         </p>
       </div>
 
@@ -310,16 +381,18 @@ export function ProfileSetup({
             </span>
             <label 
               style={{ 
-                position: 'absolute', bottom: '0px', right: '-8px', background: 'var(--brand-orange)', 
-                color: 'white', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', 
+                position: 'absolute', bottom: '0px', right: '-4px', background: 'var(--brand-orange)', 
+                color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', 
                 alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid white',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
               }}
               title="Edit photo"
             >
-              <Pencil size={14} />
+              <Pencil size={12} />
+              {/* Matches the avatars bucket allowlist (20260720000000_storage_bucket_limits) —
+                  image/* would let the picker offer SVG/HEIC, which the bucket rejects. */}
               <input
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp,image/gif"
                 hidden
                 onChange={(e) => handlePhoto(e.target.files?.[0] ?? null)}
                 type="file"
@@ -340,36 +413,36 @@ export function ProfileSetup({
         </div>
       </section>
 
-      {/* Read-only name (from registration / database) */}
+      {/* Basic details */}
       <section className="profile-section">
         <div className="profile-section-head">
           <h2>Name</h2>
-          <span className="profile-locked">Locked · from your account</span>
+          <span className="profile-optional">Locked · from your account</span>
         </div>
         <div className="profile-name-grid">
           <label>
-            First name
-            <input readOnly value={first} />
+            First Name
+            <input disabled value={first} />
           </label>
           <label>
             M.I.
-            <input readOnly value={mi} />
+            <input disabled value={mi} />
           </label>
           <label>
-            Last name
-            <input readOnly value={last} />
+            Last Name
+            <input disabled value={last} />
           </label>
           <label>
             Suffix
-            <input readOnly value={suffix} />
+            <input disabled value={suffix} />
           </label>
         </div>
       </section>
 
-      {/* Personal details — filled here, not during sign-up */}
+      {/* Personal Information */}
       <section className="profile-section">
         <div className="profile-section-head">
-          <h2>Personal information</h2>
+          <h2>Personal Information</h2>
           <span className="profile-optional">Optional · editable anytime</span>
         </div>
         <div className="profile-personal-grid">
@@ -377,9 +450,8 @@ export function ProfileSetup({
             Age
             <input
               inputMode="numeric"
-              min={0}
-              onChange={(e) => setAge(e.target.value)}
-              type="number"
+              onChange={(e) => setAge(e.target.value.replace(/\D/g, ''))}
+              placeholder="e.g. 21"
               value={age}
             />
           </label>
@@ -400,24 +472,24 @@ export function ProfileSetup({
             Address
             <input
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Street, City, Province"
+              placeholder="City, Province"
               value={address}
             />
           </label>
           <label>
-            Personal email address
+            Personal Email Address
             <input
               onChange={(e) => setPersonalEmail(e.target.value)}
-              placeholder="name@gmail.com"
+              placeholder="Not your @cit.edu email"
               type="email"
               value={personalEmail}
             />
           </label>
           <label>
-            Contact number
+            Contact Number
             <input
               onChange={(e) => setContactNumber(e.target.value)}
-              placeholder="09XX XXX XXXX"
+              placeholder="09..."
               type="tel"
               value={contactNumber}
             />
@@ -459,7 +531,8 @@ export function ProfileSetup({
         </div>
         <div>
           {resume || profile?.resume_url ? (
-            <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', cursor: 'default' }}>
+            <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'default' }}>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -473,22 +546,54 @@ export function ProfileSetup({
               >
                 {displayResumeName}
               </button>
-              <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
-                Change
-                <input
-                  accept=".pdf,.doc,.docx"
-                  hidden
-                  onChange={(e) => setResume(e.target.files?.[0] ?? null)}
-                  type="file"
-                />
-              </label>
+              {/*
+                The display name is derived from the surname, so picking a new
+                file of the same type produces an identical label and the card
+                looks unchanged. Name the pending file explicitly.
+              */}
+              {resume && (
+                <span style={{ fontSize: '12px', color: 'var(--brand-orange)', fontWeight: 500 }}>
+                  New file selected: {resume.name} — save to apply
+                </span>
+              )}
+              </span>
+              <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {!resume && profile?.resume_url && !demo && (
+                  <button
+                    disabled={analyzing || busy}
+                    onClick={handleAnalyzeExisting}
+                    style={{ cursor: analyzing ? 'wait' : 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}
+                    title="Run the AI over the resume already on file"
+                    type="button"
+                  >
+                    {analyzing ? 'Analyzing…' : 'Analyze with AI'}
+                  </button>
+                )}
+                <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
+                  Change
+                  <input
+                    accept=".pdf,.doc,.docx"
+                    hidden
+                    onChange={(e) => {
+                      handlePickResume(e.target.files?.[0] ?? null)
+                      // Clearing the value lets re-selecting the SAME filename
+                      // fire change again; otherwise the picker looks dead.
+                      e.target.value = ''
+                    }}
+                    type="file"
+                  />
+                </label>
+              </span>
             </div>
           ) : (
             <label className="profile-upload block">
               <input
                 accept=".pdf,.doc,.docx"
                 hidden
-                onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  handlePickResume(e.target.files?.[0] ?? null)
+                  e.target.value = ''
+                }}
                 type="file"
               />
               {resumeRejected ? 'Upload a new resume' : 'Upload resume'}

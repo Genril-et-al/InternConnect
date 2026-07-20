@@ -380,9 +380,9 @@
 
 .cp-detail-avatar {
   align-items: center;
-  background: var(--brand-brown);
+  background: #ffffff;
   border-radius: 16px;
-  color: #fff;
+  color: var(--brand-brown);
   display: inline-flex;
   flex-shrink: 0;
   font-family: var(--font-display);

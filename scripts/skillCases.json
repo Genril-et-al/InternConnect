@@ -1,0 +1,138 @@
+[
+  {
+    "name": "Exact match on every skill",
+    "student": ["ESP32", "C/C++", "MQTT", "Arduino", "Git"],
+    "required": ["ESP32", "C/C++", "MQTT", "Arduino", "Git"],
+    "expect": "good"
+  },
+  {
+    "name": "Related embedded/IoT skills, no literal overlap",
+    "student": ["Firmware Development", "Internet of Things", "RTOS", "Version Control"],
+    "required": ["ESP32", "C/C++", "MQTT", "Arduino", "Git"],
+    "expect": "good"
+  },
+  {
+    "name": "Specialist covers a broad requirement",
+    "student": ["C#", ".NET"],
+    "required": ["Software Development"],
+    "expect": "good"
+  },
+  {
+    "name": "Generalist claim against a specific requirement",
+    "student": ["Software Development"],
+    "required": ["C#"],
+    "expect": "partial"
+  },
+  {
+    "name": "Sibling web frameworks",
+    "student": ["React", "TypeScript"],
+    "required": ["Frontend Development", "JavaScript"],
+    "expect": "good"
+  },
+  {
+    "name": "Tooling skills spelled differently",
+    "student": ["Version Control", "Containers"],
+    "required": ["Git", "Docker"],
+    "expect": "partial"
+  },
+  {
+    "name": "Adjacent hardware domain",
+    "student": ["Robotics", "Computer Vision", "Python"],
+    "required": ["ESP32", "C/C++", "MQTT", "Arduino", "Git"],
+    "expect": "partial"
+  },
+  {
+    "name": "Completely unrelated field",
+    "student": ["Graphic Design", "Photoshop", "Copywriting"],
+    "required": ["ESP32", "C/C++", "MQTT", "Arduino", "Git"],
+    "expect": "bad"
+  },
+  {
+    "name": "One broad skill must not cover the whole listing",
+    "student": ["Embedded Systems"],
+    "required": ["ESP32", "C/C++", "Arduino"],
+    "expect": "partial"
+  },
+  {
+    "name": "Networking student against an embedded listing",
+    "student": ["CCNA", "TCP/IP", "Wireshark"],
+    "required": ["ESP32", "Embedded C", "PCB Design"],
+    "expect": "bad"
+  },
+
+  {
+    "name": "Messy capitalisation and punctuation",
+    "student": ["react.js", "NODE JS", "Type-Script"],
+    "required": ["React", "Node.js", "TypeScript"],
+    "expect": "good"
+  },
+  {
+    "name": "Common abbreviations",
+    "student": ["JS", "ML", "OOP"],
+    "required": ["JavaScript", "Machine Learning", "Object Oriented Programming"],
+    "expect": "good"
+  },
+  {
+    "name": "Skills the taxonomy has never seen",
+    "student": ["Vue.js", "Svelte", "Tailwind CSS"],
+    "required": ["Frontend Development", "CSS"],
+    "expect": "partial"
+  },
+  {
+    "name": "Course names instead of skill names",
+    "student": ["Data Structures and Algorithms", "Computer Organization"],
+    "required": ["Software Development", "Embedded Systems"],
+    "expect": "partial"
+  },
+  {
+    "name": "Shotgun profile: lists everything, specialises in nothing",
+    "student": [
+      "Software Development", "Data", "Networking", "Machine Learning",
+      "Frontend Development", "Backend Development", "Robotics", "IoT"
+    ],
+    "required": ["ESP32", "Embedded C", "RTOS"],
+    "expect": "partial"
+  },
+  {
+    "name": "One exact hit out of many requirements",
+    "student": ["Git"],
+    "required": ["ESP32", "C/C++", "MQTT", "Arduino", "Git"],
+    "expect": "bad"
+  },
+  {
+    "name": "Strong candidate with extra unrelated skills",
+    "student": ["Embedded C", "RTOS", "Arduino", "Baking", "Customer Service"],
+    "required": ["Embedded C", "RTOS", "Arduino"],
+    "expect": "good"
+  },
+  {
+    "name": "Two languages under the same root are not interchangeable",
+    "student": ["Python"],
+    "required": ["JavaScript"],
+    "expect": "bad"
+  },
+  {
+    "name": "Data student against a backend listing",
+    "student": ["Data Analysis", "Statistics", "Excel"],
+    "required": ["SQL", "API Development", "Databases"],
+    "expect": "partial"
+  },
+  {
+    "name": "Single requirement, exact hit",
+    "student": ["PCB Design", "KiCad"],
+    "required": ["PCB Design"],
+    "expect": "good"
+  },
+  {
+    "name": "Grandchild covers grandparent requirement",
+    "student": ["KiCad"],
+    "required": ["Hardware Engineering"],
+    "expect": "good"
+  },
+  {
+    "name": "Design student against a design-adjacent dev listing",
+    "student": ["Figma", "UI/UX Design"],
+    "required": ["Frontend Development", "React", "CSS"],
+    "expect": "partial"
+  }
+]

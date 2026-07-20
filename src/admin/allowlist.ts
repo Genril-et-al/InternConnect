@@ -105,9 +105,50 @@ export async function addApprovedCompanies(rows: NewApprovedCompany[]): Promise<
 }
 
 // ---------------------------------------------------------------------------
-// CSV parsing for bulk upload. Dependency-free: handles quoted fields, escaped
-// quotes ("") and both \n and \r\n line endings. The first row is the header.
+// File parsing for bulk upload. CSV is handled in-house (dependency-free);
+// .xlsx/.xls go through SheetJS. Both funnel into the same string[][] shape,
+// where the first row is the header.
 // ---------------------------------------------------------------------------
+
+/** True for the spreadsheet formats we hand to SheetJS rather than parseCsv. */
+function isSpreadsheet(fileName: string): boolean {
+  return /\.(xlsx|xlsm|xls)$/i.test(fileName)
+}
+
+/**
+ * Read an uploaded roster into rows. Excel files are converted here so the
+ * column-mapping below never has to care which format the NLO exported.
+ *
+ * SheetJS is imported lazily — it's ~400KB, and admins who upload CSVs (or
+ * never open this modal) shouldn't pay for it.
+ */
+export async function readRosterFile(file: File): Promise<string[][]> {
+  if (!isSpreadsheet(file.name)) return parseCsv(await file.text())
+
+  const XLSX = await import('xlsx')
+  const wb = XLSX.read(await file.arrayBuffer())
+  const first = wb.SheetNames[0]
+  if (!first) throw new Error('That workbook has no sheets in it.')
+
+  // raw:false renders cells as their displayed text, which keeps student
+  // numbers as "2021304" instead of the number 2021304 (and dates as dates
+  // rather than Excel serials). defval:'' keeps blank cells as columns so
+  // header positions still line up.
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[first], {
+    header: 1,
+    raw: false,
+    defval: '',
+    blankrows: false,
+  })
+  return rows.map((r) => r.map((cell) => (cell == null ? '' : String(cell))))
+}
+
+/** Human-readable list of sheets in a workbook, for the "which sheet?" notice. */
+export async function sheetNames(file: File): Promise<string[]> {
+  if (!isSpreadsheet(file.name)) return []
+  const XLSX = await import('xlsx')
+  return XLSX.read(await file.arrayBuffer(), { bookSheets: true }).SheetNames
+}
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = []
@@ -146,8 +187,7 @@ function headerIndex(header: string[]): Record<string, number> {
   return idx
 }
 
-export function parseStudentsCsv(text: string): NewApprovedStudent[] {
-  const rows = parseCsv(text)
+export function parseStudentRows(rows: string[][]): NewApprovedStudent[] {
   if (rows.length < 2) return []
   const idx = headerIndex(rows[0])
   const at = (r: string[], keys: string[]) => {
@@ -174,8 +214,7 @@ export function parseStudentsCsv(text: string): NewApprovedStudent[] {
   return out
 }
 
-export function parseCompaniesCsv(text: string): NewApprovedCompany[] {
-  const rows = parseCsv(text)
+export function parseCompanyRows(rows: string[][]): NewApprovedCompany[] {
   if (rows.length < 2) return []
   const idx = headerIndex(rows[0])
   const at = (r: string[], keys: string[]) => {

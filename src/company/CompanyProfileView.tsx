@@ -1,17 +1,38 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { CheckCircle2, FileText, Upload, Pencil, X } from 'lucide-react'
 import { TagInput } from '../profile/TagInput'
+import { useAuth } from '../auth/context'
+import { uploadAvatar, removeAvatar } from '../lib/profile'
+import { supabase } from '../lib/supabase'
 
 /**
  * UC-C01 — company profile with logo, details, verification documents, and
  * job specialty/fields (used to route relevant student matches).
  */
 export function CompanyProfileView() {
+  const { profile, updateProfileLocal } = useAuth()
   const [name, setName] = useState('Arcway Labs')
   const [industry, setIndustry] = useState('Software')
-  const [size, setSize] = useState('51-200')
-  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [contactNumber, setContactNumber] = useState('09123456789')
+  const [logoPreview, setLogoPreview] = useState<string | null>(profile?.photo_url ?? null)
+  const [showLogoMenu, setShowLogoMenu] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowLogoMenu(false)
+      }
+    }
+    if (showLogoMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showLogoMenu])
   const [description, setDescription] = useState(
     'A Cebu-based software studio building internal tools and dashboards for growing companies.',
   )
@@ -31,10 +52,29 @@ export function CompanyProfileView() {
     setTimeout(() => setSaved(false), 2500)
   }
 
-  function handleLogo(file: File | null) {
-    if (file) {
-      const url = URL.createObjectURL(file)
-      setLogoPreview(url)
+  async function handleLogo(file: File | null) {
+    if (!profile) return
+    try {
+      if (file) {
+        // Just optimistic UI preview before upload finishes could be added,
+        // but since we want the sidebar to update reliably, we await it.
+        const url = await uploadAvatar(profile.id, file)
+        setLogoPreview(url)
+        updateProfileLocal({ photo_url: url })
+        await supabase.from('companies').update({ logo_url: url }).eq('owner_id', profile.id)
+        await supabase.from('profiles').update({ photo_url: url }).eq('id', profile.id)
+      } else {
+        setLogoPreview(null)
+        updateProfileLocal({ photo_url: null })
+        await supabase.from('companies').update({ logo_url: null }).eq('owner_id', profile.id)
+        await supabase.from('profiles').update({ photo_url: null }).eq('id', profile.id)
+        if (profile.photo_url) {
+          await removeAvatar(profile.id, profile.photo_url)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update logo:', err)
+      alert('Failed to update logo')
     }
   }
 
@@ -81,28 +121,76 @@ export function CompanyProfileView() {
               style={{ overflow: 'hidden', cursor: logoPreview ? 'pointer' : 'default' }}
             >
               {logoPreview ? (
-                <img src={logoPreview} alt="Company logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={logoPreview} alt="Company logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               ) : (
                 name.slice(0, 2).toUpperCase()
               )}
             </span>
-            <label 
-              style={{ 
-                position: 'absolute', bottom: '0px', right: '-8px', background: 'var(--brand-orange)', 
-                color: 'white', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', 
-                alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '2px solid white',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}
-              title="Edit logo"
-            >
-              <Pencil size={14} />
-              <input 
-                hidden 
-                type="file" 
-                accept="image/*" 
-                onChange={(e) => handleLogo(e.target.files?.[0] ?? null)} 
+            <div ref={menuRef} style={{ position: 'absolute', bottom: '0', right: '-4px' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShowLogoMenu(!showLogoMenu)
+                }}
+                style={{ 
+                  background: 'var(--brand-orange)', color: 'white', borderRadius: '50%', width: '22px', 
+                  height: '22px', minWidth: '22px', minHeight: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  cursor: 'pointer', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', padding: 0, boxSizing: 'border-box'
+                }}
+                title="Edit logo options"
+                type="button"
+              >
+                <Pencil size={10} />
+              </button>
+              
+              {showLogoMenu && (
+                <div 
+                  style={{ 
+                    position: 'absolute', top: '0', left: '100%', marginLeft: '8px',
+                    background: 'var(--surface)', border: '1px solid var(--border)', 
+                    borderRadius: '8px', padding: '4px', zIndex: 10, 
+                    display: 'flex', flexDirection: 'column', gap: '2px', 
+                    width: '130px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' 
+                  }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => {
+                      fileInputRef.current?.click()
+                      setShowLogoMenu(false)
+                    }}
+                    type="button"
+                    style={{ background: 'transparent', border: 'none', padding: '6px 12px', fontSize: '13px', textAlign: 'left', cursor: 'pointer', borderRadius: '4px', width: '100%', color: 'var(--text)' }}
+                  >
+                    Change Photo
+                  </button>
+                  {logoPreview && (
+                    <button
+                      onClick={() => {
+                        handleLogo(null)
+                        setShowLogoMenu(false)
+                      }}
+                      type="button"
+                      style={{ background: 'transparent', border: 'none', padding: '6px 12px', fontSize: '13px', textAlign: 'left', cursor: 'pointer', color: 'var(--brand-crimson)', borderRadius: '4px', width: '100%' }}
+                    >
+                      Remove Photo
+                    </button>
+                  )}
+                </div>
+              )}
+              
+              {/* Matches the avatars bucket allowlist (20260720000000_storage_bucket_limits). */}
+              <input
+                ref={fileInputRef}
+                hidden
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={(e) => {
+                  handleLogo(e.target.files?.[0] ?? null)
+                  setShowLogoMenu(false)
+                }} 
               />
-            </label>
+            </div>
           </div>
           <div className="cp-detail-main">
             <h2 className="cp-detail-name">{name}</h2>
@@ -112,7 +200,7 @@ export function CompanyProfileView() {
 
         <div className="cp-form-grid">
           <label>
-            Company name
+            Company Name
             <input onChange={(e) => setName(e.target.value)} value={name} />
           </label>
           <label>
@@ -120,15 +208,11 @@ export function CompanyProfileView() {
             <input onChange={(e) => setIndustry(e.target.value)} value={industry} />
           </label>
           <label>
-            Company size
-            <select onChange={(e) => setSize(e.target.value)} value={size}>
-              {['1-10', '11-50', '51-200', '201-500', '500+'].map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
+            Contact Number
+            <input type="tel" onChange={(e) => setContactNumber(e.target.value)} value={contactNumber} />
           </label>
           <label>
-            Contact person email
+            Contact Person Email
             <input onChange={(e) => setContact(e.target.value)} type="email" value={contact} />
           </label>
           <label className="cp-form-span cp-form-label">
@@ -148,10 +232,10 @@ export function CompanyProfileView() {
 
       {/* Job specialty / fields */}
       <section className="cp-card">
-        <h3>Job specialty / fields</h3>
-        <p className="cp-muted" style={{ marginBottom: 10 }}>
+        <h3 style={{ fontSize: '18px', margin: '0 0 4px 0', color: 'var(--brand-brown)' }}>Job Specialty / Fields</h3>
+        <p className="cp-muted" style={{ marginBottom: 16 }}>
           The fields your company hires interns for (e.g. Marketing, Frontend, Backend,
-          Software Dev). These improve AI matching with student specializations.
+          Software Dev). These improve matching with student specializations.
         </p>
         <TagInput
           onChange={setSpecialties}

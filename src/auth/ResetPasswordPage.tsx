@@ -5,9 +5,9 @@ import { PasswordField } from './PasswordField'
 import './auth.css'
 
 /**
- * Shown when the user arrives from a password-recovery email. The link already
- * opened an authenticated session, so this just sets a new password on it —
- * the old password is never needed.
+ * Shown after a recovery code from the password-reset email is verified. That
+ * verification already opened an authenticated session, so this just sets a new
+ * password on it — the old password is never needed.
  */
 export function ResetPasswordPage() {
   const { endRecovery, refreshProfile, signOut } = useAuth()
@@ -66,7 +66,7 @@ export function ResetPasswordPage() {
       <section className="auth-card">
         <div className="auth-card-head">
           <h2>New password</h2>
-          <p>Your recovery link is verified — just pick a new password.</p>
+          <p>Your recovery code is verified — just pick a new password.</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>

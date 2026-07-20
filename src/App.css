@@ -49,7 +49,7 @@ button.primary {
 /* company-mark is still used outside the sidebar (listing strips, detail view) */
 .company-mark {
   align-items: center;
-  background: var(--accent-soft);
+  background: #ffffff;
   color: var(--accent);
   display: inline-flex;
   font-weight: 800;
@@ -192,6 +192,18 @@ button.primary {
   color: var(--text-muted);
   font-size: 13px;
   margin: 0;
+}
+
+/* Shown when no listing could be scored (no skills on the profile). */
+.browse-unscored {
+  background: color-mix(in srgb, var(--brand-orange) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-orange) 35%, transparent);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 12px 0 0;
+  padding: 10px 14px;
 }
 
 /* Search row */
@@ -388,8 +400,8 @@ button.primary {
   justify-content: center;
   width: 48px;
   height: 48px;
-  background-color: var(--brand-brown);
-  color: white;
+  background-color: #ffffff;
+  color: var(--brand-brown);
   border-radius: 12px;
   font-weight: 700;
   font-size: 16px;

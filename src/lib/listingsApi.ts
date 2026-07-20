@@ -1,5 +1,11 @@
 import { supabase } from './supabase'
 import type { Application, ApplicationStatus, Internship, PreEmploymentRequirement } from './mockData'
+import { computeMatch } from './skillMatch'
+
+// The scorer lives in skillMatch.ts (no Supabase import, so it is testable from
+// a plain script). Re-exported here so existing callers keep working.
+export { computeMatch, matchPool, pairScore, skillGaps } from './skillMatch'
+
 
 /**
  * Student-side data layer for internship listings, applications, and
@@ -29,34 +35,6 @@ export function formatDate(iso: string | null): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-/**
- * Skills-overlap match %: how many of the listing's skills the student covers.
- * The student pool is everything on their profile — AI-extracted resume skills
- * plus any manually added skills AND specializations — so profile-only entries
- * count toward the match too. Specializations also match loosely (a "Frontend
- * Development" specialization covers a "Frontend" listing skill and vice versa).
- */
-export function computeMatch(studentPool: string[], listingSkills: string[]): number {
-  if (!listingSkills.length) return 0
-  const mine = studentPool.map((s) => s.trim().toLowerCase()).filter(Boolean)
-  const mineExact = new Set(mine)
-  const hit = listingSkills.filter((raw) => {
-    const skill = raw.trim().toLowerCase()
-    if (!skill) return false
-    if (mineExact.has(skill)) return true
-    // Loose containment for multi-word specializations vs listing skills.
-    return mine.some(
-      (m) => (m.length > 3 && skill.includes(m)) || (skill.length > 3 && m.includes(skill)),
-    )
-  }).length
-  return Math.round((hit / listingSkills.length) * 100)
-}
-
-/** The full matching pool for a student profile: skills + specializations. */
-export function matchPool(skills?: string[] | null, specializations?: string[] | null): string[] {
-  return [...(skills ?? []), ...(specializations ?? [])]
-}
-
 function listingStatus(deadline: string | null): Internship['status'] {
   if (!deadline) return 'Open'
   const due = new Date(deadline)
@@ -77,14 +55,14 @@ type ListingRow = {
   slots: number
   deadline: string | null
   skills: string[]
-  companies: { name: string; industry: string | null } | null
+  companies: { name: string; industry: string | null; logo_url: string | null } | null
 }
 
 /** Open listings, ranked by skills match against the student's profile. */
 export async function fetchOpenListings(profileSkills: string[]): Promise<Internship[]> {
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(name, industry)')
+    .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(name, industry, logo_url)')
     .eq('status', 'open')
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
@@ -93,6 +71,7 @@ export async function fetchOpenListings(profileSkills: string[]): Promise<Intern
       id: r.id,
       title: r.title,
       company: r.companies?.name ?? 'Unknown company',
+      companyLogo: r.companies?.logo_url ?? null,
       industry: r.companies?.industry ?? '—',
       location: r.location ?? '—',
       setup: SETUP_LABELS[r.setup] ?? 'Onsite',
@@ -104,7 +83,9 @@ export async function fetchOpenListings(profileSkills: string[]): Promise<Intern
       skills: r.skills ?? [],
       summary: r.description ?? '',
     }))
-    .sort((a, b) => b.match - a.match)
+    // Unscored listings (no skill data to match on) sort last rather than
+    // being treated as 0%.
+    .sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
 }
 
 type ApplicationRow = {
@@ -116,10 +97,10 @@ type ApplicationRow = {
   created_at: string
   listings: {
     title: string
-    companies: { name: string } | null
+    companies: { name: string; logo_url: string | null } | null
     listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
   } | null
-  requirement_submissions: { requirement_id: string; status: string; text_value: string | null }[]
+  requirement_submissions: { requirement_id: string; status: string; text_value: string | null; file_path: string | null }[]
 }
 
 /** The signed-in student's applications, newest first. */
@@ -128,8 +109,8 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
     .from('applications')
     .select(
       'id, listing_id, status, next_step, cover_letter, created_at, ' +
-        'listings(title, companies(name), listing_requirements(id, name, kind, is_printable)), ' +
-        'requirement_submissions(requirement_id, status, text_value)',
+        'listings(title, companies(name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
+        'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
     .eq('student_id', studentId)
     .order('created_at', { ascending: false })
@@ -150,6 +131,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
               ? ('rejected' as const)
               : ('pending' as const),
         submittedText: sub?.text_value ?? undefined,
+        submittedFilePath: sub?.file_path ?? undefined,
       }
     })
     const approved = (r.requirement_submissions ?? []).filter((s) => s.status === 'approved').length
@@ -157,7 +139,8 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
       id: r.id,
       internshipId: r.listing_id,
       company: r.listings?.companies?.name ?? 'Unknown company',
-      role: r.listings?.title ?? '—',
+      companyLogo: r.listings?.companies?.logo_url ?? null,
+      role: r.listings?.title ?? 'Unknown role',
       dateApplied: formatDate(r.created_at),
       status: STATUS_LABELS[r.status] ?? 'Pending',
       nextStep: r.next_step ?? '',
@@ -199,12 +182,30 @@ export async function submitRequirementFile(
 ): Promise<void> {
   const parts = file.name.split('.')
   const ext = parts.length > 1 ? parts.pop()!.toLowerCase() : 'bin'
-  const path = `${studentId}/requirements/${applicationId}-${requirementId}.${ext}`
+
+  // Unique per submission: resubmitting after "needs revision" used to write to
+  // the same key, so the company kept seeing the rejected version from cache.
+  const path = `${studentId}/requirements/${applicationId}-${requirementId}-${Date.now()}.${ext}`
+
+  // The file this replaces, so it can be cleaned up after a successful upload.
+  const { data: existing } = await supabase
+    .from('requirement_submissions')
+    .select('file_path')
+    .eq('application_id', applicationId)
+    .eq('requirement_id', requirementId)
+    .maybeSingle()
+
   const { error: uploadError } = await supabase.storage
     .from('documents')
-    .upload(path, file, { upsert: true, contentType: file.type })
+    .upload(path, file, { contentType: file.type, cacheControl: '0' })
   if (uploadError) throw new Error(uploadError.message)
+
   await upsertSubmission(applicationId, requirementId, { file_path: path })
+
+  const previous = existing?.file_path as string | undefined
+  if (previous && previous !== path && previous.startsWith(`${studentId}/`)) {
+    await supabase.storage.from('documents').remove([previous])
+  }
 }
 
 export async function submitRequirementText(

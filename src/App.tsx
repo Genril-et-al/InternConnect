@@ -34,6 +34,7 @@ import type { PreEmploymentRequirement } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
 import { SignOutButton } from './components/SignOutButton'
 import { Avatar } from './components/Avatar'
+import { signedDocumentUrl } from './lib/profile'
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 // Profile isn't a nav item — users open their own profile from the account
@@ -383,11 +384,18 @@ function BrowseInternships({
         .join(' ')
         .toLowerCase()
         .includes(query.toLowerCase())
-      const matchesScore = internship.match >= pillMin
+      // An unscored listing can only satisfy the "All" pill.
+      const matchesScore = internship.match === null 
+        ? pillMin === 0 
+        : (internship.match >= pillMin && internship.match > 0)
       const matchesBookmarks = !showBookmarksOnly || bookmarkedIds.has(internship.id)
       return matchesQuery && matchesScore && matchesBookmarks
     })
   }, [internships, query, matchFilter, showBookmarksOnly, bookmarkedIds])
+
+  // Nothing could be scored — the profile carries no skills the AI or the
+  // student has supplied.
+  const unscored = internships.length > 0 && internships.every((i) => i.match === null)
 
   const toggleBookmark = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -430,8 +438,18 @@ function BrowseInternships({
       {/* Heading */}
       <div className="browse-heading">
         <h2 className="browse-title">Browse Internships</h2>
-        <p className="browse-subtitle">AI-ranked by your resume skills</p>
+        <p className="browse-subtitle">
+          {unscored ? 'Ranked once your skills are on file' : 'Ranked by how well your skills match'}
+        </p>
       </div>
+
+      {unscored && (
+        <p className="browse-unscored" role="status">
+          No match scores yet — we could not read any skills from your resume. Add skills and
+          specializations on your profile, or upload a resume the AI can read, and the
+          percentages will appear here automatically.
+        </p>
+      )}
 
       {/* Search + dropdowns row */}
       <div className="browse-search-row">
@@ -507,7 +525,11 @@ function ApplicationStrip({ application, onClick }: { application: Application; 
 
   return (
     <article className="application-strip" role="button" tabIndex={0} onClick={onClick}>
-      <span className="strip-avatar">{application.company.slice(0, 2).toUpperCase()}</span>
+      {application.companyLogo ? (
+        <img src={application.companyLogo} alt={application.company} className="strip-avatar" style={{ objectFit: 'contain' }} />
+      ) : (
+        <span className="strip-avatar">{application.company.slice(0, 2).toUpperCase()}</span>
+      )}
       <div className="strip-main">
         <h3>{application.role}</h3>
         <p className="strip-subtitle">
@@ -651,8 +673,8 @@ function RequirementSubmitRow({
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
   const status = requirement.submissionStatus ?? 'not_submitted'
+  const [isEditing, setIsEditing] = useState(status === 'not_submitted')
   const statusLabel =
     status === 'approved'
       ? 'Approved'
@@ -669,7 +691,7 @@ function RequirementSubmitRow({
         : status === 'pending'
           ? 'var(--brand-orange)'
           : 'var(--text-light)'
-  const canSubmit = status !== 'approved' && status !== 'pending'
+
 
   const submit = async () => {
     if (!userId) return
@@ -684,6 +706,7 @@ function RequirementSubmitRow({
         await submitRequirementText(applicationId, requirement.id, text)
       }
       setFile(null)
+      setIsEditing(false)
       onSubmitted?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit.')
@@ -707,7 +730,57 @@ function RequirementSubmitRow({
         </span>
       </div>
 
-      {canSubmit && (
+      {!isEditing && status !== 'not_submitted' && (
+        <div style={{ marginTop: '10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px', fontSize: '13px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, marginRight: '16px', overflow: 'hidden' }}>
+              <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
+                Your Submission
+              </span>
+              {requirement.type === 'text' ? (
+                <p style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {requirement.submittedText}
+                </p>
+              ) : (
+                <button
+                  className="sd-link"
+                  disabled={busy}
+                  onClick={async () => {
+                    if (!requirement.submittedFilePath) return
+                    try {
+                      setBusy(true)
+                      const url = await signedDocumentUrl(requirement.submittedFilePath, requirement.name)
+                      window.open(url, '_blank')
+                    } catch (e) {
+                      setError('Failed to load document')
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                  style={{ textAlign: 'left', padding: 0 }}
+                  type="button"
+                >
+                  {busy ? 'Loading document...' : 'View submitted document'}
+                </button>
+              )}
+              {error && !isEditing && <p className="muted" style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--brand-crimson)' }}>{error}</p>}
+            </div>
+            
+            {status !== 'approved' && (
+              <button 
+                className="sd-primary sm" 
+                onClick={() => setIsEditing(true)} 
+                style={{ flexShrink: 0, background: 'var(--border)', color: 'var(--text)', border: 'none' }}
+                type="button"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isEditing && (
         <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {requirement.type === 'file' ? (
             <input
@@ -726,15 +799,33 @@ function RequirementSubmitRow({
             />
           )}
           {error && <p className="muted" style={{ margin: 0, fontSize: '12px', color: 'var(--brand-crimson)' }}>{error}</p>}
-          <button
-            className="primary"
-            disabled={busy || (requirement.type === 'file' ? !file : !text.trim())}
-            onClick={submit}
-            style={{ alignSelf: 'flex-start', padding: '6px 14px', fontSize: '13px' }}
-            type="button"
-          >
-            {busy ? 'Submitting…' : status === 'rejected' ? 'Resubmit' : 'Submit'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-start' }}>
+            <button
+              className="primary"
+              disabled={busy || (requirement.type === 'file' ? !file : !text.trim())}
+              onClick={submit}
+              style={{ padding: '6px 14px', fontSize: '13px' }}
+              type="button"
+            >
+              {busy ? 'Submitting…' : 'Submit'}
+            </button>
+            {status !== 'not_submitted' && (
+              <button
+                className="sd-link"
+                disabled={busy}
+                onClick={() => {
+                  setIsEditing(false)
+                  setText(requirement.submittedText ?? '')
+                  setFile(null)
+                  setError(null)
+                }}
+                style={{ padding: '6px 14px', fontSize: '13px', textDecoration: 'none' }}
+                type="button"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -808,40 +899,51 @@ function InternshipStrip({
   onToggleBookmark?: (e: React.MouseEvent) => void
 }) {
   return (
-    <article className="internship-strip" role="button" tabIndex={0}>
+    <article className="internship-strip clickable" onClick={onClick} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
       <div className="strip-top">
-        <span className="strip-avatar">{internship.company.slice(0, 2).toUpperCase()}</span>
+        {internship.companyLogo ? (
+          <img src={internship.companyLogo} alt={internship.company} className="strip-avatar" style={{ objectFit: 'contain' }} />
+        ) : (
+          <span className="strip-avatar">{internship.company.slice(0, 2).toUpperCase()}</span>
+        )}
         <div className="strip-main">
           <h3>{internship.title}</h3>
           <p className="strip-subtitle">
             {internship.company} · {internship.location} · {internship.slots} slots · {internship.duration}
           </p>
           <p className="strip-summary">{internship.summary}</p>
-          <div className="strip-tags">
+          <div className="strip-tags" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontStyle: 'italic', color: 'var(--text-light)', background: 'transparent', padding: 0 }}>Skills Required:</span>
             {internship.skills.slice(0, 3).map((skill) => (
-              <span key={skill}>{skill}</span>
+              <span key={skill} style={{ borderRadius: '16px', padding: '2px 10px', background: 'var(--bg-subtle)', border: '1px solid var(--border)', fontSize: '12px' }}>{skill}</span>
             ))}
           </div>
         </div>
         <div className="strip-right">
           <div className="strip-match-container">
-            <span className="strip-match-label">AI Match</span>
-            <div className="strip-match-bar">
-              <div className="strip-match-track">
-                <div className="strip-match-progress" style={{ width: `${internship.match}%` }} />
+            <span className="strip-match-label">Skill Match</span>
+            {internship.match === null ? (
+              <span className="strip-match-text muted" title="Add skills to your profile, or upload a resume the AI can read, to see a match score.">
+                Not available
+              </span>
+            ) : (
+              <div className="strip-match-bar">
+                <div className="strip-match-track">
+                  <div className="strip-match-progress" style={{ width: `${internship.match}%` }} />
+                </div>
+                <span className="strip-match-text">{internship.match}%</span>
               </div>
-              <span className="strip-match-text">{internship.match}%</span>
-            </div>
+            )}
           </div>
           <button
             aria-label="Bookmark"
             className={`strip-bookmark ${isBookmarked ? 'active' : ''}`}
-            onClick={onToggleBookmark}
+            onClick={(e) => { e.stopPropagation(); onToggleBookmark?.(e); }}
             type="button"
           >
             <Bookmark fill={isBookmarked ? 'currentColor' : 'none'} size={18} />
           </button>
-          <button className="strip-apply-btn primary" type="button" onClick={onClick}>
+          <button className="strip-apply-btn primary" type="button" onClick={(e) => { e.stopPropagation(); onClick(); }}>
             Learn More
           </button>
         </div>
@@ -871,7 +973,11 @@ function InternshipDetailView({
       </button>
 
       <div className="detail-header">
-        <span className="company-mark detail-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+        {internship.companyLogo ? (
+          <img src={internship.companyLogo} alt={internship.company} className="company-mark detail-mark" style={{ objectFit: 'contain' }} />
+        ) : (
+          <span className="company-mark detail-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+        )}
         <div>
           <h2 className="detail-title">{internship.title}</h2>
           <p className="muted">{internship.company} · {internship.industry}</p>
@@ -907,8 +1013,10 @@ function InternshipDetailView({
             <span className="detail-info-value">{internship.slots}</span>
           </div>
           <div className="detail-info-item">
-            <span className="detail-info-label">AI Match Score</span>
-            <span className="detail-info-value detail-match">{internship.match}%</span>
+            <span className="detail-info-label">Skill Match Score</span>
+            <span className="detail-info-value detail-match">
+              {internship.match === null ? '—' : `${internship.match}%`}
+            </span>
           </div>
         </div>
 
@@ -983,7 +1091,11 @@ function ApplyModal({
             {/* Internship preview */}
             <div className="modal-preview">
               <div className="modal-preview-header">
-                <span className="company-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+                {internship.companyLogo ? (
+                  <img src={internship.companyLogo} alt={internship.company} className="company-mark" style={{ objectFit: 'contain' }} />
+                ) : (
+                  <span className="company-mark">{internship.company.slice(0, 2).toUpperCase()}</span>
+                )}
                 <div>
                   <strong>{internship.title}</strong>
                   <p className="muted">{internship.company} · {internship.location} · {internship.setup}</p>
@@ -992,7 +1104,9 @@ function ApplyModal({
               <div className="modal-preview-details">
                 <span><strong>Duration:</strong> {internship.duration}</span>
                 <span><strong>Deadline:</strong> {internship.deadline}</span>
-                <span><strong>Match:</strong> {internship.match}%</span>
+                <span>
+                  <strong>Match:</strong> {internship.match === null ? '—' : `${internship.match}%`}
+                </span>
               </div>
             </div>
 

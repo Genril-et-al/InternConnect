@@ -6,8 +6,10 @@ import {
   addApprovedStudent,
   addApprovedStudents,
   addApprovedCompanies,
-  parseStudentsCsv,
-  parseCompaniesCsv,
+  parseStudentRows,
+  parseCompanyRows,
+  readRosterFile,
+  sheetNames,
   splitName,
 } from './allowlist'
 import { removeApprovedStudent, setStudentActive } from './adminQueries'
@@ -27,7 +29,6 @@ export function AdminStudents({
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all')
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showBulkModal, setShowBulkModal] = useState(false)
   const [viewTarget, setViewTarget] = useState<AdminStudent | null>(null)
   const [deactivateTarget, setDeactivateTarget] = useState<AdminStudent | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -85,9 +86,6 @@ export function AdminStudents({
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="ad-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Upload size={14} /> Add in Bulk
-          </button>
           <button className="ad-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={14} /> Add Student
           </button>
@@ -159,7 +157,6 @@ export function AdminStudents({
       </div>
 
       {showAddModal && <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={onRefresh} />}
-      {showBulkModal && <BulkUploadModal type="student" onClose={() => setShowBulkModal(false)} onDone={onRefresh} />}
       {viewTarget && (
         <ViewStudentModal
           student={students.find((s) => s.id === viewTarget.id) || viewTarget}
@@ -364,7 +361,7 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name || !email || busy) return
+    if (!name || !email || !studentNumber || busy) return
     setBusy(true)
     setError(null)
     const { firstName, lastName } = splitName(name)
@@ -400,12 +397,11 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
             <input className="ad-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. juan.delacruz@cit.edu" required />
           </label>
           <label className="cp-modal-label">
-            Student Number
-            <input className="ad-input" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} placeholder="e.g. 21-1234-567 (optional)" />
+            Student Number *
+            <input className="ad-input" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} placeholder="e.g. 21-1234-567" required />
           </label>
           {error && <p className="ad-form-error" style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
-            <button className="ad-secondary" type="button" onClick={onClose} disabled={busy}>Cancel</button>
             <button className="ad-primary" type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add Student'}</button>
           </div>
         </form>
@@ -429,25 +425,24 @@ export function BulkUploadModal({ type, onClose, onDone }: { type: 'student' | '
     setError(null)
     setDone(null)
 
-    if (/\.xlsx?$/i.test(file.name)) {
-      setError('Please save the sheet as CSV (File → Save As → CSV) and upload that. Excel files aren’t supported directly.')
-      e.target.value = ''
-      return
-    }
-
     setUploading(true)
     try {
-      const text = await file.text()
+      const rows = await readRosterFile(file)
+      // A workbook with several sheets only gets its first one read; say so
+      // rather than silently ignoring the rest.
+      const sheets = await sheetNames(file)
+      const sheetNote = sheets.length > 1 ? ` Only the first sheet ("${sheets[0]}") was read.` : ''
+
       if (type === 'student') {
-        const parsed = parseStudentsCsv(text)
+        const parsed = parseStudentRows(rows)
         if (parsed.length === 0) throw new Error('No valid rows found. The file needs a header row with an "email" column.')
         const added = await addApprovedStudents(parsed)
-        setDone(`Added ${added} student${added === 1 ? '' : 's'} to the roster${added < parsed.length ? ` (${parsed.length - added} already existed)` : ''}.`)
+        setDone(`Added ${added} student${added === 1 ? '' : 's'} to the roster${added < parsed.length ? ` (${parsed.length - added} already existed)` : ''}.${sheetNote}`)
       } else {
-        const parsed = parseCompaniesCsv(text)
+        const parsed = parseCompanyRows(rows)
         if (parsed.length === 0) throw new Error('No valid rows found. The file needs a header row with "company_name" and "contact_email" columns.')
         const added = await addApprovedCompanies(parsed)
-        setDone(`Added ${added} compan${added === 1 ? 'y' : 'ies'} to the allowlist${added < parsed.length ? ` (${parsed.length - added} already existed)` : ''}.`)
+        setDone(`Added ${added} compan${added === 1 ? 'y' : 'ies'} to the allowlist${added < parsed.length ? ` (${parsed.length - added} already existed)` : ''}.${sheetNote}`)
       }
       await onDone() // reload from the database so new rows appear
     } catch (err) {
@@ -467,7 +462,7 @@ export function BulkUploadModal({ type, onClose, onDone }: { type: 'student' | '
         </div>
         <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <p className="ad-muted" style={{ margin: 0 }}>
-            Upload a CSV of {type === 'student' ? 'students' : 'companies'}. The first row must be a header
+            Upload a CSV or Excel file of {type === 'student' ? 'students' : 'companies'}. The first row must be a header
             with these columns: <code>{columns}</code>. Existing emails are skipped.
           </p>
           {done
@@ -482,9 +477,9 @@ export function BulkUploadModal({ type, onClose, onDone }: { type: 'student' | '
             : (
               <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px', border: '2px dashed var(--border)', borderRadius: '8px', cursor: uploading ? 'wait' : 'pointer', background: 'var(--bg-subtle)' }}>
                 <Upload size={24} style={{ color: 'var(--text-light)', marginBottom: '8px' }} />
-                <span style={{ fontWeight: 500 }}>{uploading ? 'Uploading…' : 'Click to select a CSV file'}</span>
-                {!uploading && <span style={{ fontSize: '12px', color: 'var(--text-light)', marginTop: '4px' }}>Supported format: .csv</span>}
-                <input type="file" hidden accept=".csv,text/csv" onChange={handleUpload} disabled={uploading} />
+                <span style={{ fontWeight: 500 }}>{uploading ? 'Uploading…' : 'Click to select a file'}</span>
+                {!uploading && <span style={{ fontSize: '12px', color: 'var(--text-light)', marginTop: '4px' }}>Supported formats: .csv, .xlsx, .xls</span>}
+                <input type="file" hidden accept=".csv,text/csv,.xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleUpload} disabled={uploading} />
               </label>
             )}
           {error && <p style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}

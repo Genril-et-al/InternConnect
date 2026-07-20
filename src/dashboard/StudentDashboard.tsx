@@ -15,7 +15,7 @@ import './dashboard.css'
 
 /**
  * Student dashboard (UC-S06) — application stats, profile completion,
- * AI-matched internships, and recent applications.
+ * skill-matched internships, and recent applications.
  * Note: Internship Duty Hours is intentionally not part of this dashboard.
  */
 
@@ -102,7 +102,7 @@ export function StudentDashboard({
         <div className="sd-card-head">
           <div>
             <h3>Profile Completion</h3>
-            <p className="sd-muted">Complete your profile to boost AI match scores</p>
+            <p className="sd-muted">Complete your profile to improve your match scores</p>
           </div>
           <span className="sd-big-number">{completionPct}%</span>
         </div>
@@ -124,10 +124,10 @@ export function StudentDashboard({
         )}
       </section>
 
-      {/* AI matches */}
+      {/* Top skill matches */}
       <section className="sd-card">
         <div className="sd-card-head">
-          <h3>AI-Matched Internships</h3>
+          <h3>Top Skill Matches</h3>
           <button className="sd-link" onClick={() => onNavigate('Browse Internships')} type="button">
             Browse all <ChevronRight size={12} />
           </button>
@@ -138,7 +138,11 @@ export function StudentDashboard({
           )}
           {internships.slice(0, 3).map((job) => (
             <div className="sd-list-row" key={job.id}>
-              <span className="sd-mark">{job.company.slice(0, 2).toUpperCase()}</span>
+              {job.companyLogo ? (
+                <img src={job.companyLogo} alt={job.company} className="sd-mark" style={{ objectFit: 'contain' }} />
+              ) : (
+                <span className="sd-mark">{job.company.slice(0, 2).toUpperCase()}</span>
+              )}
               <div className="sd-list-main">
                 <p className="sd-list-title">{job.title}</p>
                 <p className="sd-muted">
@@ -180,7 +184,11 @@ export function StudentDashboard({
                 role="button"
                 tabIndex={0}
               >
-                <span className="sd-mark dark">{app.company.slice(0, 2).toUpperCase()}</span>
+                {app.companyLogo ? (
+                  <img src={app.companyLogo} alt={app.company} className="sd-mark dark" style={{ objectFit: 'contain' }} />
+                ) : (
+                  <span className="sd-mark dark">{app.company.slice(0, 2).toUpperCase()}</span>
+                )}
                 <div className="sd-list-main">
                   <p className="sd-list-title">{app.role}</p>
                   <p className="sd-muted">
@@ -228,7 +236,11 @@ function StatCard({
   )
 }
 
-function MatchBar({ value }: { value: number }) {
+function MatchBar({ value }: { value: number | null }) {
+  // No skill data to score against — show nothing rather than a misleading 0%.
+  if (value === null) {
+    return <span className="sd-match-value sd-muted">—</span>
+  }
   const color =
     value >= 90
       ? 'var(--brand-orange)'

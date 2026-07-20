@@ -7,13 +7,16 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "skills:check": "node --import ./scripts/tsResolve.mjs scripts/checkSkillMatching.ts",
+    "skills:learn": "node --import ./scripts/tsResolve.mjs scripts/learnSkills.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.6",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "xlsx": "file:vendor/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

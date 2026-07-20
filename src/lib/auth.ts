@@ -44,8 +44,26 @@ export async function checkSignupEligibility(
   return (data as 'student' | 'company' | null) ?? null
 }
 
-/** Step 1: send a verification code to the email (creates the pending user). */
-export async function requestSignupCode(email: string, name: SignupName) {
+/**
+ * Step 1: send a verification code to `email` (creates the pending user).
+ *
+ * `universityEmail` splits identity from delivery. Pass it for students and
+ * `email` becomes the PERSONAL address the code is mailed to, while the
+ * university address travels in user metadata for handle_new_user to resolve
+ * the role against the roster (migration 0013). @cit.edu accepts our mail and
+ * then quarantines it, so codes sent there never arrive.
+ *
+ * Omit it — the company path — and `email` is both identity and delivery, as
+ * before.
+ *
+ * Consequence for students: auth.users.email is the personal address, so that
+ * is what they log in with afterwards.
+ */
+export async function requestSignupCode(
+  email: string,
+  name: SignupName,
+  universityEmail?: string,
+) {
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
     options: {
@@ -55,6 +73,9 @@ export async function requestSignupCode(email: string, name: SignupName) {
         middle_initial: formatMiddleInitial(name.middleInitial),
         last_name: name.lastName.trim(),
         suffix: name.suffix.trim(),
+        ...(universityEmail
+          ? { university_email: universityEmail.trim().toLowerCase() }
+          : {}),
       },
     },
   })
@@ -79,22 +100,77 @@ export async function setPassword(password: string) {
 }
 
 /**
- * Send a password-recovery email. Supabase returns the user to the app with a
- * recovery session in the URL fragment; AuthProvider picks that up as a
- * PASSWORD_RECOVERY event and shows the "set a new password" screen, which
- * calls setPassword() above.
+ * Password recovery is code-based, mirroring signup:
+ *   1. requestPasswordReset()    — email a 6-digit recovery code
+ *   2. verifyPasswordResetCode() — confirm it, opening an authenticated session
+ *   3. setPassword()             — set the new password on that session
  *
- * Always resolves without revealing whether the email exists — an error here
- * would let anyone probe which addresses are registered.
+ * Both steps go through the `password-reset` edge function rather than calling
+ * supabase.auth directly. Students type their UNIVERSITY email but their auth
+ * identity is a PERSONAL address (migration 0013), and only the server may
+ * hold that mapping — exposing it to a logged-out caller would let anyone
+ * harvest personal addresses by guessing firstname.lastname@cit.edu.
+ *
+ * Everyone else (companies, pre-0013 accounts) resolves to the same address
+ * they typed, so one path serves both.
+ */
+
+/**
+ * Ask for a recovery code. Always resolves, whether or not the email exists —
+ * an error here would let anyone probe which addresses are registered.
  */
 export async function requestPasswordReset(email: string) {
-  const { error } = await supabase.auth.resetPasswordForEmail(
-    email.trim().toLowerCase(),
-    { redirectTo: `${window.location.origin}/` },
-  )
+  const { error } = await supabase.functions.invoke('password-reset', {
+    body: { action: 'request', email: email.trim().toLowerCase() },
+  })
   // Log for debugging, but don't surface it: the UI shows the same
   // "if that email exists, check your inbox" message either way.
   if (error) console.warn('[InternConnect] password reset request failed:', error.message)
+}
+
+/**
+ * Verify the 6-digit recovery code and adopt the session it opens.
+ *
+ * The function verifies server-side (it knows the delivery address; we don't)
+ * and returns the tokens, which setSession() installs so setPassword() has an
+ * authenticated session to update.
+ *
+ * Unlike requestPasswordReset(), this throws: once someone is typing a code
+ * there is no address to disclose, and a wrong or expired code must be shown.
+ */
+export async function verifyPasswordResetCode(email: string, code: string) {
+  const { data, error } = await supabase.functions.invoke('password-reset', {
+    body: {
+      action: 'verify',
+      email: email.trim().toLowerCase(),
+      code: code.trim(),
+    },
+  })
+  // A non-2xx reply arrives as FunctionsHttpError with the body unread, so the
+  // server's message has to be pulled out of the response before it's usable.
+  if (error) {
+    let message = 'That code is not valid or has expired.'
+    const res = (error as { context?: Response }).context
+    if (res && typeof res.json === 'function') {
+      try {
+        const body = await res.json()
+        if (body?.error) message = String(body.error)
+      } catch {
+        // Keep the default message.
+      }
+    }
+    throw new Error(message)
+  }
+  if (!data?.access_token || !data?.refresh_token) {
+    throw new Error('That code is not valid or has expired.')
+  }
+
+  const { error: sessionError } = await supabase.auth.setSession({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  })
+  if (sessionError) throw sessionError
+  return data
 }
 
 /** Login with email + password (UC-S01 step 7). */

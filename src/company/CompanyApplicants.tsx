@@ -46,7 +46,8 @@ export function CompanyApplicants({
         a.name.toLowerCase().includes(search.toLowerCase()) &&
         (listingFilter === 'All listings' || a.role === listingFilter) &&
         (statusFilter === 'All' || a.status === statusFilter) &&
-        a.match >= minMatch,
+        // Unscored applicants only pass the "Any match %" option.
+        (a.match === null ? minMatch === 0 : a.match >= minMatch),
     )
   }, [applicants, search, listingFilter, statusFilter, matchFilter])
 
@@ -304,8 +305,13 @@ function ApplicantDetail({
           {applicant.resume ? (
             <div className="cp-doc">
               <FileText size={14} />
-              <span className="cp-doc-name">{baseName(applicant.resume)}</span>
-              <button onClick={() => openDocument(applicant.resume)} type="button">
+              <span className="cp-doc-name">{docLabel(applicant.resume, applicant.name, 'Resume')}</span>
+              <button
+                onClick={() =>
+                  openDocument(applicant.resume, docLabel(applicant.resume, applicant.name, 'Resume'))
+                }
+                type="button"
+              >
                 <Download size={12} /> View
               </button>
             </div>
@@ -328,9 +334,16 @@ function ApplicantDetail({
           {applicant.portfolioFile && (
             <div className="cp-doc">
               <FileText size={14} />
-              <span className="cp-doc-name">{baseName(applicant.portfolioFile)}</span>
+              <span className="cp-doc-name">
+                {docLabel(applicant.portfolioFile, applicant.name, 'Portfolio')}
+              </span>
               <button
-                onClick={() => openDocument(applicant.portfolioFile!)}
+                onClick={() =>
+                  openDocument(
+                    applicant.portfolioFile!,
+                    docLabel(applicant.portfolioFile!, applicant.name, 'Portfolio'),
+                  )
+                }
                 type="button"
               >
                 <Download size={12} /> View
@@ -422,7 +435,11 @@ function RejectModal({
 
 /* ── Shared bits ─────────────────────────────────────────────────────── */
 
-export function MatchBar({ value }: { value: number }) {
+export function MatchBar({ value }: { value: number | null }) {
+  // No skill data on the applicant's profile — show nothing rather than 0%.
+  if (value === null) {
+    return <span className="cp-match-value cp-muted">—</span>
+  }
   const color =
     value >= 90
       ? 'var(--brand-orange)'
@@ -463,13 +480,18 @@ function initials(name: string): string {
     .toUpperCase()
 }
 
-function baseName(path: string): string {
-  return path.split('/').pop() || path
+/**
+ * Storage paths are timestamped (`{uid}/resume-1784372069279.pdf`), so show the
+ * applicant's name instead of the raw key.
+ */
+function docLabel(path: string, applicant: string, kind: string): string {
+  const ext = path.split('.').pop()?.toLowerCase()
+  return `${applicant} — ${kind}${ext ? `.${ext}` : ''}`
 }
 
 /** Open a private document from the documents bucket via a signed URL. */
-function openDocument(path: string) {
-  signedDocumentUrl(path)
+function openDocument(path: string, downloadName?: string) {
+  signedDocumentUrl(path, downloadName)
     .then((url) => window.open(url, '_blank', 'noopener'))
     .catch(() => window.alert('Could not open the document. Please try again.'))
 }

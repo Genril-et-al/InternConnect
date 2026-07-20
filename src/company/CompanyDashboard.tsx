@@ -20,7 +20,7 @@ export function CompanyDashboard({
   const accepted = applicants.filter((a) => a.status === 'Accepted').length
   const queue = applicants
     .filter((a) => a.status === 'Pending')
-    .sort((a, b) => b.match - a.match)
+    .sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
 
   const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications(onNavigate)
 
