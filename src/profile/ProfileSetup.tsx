@@ -732,7 +732,7 @@ export function ProfileSetup({
             </p>
           )}
           <p className="profile-info" style={{ marginTop: '8px' }}>
-            Your resume is read by our AI to auto-fill your
+            Your resume is read by AI to auto-fill your
             skills and specializations for matching.
           </p>
         </div>
