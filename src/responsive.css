@@ -186,39 +186,45 @@
     padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Watermark placement.
+  /* Watermark placement — the mark must stay pinned to the viewport while
+     content scrolls past it, exactly as it does on desktop.
 
-     `background-attachment: fixed` is the worst offender for scroll jank on
-     mobile Safari — it repaints the whole layer every frame — so these layers
-     scroll normally. But a *percentage* y-position resolves against
-     (element height − image height), and .workspace / .ad-main are as tall as
-     their content. That is what made the mark wander: on a short page 38%
-     landed just under the header, on a long list it resolved to a thousand-odd
-     pixels down (so it read as "gone"), and it moved every time the content
-     length changed. Same markup, three different placements.
+     What broke it was `background-attachment: scroll` combined with a
+     PERCENTAGE y-position. Percentages resolve against the background
+     positioning area, which for a scrolling layer is the element's own padding
+     box — and .workspace / .ad-main are as tall as their content. So `38%`
+     meant 38% of the whole document: just under the header on a short page,
+     a thousand-odd pixels down on a long list (which read as "gone"), and a
+     different spot again whenever the content length changed.
 
-     A LENGTH is measured from the top of the padding box regardless of how
-     tall the page is, so the mark lands in exactly the same spot on every
-     screen. 22svh centres it in the first screenful, below the page heading.
+     `fixed` makes the positioning area the VIEWPORT instead, so `50% 50%` is
+     the centre of the screen at every scroll offset and on every page. That is
+     the only mechanism that pins a background layer without a pseudo-element,
+     and a pseudo-element is not available here: fading one needs `isolation`
+     on the container, which would trap the z-index:1000 .modal-overlay in a new
+     stacking context and paint it under the sidebar (see index.css).
 
-     `100%` for the x-axis of the wash keeps its two-stop gradient covering the
-     full box; the mark itself centres now that no rail offsets it. */
+     The earlier note here dropped `fixed` over scroll-repaint cost on mobile
+     Safari. That is a real cost, but it is a performance nicety and this is
+     correctness — and the layer is one static image under an opaque wash,
+     which is the cheap case. The severe jank is with large or repeating fixed
+     layers. */
   .workspace {
-    background-attachment: scroll, scroll;
-    background-position: 0 0, 50% 22svh;
+    background-attachment: scroll, fixed;
+    background-position: 0 0, 50% 50%;
     background-size: auto, var(--wm-size) auto;
   }
 
   .ad-main {
-    background-attachment: scroll, scroll;
-    background-position: 0 0, 50% 22svh;
+    background-attachment: scroll, fixed;
+    background-position: 0 0, 50% 50%;
   }
 
-  /* The auth/loading screens draw the same mark and had the same `fixed`
-     layer, with no mobile override at all. */
+  /* The auth/loading screens draw the same mark. They keep `fixed` from
+     auth.css; what they lacked was the mobile --wm-size below, so the mark
+     rendered at the desktop 46vw (~172px on a phone). */
   .auth-loading {
-    background-attachment: scroll, scroll;
-    background-position: 0 0, 50% 22svh;
+    background-position: 0 0, 50% 50%;
   }
 
   /* 46vw put the watermark at ~172px on a phone — small enough to read as a
@@ -451,19 +457,50 @@
     font-size: 14px;
   }
 
-  /* Modals become bottom sheets: reachable by thumb, and the slide-up
-     animation the panel already has now reads as intentional. */
+  /* Modals stay CENTRED on mobile, as they are on desktop.
+
+     They used to be re-laid as bottom sheets docked to the bottom edge. The
+     sheet pattern earns its keep for a tall, scrollable, task-shaped panel that
+     the thumb has to work through. It does not suit what this app actually
+     puts in a modal: most of these are short confirmations — "Sign out?",
+     "Withdraw this application?" — two lines and two buttons. Docking a 140px
+     card to the bottom edge leaves the question stranded at the far end of the
+     screen from where the user is looking, and on a tall phone it sits below
+     the fold of attention entirely.
+
+     Centring keeps the message and its buttons together in the middle of the
+     screen, which is where the eye already is.
+
+     Only the overlay's alignment was ever overridden, so restoring it here is
+     enough — .modal-panel and .confirm-dialog inherit the desktop centring,
+     and .confirm-dialog (which reuses this overlay) is fixed by the same
+     change. */
   .modal-overlay {
-    align-items: flex-end;
-    padding: 0;
+    align-items: center;
+    /* Smaller than the desktop 24px so a wide panel still gets the width, but
+     not zero — the gap is what keeps the card reading as a floating dialog
+     rather than a full-bleed screen. The safe-area term keeps it clear of the
+     home indicator on the short axis. */
+    padding: 16px calc(16px + env(safe-area-inset-left, 0px))
+      calc(16px + env(safe-area-inset-bottom, 0px))
+      calc(16px + env(safe-area-inset-right, 0px));
   }
 
   .modal-panel {
-    max-height: 90vh;
+    /* svh, not vh: vh resolves against the LARGEST viewport (toolbars hidden),
+       so a 90vh panel is taller than the screen while the browser chrome is
+       showing and its buttons sit under the toolbar. svh is the smallest
+       viewport, which is the safe one to size a centred dialog against. */
+    max-height: 85svh;
     max-width: none;
-    padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
-    border-radius: 18px 18px 0 0;
-    border-bottom: none;
+    padding: 22px 18px;
+    border-radius: 16px;
+  }
+
+  .confirm-dialog {
+    max-height: 85svh;
+    overflow-y: auto;
+    padding: 24px 20px;
   }
 }
 

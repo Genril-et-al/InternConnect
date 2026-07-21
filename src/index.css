@@ -96,14 +96,22 @@ canvas {
       not fit break rather than push the layout sideways. It only fires as a
       last resort, so ordinary prose is untouched.
 
-      `span`/`a`/`td`/`th`/`li` get `anywhere` instead: these are where the
-      unbroken tokens live (email addresses, URLs, uploaded filenames, ids).
-      The difference between the two is not when they break — both break only
-      when the word overflows — but that `anywhere` also shrinks the element's
+      `a`/`td`/`th`/`li` get `anywhere` instead: these are where the unbroken
+      tokens live (email addresses, URLs, uploaded filenames, ids). The
+      difference between the two is not when they break — both break only when
+      the word overflows — but that `anywhere` also shrinks the element's
       min-content width, which is what stops such a token from widening a grid
       track or a flex item in the first place. It replaces the non-standard
       `word-break: break-word` that used to be here, which meant the same thing
       but did nothing at all in Firefox.
+
+      `span` is deliberately NOT in that list, even though it holds plenty of
+      long text. It is also what wraps every short atomic value in the app —
+      stat numbers, badges, percentages — and there the min-content collapse
+      backfires: a flex sibling squeezes the span to a character or two and
+      "100%" breaks across two lines. Atomic values are covered by the nowrap
+      rule below; anything in a span that genuinely needs to break is inside a
+      block that already breaks.
 
    2. Where the break lands. Without this, a heading narrowed to a phone
       routinely leaves one orphaned word on its own line, and a paragraph ends
@@ -120,7 +128,6 @@ label {
   overflow-wrap: break-word;
 }
 
-span,
 a,
 li,
 td,
@@ -138,6 +145,25 @@ h4 {
 p,
 li {
   text-wrap: pretty;
+}
+
+/* Atomic values — a stat number, a percentage, a match score. These are one
+   token that happens to contain a digit/symbol boundary a line breaker is
+   happy to split at, so a flex row that runs short will render "100" over "%".
+   They are all a handful of characters wide; refusing to wrap them costs
+   nothing and `flex-shrink: 0` stops a long-labelled sibling from squeezing
+   them below their own width in the first place. */
+.sd-big-number,
+.sd-stat-value,
+.ad-stat-value,
+.ad-stat-card-value,
+.ad-quick-value,
+.cp-stat-value,
+.progress-pct,
+.metric strong {
+  flex-shrink: 0;
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
 
 a {
