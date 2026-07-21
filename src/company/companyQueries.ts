@@ -275,16 +275,34 @@ export async function updateApplicationStatus(
   status: ApplicantStatus,
   feedback?: string,
 ): Promise<void> {
-  const payload: any = { status: APPLICANT_STATUS_TO_DB[status] }
+  // feedback is left off entirely when not supplied, rather than written as
+  // null — an accept/reject with no note must not wipe an existing one.
+  const payload: { status: string; feedback?: string } = {
+    status: APPLICANT_STATUS_TO_DB[status],
+  }
   if (feedback !== undefined) payload.feedback = feedback
-  
+
+
   const { error } = await supabase.from('applications').update(payload).eq('id', applicationId)
   if (error) throw new Error(error.message)
 }
 
+/**
+ * What the company fills in when scheduling an interview. Stored as JSON on
+ * the application's next_step, so the shape is the contract with the student
+ * side that renders it.
+ */
+export type InterviewDetails = {
+  date: string
+  time: string
+  mode: 'online' | 'in-person'
+  /** A meeting URL when online, a street address when in-person. */
+  locationOrLink: string
+}
+
 export async function scheduleInterview(
   applicationId: string,
-  interviewDetails: { date: string; time: string; mode: string; locationOrLink: string }
+  interviewDetails: InterviewDetails,
 ): Promise<void> {
   const payload = {
     status: 'interview_scheduled',

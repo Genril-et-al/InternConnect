@@ -15,7 +15,7 @@ import {
   updateApplicationStatus,
   scheduleInterview,
 } from './companyQueries'
-import type { NewListingInput } from './companyQueries'
+import type { InterviewDetails, NewListingInput } from './companyQueries'
 import type { ApplicantStatus } from './companyData'
 import './company.css'
 
@@ -99,7 +99,7 @@ export function CompanyPortal({
     [withRefresh],
   )
   const handleScheduleInterview = useCallback(
-    (id: string, details: any) =>
+    (id: string, details: InterviewDetails) =>
       withRefresh(() => scheduleInterview(id, details)),
     [withRefresh],
   )

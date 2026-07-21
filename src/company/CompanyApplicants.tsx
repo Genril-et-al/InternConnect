@@ -16,6 +16,7 @@ import type {
   CompanyListing,
 } from './companyData'
 import { signedDocumentUrl } from '../lib/profile'
+import type { InterviewDetails } from './companyQueries'
 
 /**
  * UC-C04 / UC-C05 — review applications, open an applicant's profile
@@ -33,7 +34,7 @@ export function CompanyApplicants({
   applicants: CompanyApplicant[]
   listings: CompanyListing[]
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
-  onScheduleInterview: (id: string, details: any) => Promise<void>
+  onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
   highlightedApplicantId?: string | null
 }) {
@@ -167,7 +168,7 @@ function ApplicantDetail({
   applicant: CompanyApplicant
   onBack: () => void
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
-  onScheduleInterview: (id: string, details: any) => Promise<void>
+  onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
 }) {
   const [rejectOpen, setRejectOpen] = useState(false)
@@ -541,7 +542,7 @@ function ScheduleInterviewModal({
   onSkip,
 }: {
   onClose: () => void
-  onSubmit: (details: { date: string; time: string; mode: string; locationOrLink: string }) => void
+  onSubmit: (details: InterviewDetails) => void
   onSkip: () => void
 }) {
   const [date, setDate] = useState('')
@@ -580,7 +581,7 @@ function ScheduleInterviewModal({
           </label>
           <label className="cp-modal-label">
             Format *
-            <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }}>
+            <select value={mode} onChange={(e) => setMode(e.target.value as InterviewDetails['mode'])} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }}>
               <option value="online">Online</option>
               <option value="in-person">In-person</option>
             </select>
