@@ -264,6 +264,21 @@
   color: rgba(255, 255, 255, 0.4);
   font-size: 11px;
   margin: 0;
+  /* nowrap has to be re-declared here rather than inherited from .ad-user-main,
+     and this is load-bearing — without it the collapsed rail grows to 162px.
+
+     `white-space: nowrap` is a shorthand that sets `text-wrap-mode: nowrap`,
+     and `p { text-wrap: pretty }` in index.css is a shorthand that resets
+     `text-wrap-mode` back to `wrap`. So every <p> silently overrides the
+     nowrap it inherits. When .ad-user-main collapses to max-width:0 this text
+     then wraps one character per line — "Student" becomes seven lines and
+     94px of extra height, which shoves the whole user block up the rail.
+
+     .ad-user-name survives only because it happens to re-declare nowrap too.
+     overflow/ellipsis match it so a long role degrades the same way. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ad-signout {
