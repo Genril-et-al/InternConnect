@@ -87,11 +87,13 @@ button.primary {
     auto,
     var(--wm-size) auto;
   background-attachment: scroll, fixed;
+  /* Deliberately NOT transitioned — see .ad-main in admin.css for the reasoning.
+     margin-left is a layout property, so animating it re-wraps every line of
+     content on every frame. The rail's own width animation carries the motion. */
   margin-left: var(--sb-w);
   min-height: 100svh;
   min-width: 0;
   padding: 28px;
-  transition: margin-left var(--dur-2) var(--ease-out);
 }
 
 .topbar,

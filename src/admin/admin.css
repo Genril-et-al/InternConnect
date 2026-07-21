@@ -303,10 +303,25 @@
   background-repeat: no-repeat, no-repeat;
   background-size: auto, var(--wm-size) auto;
   background-attachment: scroll, fixed;
+  /* The offset follows --sb-w with no transition, on purpose.
+
+     margin-left is a layout property: animating it re-runs layout on this whole
+     subtree every frame, which means the content re-wraps continuously for the
+     length of the animation. Headings break to a different number of lines,
+     cards reflow, stat rows shuffle — and the eye reads that as the page
+     rearranging itself rather than as the sidebar moving. Snapping it means the
+     text wraps exactly once, in a single frame.
+
+     Nothing is lost visually: .ad-sidebar still animates its own width, so the
+     rail slides as before. The content simply arrives at its final width
+     immediately instead of being recomputed on the way there.
+
+     A transform can't substitute here the way it usually does for layout
+     animation — the content genuinely changes width, so there is nothing for
+     translateX to fake. */
   margin-left: var(--sb-w);
   min-height: 100svh;
   padding: 32px;
-  transition: margin-left var(--dur-2) var(--ease-out);
 }
 
 /* ── Collapsed rail state (shared by every sidebar) ────────────────── */
