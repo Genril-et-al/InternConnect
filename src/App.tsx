@@ -454,20 +454,14 @@ function BrowseInternships({
     onToggleBookmark(id)
   }
 
-  // Detail view — full internship page
-  if (selectedInternship && !showApplyModal) {
-    return (
-      <InternshipDetailView
-        internship={selectedInternship}
-        alreadyApplied={appliedIds.has(selectedInternship.id)}
-        onBack={() => onSelectInternship(null)}
-        onApply={() => setShowApplyModal(true)}
-      />
-    )
-  }
-
-  // Apply modal overlay
-  if (selectedInternship && showApplyModal) {
+  // Detail view — full internship page, with the apply modal layered over it.
+  //
+  // One branch rather than two. Splitting on showApplyModal meant the return
+  // value changed shape — a bare element without the modal, a fragment with it
+  // — which remounts InternshipDetailView on every open and close. That was
+  // invisible until .view-swap gave it a mount animation; now it would replay
+  // the whole enter transition behind the modal each time.
+  if (selectedInternship) {
     return (
       <>
         <InternshipDetailView
@@ -476,17 +470,19 @@ function BrowseInternships({
           onBack={() => onSelectInternship(null)}
           onApply={() => setShowApplyModal(true)}
         />
-        <ApplyModal
-          internship={selectedInternship}
-          onSubmit={() => onApply(selectedInternship.id)}
-          onClose={() => setShowApplyModal(false)}
-        />
+        {showApplyModal && (
+          <ApplyModal
+            internship={selectedInternship}
+            onSubmit={() => onApply(selectedInternship.id)}
+            onClose={() => setShowApplyModal(false)}
+          />
+        )}
       </>
     )
   }
 
   return (
-    <div className="browse-root">
+    <div className="browse-root view-swap">
       {/* Heading */}
       <div className="browse-heading">
         <h2 className="browse-title">Browse Internships</h2>
@@ -1346,7 +1342,7 @@ function InternshipDetailView({
   onApply: () => void
 }) {
   return (
-    <div className="detail-view">
+    <div className="detail-view view-swap">
       <button className="detail-back" onClick={onBack} type="button">
         <ArrowLeft size={14} /> Back to listings
       </button>

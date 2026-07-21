@@ -255,6 +255,38 @@ a {
   }
 }
 
+/* Swapping a view for a sibling *within* the same activeView — the internship
+   list for its detail page and back again. .page-enter cannot cover this: its
+   key is the activeView, which does not change here, so the wrapper never
+   remounts and the swap landed with no animation at all while every sidebar
+   navigation had one.
+
+   These roots are different element types at the same position, so React
+   unmounts one and mounts the other on its own — no key is needed, mounting is
+   what runs the animation.
+
+   Deliberately lighter than .page-enter, and not simply that class reused:
+   this element is nested INSIDE the .page-enter wrapper, so on entering the
+   section from the sidebar both animations run at once. Two 10px rises would
+   compound into a 20px slide and two opacity ramps would multiply. A fade with
+   a 4px rise disappears into the outer motion when they coincide, and still
+   reads as movement on its own when only this one plays. */
+.view-swap {
+  animation: view-swap var(--dur-2) var(--ease-out) both;
+}
+
+@keyframes view-swap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Dropdowns and popovers. Scaled up from the corner nearest whatever opened
    them so the motion reads as the panel growing out of its trigger — override
    `transform-origin` per menu when the trigger is not at the top right.
