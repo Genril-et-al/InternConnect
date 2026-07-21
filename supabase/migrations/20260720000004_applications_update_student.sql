@@ -9,6 +9,7 @@
 --   accepted  -> withdrawn                  (withdraw acceptance)
 --   any live  -> discarded                  (auto-discard on accepting another offer)
 --   discarded -> previous_status            (restore on withdrawal)
+drop policy if exists applications_update_student on public.applications;
 create policy applications_update_student on public.applications
   for update
   using (

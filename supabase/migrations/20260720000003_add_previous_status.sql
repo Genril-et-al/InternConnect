@@ -2,4 +2,4 @@
 ALTER TYPE public.application_status ADD VALUE IF NOT EXISTS 'withdrawn' AFTER 'discarded';
 
 -- Add 'previous_status' column to 'applications' table
-ALTER TABLE public.applications ADD COLUMN previous_status public.application_status;
+ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS previous_status public.application_status;
