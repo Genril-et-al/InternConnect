@@ -7,6 +7,7 @@ import {
   Menu,
   FileText,
   LayoutDashboard,
+  Link2,
   LogOut,
   Search,
   Upload,
@@ -1030,8 +1031,10 @@ function RequirementSubmitRow({
                     if (!requirement.submittedFilePath) return
                     try {
                       setBusy(true)
-                      const url = await signedDocumentUrl(requirement.submittedFilePath, requirement.name)
-                      window.open(url, '_blank')
+                      // No download name: "View submitted document" should render
+                      // the file, not save it.
+                      const url = await signedDocumentUrl(requirement.submittedFilePath)
+                      window.open(url, '_blank', 'noopener,noreferrer')
                     } catch {
                       setError('Failed to load document')
                     } finally {
@@ -1398,33 +1401,39 @@ function documentFileName(path?: string | null): string {
   return decodeURIComponent(path.split('/').pop() ?? path)
 }
 
-/** One profile document listed in the apply modal, with a view action. */
+/**
+ * One profile document listed in the apply modal, with a view action.
+ * `external` marks the portfolio link, which leaves the app rather than opening
+ * the in-app preview -- so it gets a link icon and an "Open" label instead.
+ */
 function ApplyDocumentRow({
   label,
   name,
   onView,
   busy,
   required,
+  external,
 }: {
   label: string
   name: string
   onView: () => void
   busy?: boolean
   required?: boolean
+  external?: boolean
 }) {
   return (
-    <div className="upload-zone has-file" style={{ marginBottom: '8px' }}>
-      <div className="upload-file-info">
-        <span className="upload-file-icon">📄</span>
-        <div style={{ minWidth: 0 }}>
-          <p className="upload-file-name">
-            {label} {required && <span className="required">*</span>}
-          </p>
-          <p className="muted" style={{ overflowWrap: 'anywhere' }}>{name}</p>
-        </div>
+    <div className="apply-doc">
+      <span className="apply-doc-icon">
+        {external ? <Link2 size={18} /> : <FileText size={18} />}
+      </span>
+      <div className="apply-doc-main">
+        <p className="apply-doc-label">
+          {label} {required && <span className="required">*</span>}
+        </p>
+        <p className="apply-doc-name">{name}</p>
       </div>
-      <button className="sd-link" disabled={busy} onClick={onView} type="button">
-        {busy ? 'Opening…' : 'View'}
+      <button className="apply-doc-view" disabled={busy} onClick={onView} type="button">
+        {busy ? 'Opening…' : external ? 'Open' : 'View'}
       </button>
     </div>
   )
@@ -1444,11 +1453,17 @@ function ApplyModal({
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [openingDoc, setOpeningDoc] = useState(false)
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null)
 
   const hasResume = Boolean(profile?.resume_url)
 
-  /** Open a stored profile document in a new tab via a short-lived signed URL. */
-  const viewDocument = async (path: string | null | undefined, downloadName: string) => {
+  /**
+   * Preview a stored profile document in-app. The student is only confirming
+   * what gets sent -- they already have these files -- so this renders in an
+   * overlay rather than handing off to the browser. No download name is passed:
+   * that sets Content-Disposition: attachment and saves the file instead.
+   */
+  const viewDocument = async (path: string | null | undefined, name: string) => {
     if (!path) return
     if (demo) {
       setSubmitError('In demo mode, files are not uploaded to the server, so they cannot be viewed.')
@@ -1457,8 +1472,8 @@ function ApplyModal({
     setOpeningDoc(true)
     setSubmitError(null)
     try {
-      const url = await signedDocumentUrl(path, downloadName)
-      window.open(url, '_blank')
+      const url = await signedDocumentUrl(path)
+      setPreview({ url, name })
     } catch {
       setSubmitError('Failed to load the document.')
     } finally {
@@ -1526,48 +1541,51 @@ function ApplyModal({
               <div className="modal-upload-field">
                 <label>What {internship.company} will receive</label>
 
-                {hasResume ? (
-                  <ApplyDocumentRow
-                    busy={openingDoc}
-                    label="Resume"
-                    name={documentFileName(profile?.resume_url)}
-                    onView={() => viewDocument(profile?.resume_url, 'resume')}
-                    required
-                  />
-                ) : (
-                  <p className="muted">
-                    No resume on your profile yet — upload one from your profile before applying.
-                  </p>
-                )}
+                <div className="apply-doc-list">
+                  {hasResume ? (
+                    <ApplyDocumentRow
+                      busy={openingDoc}
+                      label="Resume"
+                      name={documentFileName(profile?.resume_url)}
+                      onView={() => viewDocument(profile?.resume_url, 'Resume')}
+                      required
+                    />
+                  ) : (
+                    <p className="muted">
+                      No resume on your profile yet — upload one from your profile before applying.
+                    </p>
+                  )}
 
-                {profile?.cover_letter_url && (
-                  <ApplyDocumentRow
-                    busy={openingDoc}
-                    label="Cover Letter"
-                    name={documentFileName(profile.cover_letter_url)}
-                    onView={() => viewDocument(profile.cover_letter_url, 'cover_letter')}
-                  />
-                )}
+                  {profile?.cover_letter_url && (
+                    <ApplyDocumentRow
+                      busy={openingDoc}
+                      label="Cover Letter"
+                      name={documentFileName(profile.cover_letter_url)}
+                      onView={() => viewDocument(profile.cover_letter_url, 'Cover Letter')}
+                    />
+                  )}
 
-                {profile?.portfolio_file_url && (
-                  <ApplyDocumentRow
-                    busy={openingDoc}
-                    label="Portfolio"
-                    name={documentFileName(profile.portfolio_file_url)}
-                    onView={() => viewDocument(profile.portfolio_file_url, 'portfolio')}
-                  />
-                )}
+                  {profile?.portfolio_file_url && (
+                    <ApplyDocumentRow
+                      busy={openingDoc}
+                      label="Portfolio"
+                      name={documentFileName(profile.portfolio_file_url)}
+                      onView={() => viewDocument(profile.portfolio_file_url, 'Portfolio')}
+                    />
+                  )}
 
-                {profile?.portfolio_link && (
-                  <ApplyDocumentRow
-                    busy={openingDoc}
-                    label="Portfolio Link"
-                    name={profile.portfolio_link}
-                    onView={() => window.open(profile.portfolio_link!, '_blank', 'noopener,noreferrer')}
-                  />
-                )}
+                  {profile?.portfolio_link && (
+                    <ApplyDocumentRow
+                      busy={openingDoc}
+                      external
+                      label="Portfolio Link"
+                      name={profile.portfolio_link}
+                      onView={() => window.open(profile.portfolio_link!, '_blank', 'noopener,noreferrer')}
+                    />
+                  )}
+                </div>
 
-                <p className="muted" style={{ marginTop: '8px' }}>
+                <p className="muted" style={{ marginTop: '10px' }}>
                   These come from your profile — update them there to change what is sent.
                 </p>
               </div>
@@ -1589,6 +1607,38 @@ function ApplyModal({
           </>
         )}
       </div>
+
+      {/* Renders the document in place. Stops propagation so clicking inside the
+          preview doesn't reach the apply modal's overlay and close the form. */}
+      {preview && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPreview(null)}
+          style={{ zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '40px' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ display: 'flex', flexDirection: 'column', background: 'var(--bg)', flex: 1, borderRadius: '8px', overflow: 'hidden' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>{preview.name}</h3>
+              <button
+                aria-label="Close preview"
+                onClick={() => setPreview(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-light)' }}
+                type="button"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+            <iframe
+              src={preview.url}
+              style={{ flex: 1, width: '100%', border: 'none', background: 'var(--bg-subtle)' }}
+              title={preview.name}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -113,7 +113,13 @@ export async function markResumeReplaced(userId: string): Promise<void> {
   if (error) throw error
 }
 
-/** Create a temporary signed URL to view a private document. */
+/**
+ * Create a temporary signed URL for a private document.
+ *
+ * Passing `downloadName` sets Content-Disposition: attachment, so the browser
+ * saves the file instead of rendering it. Omit it to preview inline -- callers
+ * that want both (see CompanyApplicants) mint one URL each way.
+ */
 export async function signedDocumentUrl(path: string, downloadName?: string, expiresInSec = 3600): Promise<string> {
   const { data, error } = await supabase.storage
     .from('documents')
