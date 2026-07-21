@@ -71,22 +71,30 @@ export function StudentDashboard({
   const firstName = profile?.first_name?.trim() || 'there'
 
   // Profile completion — computed from the real profile record.
+  //
+  // `counts` is what the percentage is scored against; every item still shows in
+  // the checklist. Portfolio is opt-in — plenty of students have nothing to put
+  // there, and scoring it meant those profiles were permanently stuck at 75%
+  // with no action that would clear it.
   const checklist = [
-    { label: 'Formal Photo', done: Boolean(profile?.photo_url) },
-    { label: 'Resume', done: Boolean(profile?.resume_url) },
+    { label: 'Formal Photo', done: Boolean(profile?.photo_url), counts: true },
+    { label: 'Resume', done: Boolean(profile?.resume_url), counts: true },
     {
       label: 'Portfolio',
       done: Boolean(profile?.portfolio_link || profile?.portfolio_file_url),
+      counts: false,
     },
     {
       label: 'Personal info',
       done: Boolean(
         profile?.age && profile?.gender && profile?.address && profile?.contact_number,
       ),
+      counts: true,
     },
   ]
-  const doneCount = checklist.filter((c) => c.done).length
-  const completionPct = Math.round((doneCount / checklist.length) * 100)
+  const scored = checklist.filter((c) => c.counts)
+  const doneCount = scored.filter((c) => c.done).length
+  const completionPct = Math.round((doneCount / scored.length) * 100)
 
   return (
     <div className="sd-root">
