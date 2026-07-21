@@ -24,11 +24,11 @@
   /* Motion tokens — one easing curve + a small duration scale keep every
      transition/animation in the app feeling like it comes from one place.
      --ease-out is a soft "settle" curve for enter/hover/expand motion. */
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.33, 0.08, 0.24, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-1: 140ms;
-  --dur-2: 220ms;
-  --dur-3: 320ms;
+  --dur-1: 260ms;
+  --dur-2: 420ms;
+  --dur-3: 600ms;
 
   /* Background watermark — the brand mark ghosted behind page content in both
      shells. It is NOT drawn with opacity on a pseudo-element: that needs
@@ -90,19 +90,54 @@ canvas {
   max-width: 100%;
 }
 
+/* Long text is split into two jobs, because one rule cannot do both well.
+
+   1. Containment. `overflow-wrap: break-word` lets a word that genuinely does
+      not fit break rather than push the layout sideways. It only fires as a
+      last resort, so ordinary prose is untouched.
+
+      `span`/`a`/`td`/`th`/`li` get `anywhere` instead: these are where the
+      unbroken tokens live (email addresses, URLs, uploaded filenames, ids).
+      The difference between the two is not when they break — both break only
+      when the word overflows — but that `anywhere` also shrinks the element's
+      min-content width, which is what stops such a token from widening a grid
+      track or a flex item in the first place. It replaces the non-standard
+      `word-break: break-word` that used to be here, which meant the same thing
+      but did nothing at all in Firefox.
+
+   2. Where the break lands. Without this, a heading narrowed to a phone
+      routinely leaves one orphaned word on its own line, and a paragraph ends
+      on a single short word — the thing that reads as "awkward" long before
+      any actual overflow does. `balance` evens the lines of a short heading;
+      `pretty` only fixes up the last line or two, which is the right trade for
+      body copy of unknown length. */
 h1,
 h2,
 h3,
 p,
+strong,
+label {
+  overflow-wrap: break-word;
+}
+
 span,
 a,
-strong,
-label,
 li,
 td,
 th {
-  overflow-wrap: break-word;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
 }
 
 a {
@@ -164,6 +199,56 @@ a {
   margin-top: 8px;
   min-height: 44px;
   padding: 0 22px;
+}
+
+/* Page-to-page transition. There is no router — views are swapped by an
+   `activeView` / `active` state check, so the outgoing view is gone from the
+   DOM in the same frame the incoming one appears. That means no exit
+   animation is possible without keeping both mounted; the incoming view
+   animating itself in is what smooths the switch. The wrapper carries a
+   `key` of the active view (App.tsx, AdminApp.tsx) so React remounts it on
+   every switch and the animation re-runs.
+
+   `both` matters: the held end state is `transform: none`, so the wrapper
+   stops being a containing block once the animation settles and any
+   `position: fixed` modal rendered inside a view positions against the
+   viewport as intended. */
+.page-enter {
+  animation: page-enter var(--dur-3) var(--ease-out) both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Dropdowns and popovers. Scaled up from the corner nearest whatever opened
+   them so the motion reads as the panel growing out of its trigger — override
+   `transform-origin` per menu when the trigger is not at the top right.
+   Shorter than .page-enter: a menu is a small surface reacting to a direct
+   click, so it should settle well before the pointer moves to pick an item. */
+.menu-pop {
+  animation: menu-pop var(--dur-2) var(--ease-out) both;
+  transform-origin: top right;
+}
+
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Respect users who ask for less motion: neutralise transitions/animations

@@ -279,7 +279,7 @@
   justify-content: center;
   min-height: 44px;
   padding: 10px 18px;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color var(--dur-1) ease, background var(--dur-1) ease;
 }
 
 .profile-delete-btn {
@@ -294,7 +294,7 @@
   justify-content: center;
   min-height: 44px;
   padding: 0 14px;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background var(--dur-1) ease, border-color var(--dur-1) ease;
 }
 
 .profile-delete-btn:hover {
@@ -491,7 +491,7 @@
   font-weight: 600;
   min-height: 36px;
   padding: 0 8px;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--dur-1) ease, color var(--dur-1) ease;
 }
 
 .profile-sex-btn:hover {

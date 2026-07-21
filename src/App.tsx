@@ -318,43 +318,48 @@ function StudentPortal({
 
   return (
     <>
-      {activeView === 'Browse Internships' && (
-        <BrowseInternships
-          internships={internships}
-          appliedIds={new Set(applications.map((a) => a.internshipId))}
-          bookmarkedIds={bookmarkedIds}
-          onToggleBookmark={handleToggleBookmark}
-          onApply={handleApply}
-          selectedInternship={selectedInternship}
-          onSelectInternship={setSelectedInternship}
-        />
-      )}
-      {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} highlightedAppId={highlightedAppId} />}
-      {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => handleNavigate('Dashboard')} />}
-      {activeView === 'Dashboard' && (
-        <StudentDashboard
-          internships={internships}
-          applications={applications}
-          onNavigate={handleNavigate}
-          onOpenProgress={openProgress} 
-          onFilterApplications={(filter) => {
-            setApplicationFilter(filter)
-            onNavigate('Applications') // Use raw onNavigate so we don't reset
-          }}
-          onOpenInternship={(id) => {
-            const internship = internships.find(i => i.id === id)
-            if (internship) {
-              setSelectedInternship(internship)
-              onNavigate('Browse Internships')
-            }
-          }}
-          onHighlightApplication={(id) => {
-            setHighlightedAppId(id)
-            if (id) setTimeout(() => setHighlightedAppId(null), 3000)
-          }}
-        />
-      )}
-      
+      {/* Keyed on the view so each switch remounts this wrapper and replays
+          the enter animation. The progress modal stays outside it — it is an
+          overlay, not part of the page being navigated to. */}
+      <div className="page-enter" key={activeView}>
+        {activeView === 'Browse Internships' && (
+          <BrowseInternships
+            internships={internships}
+            appliedIds={new Set(applications.map((a) => a.internshipId))}
+            bookmarkedIds={bookmarkedIds}
+            onToggleBookmark={handleToggleBookmark}
+            onApply={handleApply}
+            selectedInternship={selectedInternship}
+            onSelectInternship={setSelectedInternship}
+          />
+        )}
+        {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} highlightedAppId={highlightedAppId} />}
+        {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => handleNavigate('Dashboard')} />}
+        {activeView === 'Dashboard' && (
+          <StudentDashboard
+            internships={internships}
+            applications={applications}
+            onNavigate={handleNavigate}
+            onOpenProgress={openProgress}
+            onFilterApplications={(filter) => {
+              setApplicationFilter(filter)
+              onNavigate('Applications') // Use raw onNavigate so we don't reset
+            }}
+            onOpenInternship={(id) => {
+              const internship = internships.find(i => i.id === id)
+              if (internship) {
+                setSelectedInternship(internship)
+                onNavigate('Browse Internships')
+              }
+            }}
+            onHighlightApplication={(id) => {
+              setHighlightedAppId(id)
+              if (id) setTimeout(() => setHighlightedAppId(null), 3000)
+            }}
+          />
+        )}
+      </div>
+
       {selectedApp && (
         <ProgressModal
           application={selectedApp}
@@ -534,7 +539,7 @@ function BrowseInternships({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
             {isDropdownOpen && (
-              <div style={{
+              <div className="menu-pop" style={{
                 position: 'absolute',
                 top: 'calc(100% + 8px)',
                 right: 0,
@@ -562,7 +567,7 @@ function BrowseInternships({
                       color: searchField === opt ? 'var(--accent)' : 'var(--text)',
                       background: searchField === opt ? 'var(--accent-soft)' : 'transparent',
                       fontWeight: searchField === opt ? 600 : 400,
-                      transition: 'background 0.2s',
+                      transition: 'background var(--dur-2) var(--ease-out)',
                       userSelect: 'none'
                     }}
                     onMouseEnter={(e) => {

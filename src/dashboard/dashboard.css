@@ -45,7 +45,7 @@
   gap: 8px;
   min-height: 42px;
   padding: 8px 16px;
-  transition: filter 0.15s ease;
+  transition: filter var(--dur-1) ease;
 }
 
 .sd-primary:hover {
@@ -95,7 +95,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 20px;
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  transition: box-shadow var(--dur-1) ease, transform var(--dur-1) ease;
 }
 
 .sd-stat.clickable {
@@ -191,7 +191,7 @@
   border-radius: 999px;
   display: block;
   height: 100%;
-  transition: width 0.3s ease;
+  transition: width var(--dur-3) ease;
 }
 
 /* Checklist */
@@ -233,7 +233,7 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 12px 14px;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--dur-1) ease;
 }
 
 .sd-list-row:hover {

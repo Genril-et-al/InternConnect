@@ -186,36 +186,143 @@
     padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* `background-attachment: fixed` is the single worst offender for scroll jank
-     on mobile Safari — it repaints the whole layer every frame, and on older
-     iOS versions the watermark detaches and drifts. Pin the layers to normal
-     scrolling instead and centre the mark now that there is no rail to offset
-     it against. */
+  /* Watermark placement.
+
+     `background-attachment: fixed` is the worst offender for scroll jank on
+     mobile Safari — it repaints the whole layer every frame — so these layers
+     scroll normally. But a *percentage* y-position resolves against
+     (element height − image height), and .workspace / .ad-main are as tall as
+     their content. That is what made the mark wander: on a short page 38%
+     landed just under the header, on a long list it resolved to a thousand-odd
+     pixels down (so it read as "gone"), and it moved every time the content
+     length changed. Same markup, three different placements.
+
+     A LENGTH is measured from the top of the padding box regardless of how
+     tall the page is, so the mark lands in exactly the same spot on every
+     screen. 22svh centres it in the first screenful, below the page heading.
+
+     `100%` for the x-axis of the wash keeps its two-stop gradient covering the
+     full box; the mark itself centres now that no rail offsets it. */
   .workspace {
-    background-attachment: scroll, scroll, scroll;
-    background-position: 0 0, 50% 38%, right 12px top 12px;
-    background-size: auto, var(--wm-size) auto, 96px auto;
+    background-attachment: scroll, scroll;
+    background-position: 0 0, 50% 22svh;
+    background-size: auto, var(--wm-size) auto;
   }
 
   .ad-main {
     background-attachment: scroll, scroll;
-    background-position: 0 0, 50% 38%;
+    background-position: 0 0, 50% 22svh;
+  }
+
+  /* The auth/loading screens draw the same mark and had the same `fixed`
+     layer, with no mobile override at all. */
+  .auth-loading {
+    background-attachment: scroll, scroll;
+    background-position: 0 0, 50% 22svh;
   }
 
   /* 46vw put the watermark at ~172px on a phone — small enough to read as a
      stray graphic rather than a ghosted brand mark. */
   .app-shell,
-  .ad-shell {
+  .ad-shell,
+  .auth-loading {
     --wm-size: min(340px, 66vw);
   }
+}
 
-  .topbar h2 {
+
+/* ── 3b. Typography at phone widths ───────────────────────────────────────
+   A phone gives these views a ~343px column (375px less the 16px padding
+   either side). The display sizes were picked against a 1100px+ content area
+   and were never scaled down, so anything longer than a couple of words —
+   "Welcome back, <full name>", a listing title, a company name — broke into
+   three or four lines of 26–34px type that filled the screen before any
+   content did.
+
+   Two things are adjusted together, and the second matters as much as the
+   first: the size, and the line-height. Headings inherit `line-height: 1.45`
+   from :root, which is tuned for body copy; on a heading that has wrapped it
+   opens gaps between the lines wide enough that the heading stops reading as
+   one block. Large text needs proportionally less leading, not more.
+
+   `text-wrap: balance` (set globally in index.css) does the rest — it evens
+   the wrapped lines instead of leaving a single orphaned word on the last. */
+@media (max-width: 760px) {
+
+  /* Page titles — one per view, the largest text on the screen. */
+  .topbar h2,
+  .ad-main .ad-topbar h2,
+  .ad-main h2,
+  .sd-title,
+  .cp-title,
+  .ad-title,
+  .browse-title,
+  .applications-header h2,
+  .profile-head h1 {
+    font-size: 22px;
+    line-height: 1.2;
+  }
+
+  /* Secondary headings: detail views, modals and card headers. */
+  .detail-title,
+  .cp-detail-name,
+  .modal-panel h3,
+  .panel-heading h3 {
+    line-height: 1.25;
+  }
+
+  /* Stat tiles sit two-up in a ~165px track. The number is short, but the
+     label under it usually is not, so the tile is only as calm as the pair —
+     dropping the number a step keeps them balanced. */
+  .sd-stat-value {
+    font-size: 28px;
+  }
+
+  .ad-stat-value,
+  .cp-stat-value,
+  .sd-big-number,
+  .metric strong {
     font-size: 24px;
   }
 
+  /* Meta rows (company · location · posted date) are flex rows that assume
+     they fit on one line. Let them wrap rather than overflow the card. */
+  .strip-meta,
+  .detail-meta,
+  .card-topline,
+  .toolbar,
+  .quick-actions,
+  .topbar-actions {
+    flex-wrap: wrap;
+  }
+}
+
+
+/* Very narrow phones (iPhone SE and the 360px Android class) get one more
+   step down — at 320–360px even 22px headings wrap on two words. */
+@media (max-width: 400px) {
+
+  .topbar h2,
   .ad-main .ad-topbar h2,
-  .ad-main h2 {
+  .ad-main h2,
+  .sd-title,
+  .cp-title,
+  .ad-title,
+  .browse-title,
+  .applications-header h2,
+  .profile-head h1 {
+    font-size: 20px;
+  }
+
+  .sd-stat-value {
     font-size: 24px;
+  }
+
+  .ad-stat-value,
+  .cp-stat-value,
+  .sd-big-number,
+  .metric strong {
+    font-size: 22px;
   }
 }
 
@@ -296,22 +403,9 @@
     border-radius: 16px;
     box-shadow: 0 18px 40px rgba(28, 10, 4, 0.3);
     z-index: 901;
-    transform-origin: top right;
-    animation: nb-pop var(--dur-3) var(--ease-out);
-  }
-
-  /* Grows out of the bell in the top-right rather than rising from below, so
-     the motion points back at the control that opened it. */
-  @keyframes nb-pop {
-    from {
-      opacity: 0;
-      transform: translateY(-6px) scale(0.96);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+    /* The open animation itself is .menu-pop in index.css — it used to be
+       defined here, mobile-only, which left the desktop panel appearing with
+       no transition at all. Only the layout overrides belong in this file. */
   }
 
   /* The one scroll container. `flex: 1` over the fixed 360px cap lets it use

@@ -40,6 +40,17 @@ button:hover {
   transform: translateY(-1px);
 }
 
+/* The press. Hover lifts the button off the page, so a click should put it
+   back down — without this the button stays raised through the press and the
+   click has no physical read at all. Deliberately quicker than --dur-1: a
+   press is a direct response to the finger and lagging behind it feels
+   broken, where the release back to hover can afford to take its time. */
+button:active:not(:disabled) {
+  box-shadow: 0 2px 6px rgba(25, 52, 80, 0.1);
+  transform: translateY(0);
+  transition-duration: 90ms;
+}
+
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -246,7 +257,7 @@ button.primary {
   gap: 8px;
   min-height: 42px;
   padding: 0 12px;
-  transition: border-color 160ms ease;
+  transition: border-color var(--dur-1) ease;
 }
 
 .browse-search-field:focus-within {
@@ -350,9 +361,9 @@ button.primary {
   min-height: 32px;
   padding: 4px 16px;
   transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
+    background var(--dur-1) ease,
+    border-color var(--dur-1) ease,
+    color var(--dur-1) ease;
 }
 
 .browse-pill:hover {
@@ -605,8 +616,8 @@ tr.highlighted {
   min-height: 36px;
   padding: 6px 14px;
   transition:
-    border-color 160ms ease,
-    color 160ms ease;
+    border-color var(--dur-1) ease,
+    color var(--dur-1) ease;
 }
 
 .detail-back:hover {
@@ -940,8 +951,8 @@ tr.highlighted {
   cursor: pointer;
   position: relative;
   transition:
-    border-color 160ms ease,
-    background 160ms ease;
+    border-color var(--dur-1) ease,
+    background var(--dur-1) ease;
 }
 
 .upload-zone:hover {
@@ -1073,8 +1084,8 @@ tr.highlighted {
   font-weight: 600;
   padding: 6px 14px;
   transition:
-    border-color 160ms ease,
-    color 160ms ease;
+    border-color var(--dur-1) ease,
+    color var(--dur-1) ease;
 }
 
 .apply-doc-view:hover:not(:disabled) {
@@ -1755,7 +1766,7 @@ label {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease;
+  transition: background var(--dur-2) ease;
 }
 
 .nb-trigger:hover {
@@ -1849,7 +1860,7 @@ label {
 .nb-item {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-light);
-  transition: background 0.15s ease;
+  transition: background var(--dur-1) ease;
 }
 
 .nb-item:last-child {

@@ -87,7 +87,7 @@ export function NotificationBell({
           {/* Scrim behind the mobile sheet. Display:none above the breakpoint,
               so the desktop dropdown is unaffected. */}
           <div className="nb-backdrop" aria-hidden="true" onClick={() => setIsOpen(false)} />
-          <div className="nb-dropdown" role="dialog" aria-label="Notifications">
+          <div className="nb-dropdown menu-pop" role="dialog" aria-label="Notifications">
             <div className="nb-header">
               <h3>Notifications</h3>
               <div className="nb-header-actions">

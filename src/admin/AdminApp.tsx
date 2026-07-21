@@ -159,43 +159,48 @@ export function AdminApp() {
       </aside>
 
       <main className="ad-main">
-        {active === 0 && (
-          <AdminDashboard
-            appStats={appStats}
-            companies={companies}
-            listings={listings}
-            onNav={setActive}
-            students={students}
-            onHighlightCompany={(id) => { setHighlightedCompanyId(id); if (id) setTimeout(() => setHighlightedCompanyId(null), 3000) }}
-            onHighlightListing={(id) => { setHighlightedListingId(id); if (id) setTimeout(() => setHighlightedListingId(null), 3000) }}
-          />
-        )}
-        {active === 1 && (
-          <AdminStudents
-            students={students}
-            loading={loading}
-            loadError={loadError}
-            onRefresh={refreshStudents}
-          />
-        )}
-        {active === 2 && (
-          <AdminCompanies
-            companies={companies}
-            loading={loading}
-            loadError={loadError}
-            onRefresh={refreshCompanies}
-            highlightedCompanyId={highlightedCompanyId}
-          />
-        )}
-        {active === 3 && <AdminInternships listings={listings} onSetFlagged={handleSetFlagged} highlightedListingId={highlightedListingId} />}
-        {active === 4 && (
-          <AdminReports
-            appStats={appStats}
-            companies={companies}
-            listings={listings}
-            students={students}
-          />
-        )}
+        {/* Keyed on the active section so the enter animation replays on every
+            switch. Wrapping here rather than keying <main> keeps the shell's
+            fetched data (companies, listings, students) mounted. */}
+        <div className="page-enter" key={active}>
+          {active === 0 && (
+            <AdminDashboard
+              appStats={appStats}
+              companies={companies}
+              listings={listings}
+              onNav={setActive}
+              students={students}
+              onHighlightCompany={(id) => { setHighlightedCompanyId(id); if (id) setTimeout(() => setHighlightedCompanyId(null), 3000) }}
+              onHighlightListing={(id) => { setHighlightedListingId(id); if (id) setTimeout(() => setHighlightedListingId(null), 3000) }}
+            />
+          )}
+          {active === 1 && (
+            <AdminStudents
+              students={students}
+              loading={loading}
+              loadError={loadError}
+              onRefresh={refreshStudents}
+            />
+          )}
+          {active === 2 && (
+            <AdminCompanies
+              companies={companies}
+              loading={loading}
+              loadError={loadError}
+              onRefresh={refreshCompanies}
+              highlightedCompanyId={highlightedCompanyId}
+            />
+          )}
+          {active === 3 && <AdminInternships listings={listings} onSetFlagged={handleSetFlagged} highlightedListingId={highlightedListingId} />}
+          {active === 4 && (
+            <AdminReports
+              appStats={appStats}
+              companies={companies}
+              listings={listings}
+              students={students}
+            />
+          )}
+        </div>
       </main>
     </div>
   )

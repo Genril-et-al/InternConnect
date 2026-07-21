@@ -226,6 +226,45 @@
   width: 100%;
 }
 
+/* Welcome-page entrance. The card's children rise in sequence rather than the
+   whole panel appearing at once, so the eye lands on the heading, then the
+   tabs, then the form — the order you read them in anyway. This is a mount
+   animation only: switching between Log In and Sign Up keeps .auth-card
+   mounted, so the stagger does not replay on every tab press. */
+.auth-card > * {
+  animation: auth-rise var(--dur-3) var(--ease-out) both;
+}
+
+.auth-card > :nth-child(1) {
+  animation-delay: 60ms;
+}
+
+.auth-card > :nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.auth-card > :nth-child(3) {
+  animation-delay: 220ms;
+}
+
+/* Everything past the third lands together — stepping the delay further would
+   leave the last element waiting most of a second before it showed up. */
+.auth-card > :nth-child(n + 4) {
+  animation-delay: 300ms;
+}
+
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .auth-card-head h2 {
   color: var(--text-strong);
   font-family: var(--font-display);
@@ -257,7 +296,13 @@
   cursor: pointer;
   font-weight: 600;
   min-height: 40px;
-  transition: all 0.15s ease;
+  /* Named rather than `all`: the only thing .active changes is the pill's
+     colour and shadow, and `all` would drag layout properties into the
+     transition the moment one gets added here. */
+  transition:
+    background var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
 }
 
 .auth-tabs button.active {
@@ -300,7 +345,7 @@
   color: var(--text-strong);
   min-height: 44px;
   padding: 10px 14px;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--dur-1) ease;
 }
 
 .auth-form input::placeholder {
@@ -368,7 +413,11 @@
   gap: 6px;
   padding: 16px 14px;
   text-align: left;
-  transition: all 0.15s ease;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
 }
 
 .auth-role-card:hover {
@@ -418,11 +467,25 @@
   font-weight: 700;
   min-height: 46px;
   margin-top: 4px;
-  transition: filter 0.15s ease;
+  transition:
+    filter var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out),
+    transform var(--dur-1) var(--ease-out);
 }
 
+/* Deepens its own shadow and lifts, rather than picking up the generic
+   `button:hover` treatment — that one tints the border with --accent, which
+   this borderless orange CTA has nothing to do with. */
 .auth-primary:hover:not(:disabled) {
   filter: brightness(1.05);
+  box-shadow: 0 10px 22px rgba(231, 104, 20, 0.34);
+  transform: translateY(-1px);
+}
+
+.auth-primary:active:not(:disabled) {
+  box-shadow: 0 3px 8px rgba(231, 104, 20, 0.3);
+  transform: translateY(0);
+  transition-duration: 90ms;
 }
 
 .auth-primary:disabled {
@@ -524,7 +587,7 @@
   cursor: pointer;
   font-weight: 700;
   min-height: 46px;
-  transition: background 0.15s ease;
+  transition: background var(--dur-1) ease;
 }
 
 .auth-demo-btn:hover {
