@@ -155,9 +155,9 @@ li {
    them below their own width in the first place. */
 .sd-big-number,
 .sd-stat-value,
-.ad-stat-value,
-.ad-stat-card-value,
-.ad-quick-value,
+.ic-stat-value,
+.ic-stat-card-value,
+.ic-quick-value,
 .cp-stat-value,
 .progress-pct,
 .metric strong {

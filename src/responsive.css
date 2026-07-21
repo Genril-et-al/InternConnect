@@ -5,7 +5,7 @@
    cascade. Most rules here tie on specificity with the ones they replace, and
    win purely on source order — so the import position is load-bearing, not
    cosmetic. Where a rule has to beat a `.sb-collapsed .x` descendant selector
-   (0,2,0) it is scoped under `.ad-sidebar` to match that weight.
+   (0,2,0) it is scoped under `.ic-sidebar` to match that weight.
 
    Nothing here applies above the breakpoints; the desktop design is untouched.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -57,12 +57,12 @@
      re-apply their 76px on a shell the user had collapsed on desktop. */
   .app-shell,
   .app-shell.sb-collapsed,
-  .ad-shell,
-  .ad-shell.sb-collapsed {
+  .ic-shell,
+  .ic-shell.sb-collapsed {
     --sb-w: 0px;
   }
 
-  .ad-sidebar {
+  .ic-sidebar {
     top: auto;
     bottom: 0;
     left: 0;
@@ -83,12 +83,12 @@
   }
 
   /* The brand block and the collapse toggle have no role in a bottom bar. */
-  .ad-sidebar .ad-brand,
-  .ad-sidebar .ad-collapse {
+  .ic-sidebar .ic-brand,
+  .ic-sidebar .ic-collapse {
     display: none;
   }
 
-  .ad-sidebar .ad-nav {
+  .ic-sidebar .ic-nav {
     flex: 1;
     flex-direction: row;
     gap: 2px;
@@ -97,7 +97,7 @@
   }
 
   /* Icon stacked over its label, each item an equal share of the bar. */
-  .ad-sidebar .ad-nav button {
+  .ic-sidebar .ic-nav button {
     flex: 1;
     flex-direction: column;
     gap: 3px;
@@ -111,7 +111,7 @@
 
   /* Undo the rail's label collapse — max-width/opacity, not display, is what
      hid these, so all three have to be restored. */
-  .ad-sidebar .ad-nav-label {
+  .ic-sidebar .ic-nav-label {
     display: block;
     max-width: none;
     opacity: 1;
@@ -122,7 +122,7 @@
   }
 
   /* Avatar + sign-out become a trailing group, divided from the nav items. */
-  .ad-sidebar .ad-user {
+  .ic-sidebar .ic-user {
     flex-direction: row;
     align-items: center;
     gap: 2px;
@@ -131,11 +131,11 @@
     padding: 6px 6px 6px 8px;
   }
 
-  .ad-sidebar .ad-user-main {
+  .ic-sidebar .ic-user-main {
     display: none;
   }
 
-  .ad-sidebar .ad-user-trigger {
+  .ic-sidebar .ic-user-trigger {
     flex: 0 0 auto;
     width: auto;
     min-height: 44px;
@@ -146,7 +146,7 @@
 
   /* Restore from the collapsed state, which hid this and pulled it out of the
      tab order via visibility. */
-  .ad-sidebar .ad-signout {
+  .ic-sidebar .ic-signout {
     max-width: 40px;
     min-height: 44px;
     opacity: 1;
@@ -161,11 +161,11 @@
      changes — the avatar beside it already goes to Profile, so it is one tap
      away and the bar gets the space back.
 
-     Scoped to .app-shell deliberately. The admin shell (.ad-shell) has no
+     Scoped to .app-shell deliberately. The admin shell (.ic-shell) has no
      profile page — ProfileSetup is only rendered by App.tsx, and the admin
      avatar is not a button — so hiding its sign-out too would leave an admin
      with no way to sign out on a phone at all. */
-  .app-shell .ad-signout {
+  .app-shell .ic-signout {
     display: none;
   }
 
@@ -179,7 +179,7 @@
 @media (max-width: 760px) {
 
   .workspace,
-  .ad-main {
+  .ic-main {
     margin-left: 0;
     /* Bottom padding clears the ~64px bar plus the home indicator, so the last
        card in a list is never trapped underneath it. */
@@ -192,7 +192,7 @@
      What broke it was `background-attachment: scroll` combined with a
      PERCENTAGE y-position. Percentages resolve against the background
      positioning area, which for a scrolling layer is the element's own padding
-     box — and .workspace / .ad-main are as tall as their content. So `38%`
+     box — and .workspace / .ic-main are as tall as their content. So `38%`
      meant 38% of the whole document: just under the header on a short page,
      a thousand-odd pixels down on a long list (which read as "gone"), and a
      different spot again whenever the content length changed.
@@ -215,7 +215,7 @@
     background-size: auto, var(--wm-size) auto;
   }
 
-  .ad-main {
+  .ic-main {
     background-attachment: scroll, fixed;
     background-position: 0 0, 50% 50%;
   }
@@ -230,7 +230,7 @@
   /* 46vw put the watermark at ~172px on a phone — small enough to read as a
      stray graphic rather than a ghosted brand mark. */
   .app-shell,
-  .ad-shell,
+  .ic-shell,
   .auth-loading {
     --wm-size: min(340px, 66vw);
   }
@@ -257,11 +257,11 @@
 
   /* Page titles — one per view, the largest text on the screen. */
   .topbar h2,
-  .ad-main .ad-topbar h2,
-  .ad-main h2,
+  .ic-main .ic-topbar h2,
+  .ic-main h2,
   .sd-title,
   .cp-title,
-  .ad-title,
+  .ic-title,
   .browse-title,
   .applications-header h2,
   .profile-head h1 {
@@ -284,7 +284,7 @@
     font-size: 28px;
   }
 
-  .ad-stat-value,
+  .ic-stat-value,
   .cp-stat-value,
   .sd-big-number,
   .metric strong {
@@ -309,11 +309,11 @@
 @media (max-width: 400px) {
 
   .topbar h2,
-  .ad-main .ad-topbar h2,
-  .ad-main h2,
+  .ic-main .ic-topbar h2,
+  .ic-main h2,
   .sd-title,
   .cp-title,
-  .ad-title,
+  .ic-title,
   .browse-title,
   .applications-header h2,
   .profile-head h1 {
@@ -324,7 +324,7 @@
     font-size: 24px;
   }
 
-  .ad-stat-value,
+  .ic-stat-value,
   .cp-stat-value,
   .sd-big-number,
   .metric strong {
@@ -375,7 +375,7 @@
      scrim and no clipping box to cut the card off. */
 
   /* Load-bearing for the card below. The three dashboard headers that hold a
-     bell (.sd-header, .cp-head, .ad-page-head) are all
+     bell (.sd-header, .cp-head, .ic-page-head) are all
      `flex-wrap: wrap; justify-content: space-between`. On a phone the heading
      and this group no longer fit on one line, so the group wraps onto a line of
      its own — and `space-between` puts a lone item on a line at the START. The
@@ -513,7 +513,7 @@
 @media (max-width: 760px) {
 
   .table-wrap,
-  .ad-table-wrap {
+  .ic-table-wrap {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
   }

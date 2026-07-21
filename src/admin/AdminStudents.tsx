@@ -84,28 +84,28 @@ export function AdminStudents({
         : { text: 'Not registered', variant: 'pending' as const }
 
   return (
-    <div className="ad-page">
-      <div className="ad-page-head">
+    <div className="ic-page">
+      <div className="ic-page-head">
         <div>
-          <h1 className="ad-title">Manage Students</h1>
-          <p className="ad-subtitle">
+          <h1 className="ic-title">Manage Students</h1>
+          <p className="ic-subtitle">
             {students.length} student{students.length === 1 ? '' : 's'} on the roster
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="ad-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button className="ic-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Upload size={14} /> Add in Bulk
           </button>
-          <button className="ad-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button className="ic-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={14} /> Add Student
           </button>
         </div>
       </div>
 
-      <div className="ad-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
+      <div className="ic-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search by name or email…" value={search} />
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setFilter(e.target.value as 'all' | 'active' | 'inactive' | 'pending')}
           value={filter}
         >
@@ -115,7 +115,7 @@ export function AdminStudents({
           <option value="pending">Not registered</option>
         </select>
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setMajorFilter(e.target.value)}
           value={majorFilter}
         >
@@ -125,7 +125,7 @@ export function AdminStudents({
           <option value="BSIS">BSIS</option>
         </select>
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setYearFilter(e.target.value)}
           value={yearFilter}
         >
@@ -136,7 +136,7 @@ export function AdminStudents({
           <option value="4th Year">4th Year</option>
         </select>
         <input
-          className="ad-select"
+          className="ic-select"
           style={{ padding: '8px 12px', minWidth: '130px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface)', fontSize: '13px' }}
           type="text"
           placeholder="Filter by skill…"
@@ -149,8 +149,8 @@ export function AdminStudents({
         <p style={{ margin: '0 0 12px', color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{actionError}</p>
       )}
 
-      <div className="ad-table-wrap">
-        <table className="ad-table">
+      <div className="ic-table-wrap">
+        <table className="ic-table">
           <thead>
             <tr>
               {['Student', 'Email', 'Status', 'Applications', 'Joined'].map((h) => (
@@ -164,8 +164,8 @@ export function AdminStudents({
               return (
                 <tr key={s.id} onClick={() => setViewTarget(s)} style={{ cursor: 'pointer' }}>
                   <td>
-                    <div className="ad-cell-person">
-                      <span className="ad-cell-mark">
+                    <div className="ic-cell-person">
+                      <span className="ic-cell-mark">
                         {s.name
                           .split(' ')
                           .filter(Boolean)
@@ -176,20 +176,20 @@ export function AdminStudents({
                       </span>
                       <div>
                         <div>{s.name}</div>
-                        {s.studentId && <p className="ad-muted" style={{ fontSize: '11px', margin: '2px 0 0' }}>{s.studentId}</p>}
+                        {s.studentId && <p className="ic-muted" style={{ fontSize: '11px', margin: '2px 0 0' }}>{s.studentId}</p>}
                       </div>
                     </div>
                   </td>
-                  <td className="ad-muted">{s.email}</td>
+                  <td className="ic-muted">{s.email}</td>
                   <td><AdBadge text={badge.text} variant={badge.variant} /></td>
                   <td>{s.applications}</td>
-                  <td className="ad-muted">{s.joined}</td>
+                  <td className="ic-muted">{s.joined}</td>
                 </tr>
               )
             })}
             {filtered.length === 0 && (
               <tr>
-                <td className="ad-empty" colSpan={5}>
+                <td className="ic-empty" colSpan={5}>
                   {loading ? 'Loading students…' : loadError ? `Could not load students: ${loadError}` : 'No students found'}
                 </td>
               </tr>
@@ -274,12 +274,12 @@ function ViewStudentModal({
           <h3>Student Account</h3>
           <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         </div>
-        <div className="ad-view">
-          <div className="ad-view-head">
-            <span className="ad-cell-mark" style={{ width: 48, height: 48, fontSize: 16 }}>{initials}</span>
+        <div className="ic-view">
+          <div className="ic-view-head">
+            <span className="ic-cell-mark" style={{ width: 48, height: 48, fontSize: 16 }}>{initials}</span>
             <div>
-              <p className="ad-view-name">
-                {student.name} {student.studentId && <span className="ad-muted" style={{ fontSize: '13px', fontWeight: 500 }}>({student.studentId})</span>}
+              <p className="ic-view-name">
+                {student.name} {student.studentId && <span className="ic-muted" style={{ fontSize: '13px', fontWeight: 500 }}>({student.studentId})</span>}
               </p>
               <AdBadge
                 text={student.status === 'active' ? 'Active' : student.status === 'inactive' ? 'Inactive' : 'Not registered'}
@@ -288,9 +288,9 @@ function ViewStudentModal({
             </div>
           </div>
 
-          <dl className="ad-view-list">
+          <dl className="ic-view-list">
             {rows.map(([label, value]) => (
-              <div className="ad-view-row" key={label}>
+              <div className="ic-view-row" key={label}>
                 <dt>{label}</dt>
                 <dd>{value}</dd>
               </div>
@@ -298,21 +298,21 @@ function ViewStudentModal({
           </dl>
 
           {student.status === 'inactive' && student.deactivationReason && (
-            <div className="ad-view-reason">
-              <p className="ad-view-reason-label">Deactivation reason</p>
-              <p className="ad-view-reason-text">{student.deactivationReason}</p>
+            <div className="ic-view-reason">
+              <p className="ic-view-reason-label">Deactivation reason</p>
+              <p className="ic-view-reason-text">{student.deactivationReason}</p>
               {student.deactivatedAt && (
-                <p className="ad-muted" style={{ margin: '6px 0 0', fontSize: '11px' }}>
+                <p className="ic-muted" style={{ margin: '6px 0 0', fontSize: '11px' }}>
                   Deactivated {student.deactivatedAt}
                 </p>
               )}
             </div>
           )}
 
-          <div className="ad-view-actions" style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+          <div className="ic-view-actions" style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
             {student.registered ? (
               <button
-                className="ad-secondary"
+                className="ic-secondary"
                 onClick={() => onToggle(student)}
                 type="button"
                 disabled={busy}
@@ -326,7 +326,7 @@ function ViewStudentModal({
               </button>
             ) : (
               <button
-                className="ad-danger"
+                className="ic-danger"
                 onClick={() => onRemove(student)}
                 type="button"
                 disabled={busy}
@@ -370,7 +370,7 @@ function DeactivateStudentModal({
           <button aria-label="Close" className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-          <p className="ad-muted" style={{ margin: 0 }}>
+          <p className="ic-muted" style={{ margin: 0 }}>
             You're deactivating{' '}
             <strong style={{ color: 'var(--text-strong)' }}>{student.name}</strong>. They'll lose
             access until reactivated. Please record a reason.
@@ -386,8 +386,8 @@ function DeactivateStudentModal({
             />
           </label>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <button className="ad-secondary" type="button" onClick={onClose} disabled={busy}>Cancel</button>
-            <button className="ad-danger" type="submit" disabled={!reason.trim() || busy}>
+            <button className="ic-secondary" type="button" onClick={onClose} disabled={busy}>Cancel</button>
+            <button className="ic-danger" type="submit" disabled={!reason.trim() || busy}>
               <UserX size={12} /> {busy ? 'Deactivating…' : 'Deactivate'}
             </button>
           </div>
@@ -430,24 +430,24 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
           <button aria-label="Close" className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-          <p className="ad-muted" style={{ margin: 0 }}>
+          <p className="ic-muted" style={{ margin: 0 }}>
             This clears the student to self-register. They finish creating their account from the sign-up page.
           </p>
           <label className="cp-modal-label">
             Full Name *
-            <input className="ad-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Juan Dela Cruz" required />
+            <input className="ic-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Juan Dela Cruz" required />
           </label>
           <label className="cp-modal-label">
             Email Address *
-            <input className="ad-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. juan.delacruz@cit.edu" required />
+            <input className="ic-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. juan.delacruz@cit.edu" required />
           </label>
           <label className="cp-modal-label">
             Student Number *
-            <input className="ad-input" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} placeholder="e.g. 21-1234-567" required />
+            <input className="ic-input" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} placeholder="e.g. 21-1234-567" required />
           </label>
-          {error && <p className="ad-form-error" style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}
+          {error && <p className="ic-form-error" style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
-            <button className="ad-primary" type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add Student'}</button>
+            <button className="ic-primary" type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add Student'}</button>
           </div>
         </form>
       </div>
@@ -506,7 +506,7 @@ export function BulkUploadModal({ type, onClose, onDone }: { type: 'student' | '
           <button aria-label="Close" className="modal-close" onClick={onClose} disabled={uploading} type="button"><X size={16} /></button>
         </div>
         <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <p className="ad-muted" style={{ margin: 0 }}>
+          <p className="ic-muted" style={{ margin: 0 }}>
             Upload a CSV or Excel file of {type === 'student' ? 'students' : 'companies'}. The first row must be a header
             with these columns: <code>{columns}</code>. Existing emails are skipped.
           </p>
@@ -515,7 +515,7 @@ export function BulkUploadModal({ type, onClose, onDone }: { type: 'student' | '
               <>
                 <p style={{ margin: 0, color: 'var(--brand-green, #2e7d32)', fontSize: '14px', fontWeight: 500 }}>{done}</p>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button className="ad-primary" type="button" onClick={onClose}>Done</button>
+                  <button className="ic-primary" type="button" onClick={onClose}>Done</button>
                 </div>
               </>
             )

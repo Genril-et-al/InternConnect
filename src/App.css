@@ -98,7 +98,7 @@ button.primary {
     auto,
     var(--wm-size) auto;
   background-attachment: scroll, fixed;
-  /* Deliberately NOT transitioned — see .ad-main in admin.css for the reasoning.
+  /* Deliberately NOT transitioned — see .ic-main in admin.css for the reasoning.
      margin-left is a layout property, so animating it re-wraps every line of
      content on every frame. The rail's own width animation carries the motion. */
   margin-left: var(--sb-w);
@@ -443,8 +443,8 @@ button.primary {
 .application-strip.highlighted,
 .cp-card.highlighted,
 .cp-row.highlighted,
-.ad-card.highlighted,
-.ad-row.highlighted,
+.ic-card.highlighted,
+.ic-row.highlighted,
 tr.highlighted {
   outline: 2px solid var(--brand-orange);
   outline-offset: -2px;

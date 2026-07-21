@@ -24,7 +24,7 @@ export function AdminInternships({
   useEffect(() => {
     if (highlightedListingId) {
       setTimeout(() => {
-        const el = document.querySelector('.ad-row.highlighted')
+        const el = document.querySelector('.ic-row.highlighted')
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 50)
     }
@@ -52,18 +52,18 @@ export function AdminInternships({
   }
 
   return (
-    <div className="ad-page">
-      <div className="ad-page-head">
+    <div className="ic-page">
+      <div className="ic-page-head">
         <div>
-          <h1 className="ad-title">Manage Internships</h1>
-          <p className="ad-subtitle">{listings.length} total listings</p>
+          <h1 className="ic-title">Manage Internships</h1>
+          <p className="ic-subtitle">{listings.length} total listings</p>
         </div>
       </div>
 
-      <div className="ad-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
+      <div className="ic-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search by title or company…" value={search} />
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setFilter(e.target.value as 'all' | AdminListingStatus)}
           value={filter}
         >
@@ -73,7 +73,7 @@ export function AdminInternships({
           <option value="flagged">Flagged</option>
         </select>
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setSetupFilter(e.target.value as 'all' | 'onsite' | 'remote' | 'hybrid')}
           value={setupFilter}
         >
@@ -83,7 +83,7 @@ export function AdminInternships({
           <option value="hybrid">Hybrid</option>
         </select>
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setPaidFilter(e.target.value as 'all' | 'paid' | 'unpaid')}
           value={paidFilter}
         >
@@ -92,7 +92,7 @@ export function AdminInternships({
           <option value="unpaid">Unpaid</option>
         </select>
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setScheduleFilter(e.target.value as 'all' | 'part-time' | 'full-time')}
           value={scheduleFilter}
         >
@@ -102,17 +102,17 @@ export function AdminInternships({
         </select>
       </div>
 
-      {actionError && <div className="ad-card ad-empty">{actionError}</div>}
+      {actionError && <div className="ic-card ic-empty">{actionError}</div>}
 
-      <div className="ad-rows">
+      <div className="ic-rows">
         {filtered.length === 0 ? (
-          <div className="ad-card ad-empty">No listings found</div>
+          <div className="ic-card ic-empty">No listings found</div>
         ) : (
           filtered.map((l) => {
             const isExpanded = expandedId === l.id
             return (
               <div
-                className={`ad-row ${isExpanded ? 'expanded' : ''} ${l.id === highlightedListingId ? 'highlighted' : ''}`}
+                className={`ic-row ${isExpanded ? 'expanded' : ''} ${l.id === highlightedListingId ? 'highlighted' : ''}`}
                 key={l.id}
                 onClick={() => setExpandedId(isExpanded ? null : l.id)}
                 style={{
@@ -122,9 +122,9 @@ export function AdminInternships({
                   cursor: 'pointer',
                 }}
               >
-                <div className="ad-row-header">
+                <div className="ic-row-header">
                   <div>
-                    <div className="ad-row-title">
+                    <div className="ic-row-title">
                       <p>{l.title}</p>
                       <AdBadge
                         text={l.status.charAt(0).toUpperCase() + l.status.slice(1)}
@@ -137,7 +137,7 @@ export function AdminInternships({
                         }
                       />
                     </div>
-                    <p className="ad-muted">
+                    <p className="ic-muted">
                       {l.company} · {l.applicants} applicants · Posted {l.posted} · Deadline{' '}
                       {l.deadline}
                     </p>
@@ -145,7 +145,7 @@ export function AdminInternships({
                   <div onClick={(e) => e.stopPropagation()}>
                     {l.status === 'open' && (
                       <button
-                        className="ad-secondary"
+                        className="ic-secondary"
                         onClick={() => setFlagged(l.id, true)}
                         type="button"
                       >
@@ -154,7 +154,7 @@ export function AdminInternships({
                     )}
                     {l.status === 'flagged' && (
                       <button
-                        className="ad-secondary"
+                        className="ic-secondary"
                         onClick={() => setFlagged(l.id, false)}
                         type="button"
                       >
@@ -165,21 +165,21 @@ export function AdminInternships({
                 </div>
 
                 {isExpanded && (
-                  <div className="ad-row-details" onClick={(e) => e.stopPropagation()}>
-                    <div className="ad-details-content">
-                      <div className="ad-details-section">
-                        <h4 className="ad-details-heading">About Internship</h4>
-                        <p className="ad-details-description">
+                  <div className="ic-row-details" onClick={(e) => e.stopPropagation()}>
+                    <div className="ic-details-content">
+                      <div className="ic-details-section">
+                        <h4 className="ic-details-heading">About Internship</h4>
+                        <p className="ic-details-description">
                           {l.description || 'No internship description available.'}
                         </p>
                       </div>
-                      <div className="ad-details-stat-card">
-                        <div className="ad-stat-icon-wrapper">
+                      <div className="ic-details-stat-card">
+                        <div className="ic-stat-icon-wrapper">
                           <Users size={18} />
                         </div>
                         <div>
-                          <div className="ad-stat-card-value">{l.applicants}</div>
-                          <div className="ad-stat-card-label">Applicants</div>
+                          <div className="ic-stat-card-value">{l.applicants}</div>
+                          <div className="ic-stat-card-label">Applicants</div>
                         </div>
                       </div>
                     </div>

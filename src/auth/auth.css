@@ -599,7 +599,7 @@
   align-items: center;
   animation: auth-fade-in 0.4s ease both;
   /* Centred brand watermark under an almost-opaque wash of the page colour —
-     same construction as .workspace / .ad-main, see index.css (--wm-size).
+     same construction as .workspace / .ic-main, see index.css (--wm-size).
      The --sb-w fallback of 0px matters: these screens render both full-page
      (no sidebar, so centre on the viewport) and nested inside the workspace
      for in-app loads, where inheriting the real sidebar width lines this mark

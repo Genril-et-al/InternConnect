@@ -138,16 +138,16 @@ function App() {
 
   return (
     <main className={`app-shell${collapsed ? ' sb-collapsed' : ''}`}>
-      <aside className="ad-sidebar" aria-label="Main navigation">
-        <div className="ad-brand">
-          <img className="ad-logo" src="/logo.png" alt="InternConnect" />
-          <div className="ad-brand-text">
-            <div className="ad-brand-name">InternConnect</div>
-            <div className="ad-brand-sub">{portalLabel}</div>
+      <aside className="ic-sidebar" aria-label="Main navigation">
+        <div className="ic-brand">
+          <img className="ic-logo" src="/logo.png" alt="InternConnect" />
+          <div className="ic-brand-text">
+            <div className="ic-brand-name">InternConnect</div>
+            <div className="ic-brand-sub">{portalLabel}</div>
           </div>
           <button
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="ad-collapse"
+            className="ic-collapse"
             onClick={toggleCollapsed}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             type="button"
@@ -156,7 +156,7 @@ function App() {
           </button>
         </div>
 
-        <nav className="ad-nav">
+        <nav className="ic-nav">
           {navItems.map((item) => {
             const Icon = item.icon
             return (
@@ -167,26 +167,26 @@ function App() {
                 title={item.label}
                 type="button"
               >
-                <Icon size={16} /> <span className="ad-nav-label">{item.label}</span>
+                <Icon size={16} /> <span className="ic-nav-label">{item.label}</span>
               </button>
             )
           })}
         </nav>
 
-        <div className="ad-user">
+        <div className="ic-user">
           <button
-            className={`ad-user-trigger${activeView === 'Profile' ? ' active' : ''}`}
+            className={`ic-user-trigger${activeView === 'Profile' ? ' active' : ''}`}
             onClick={() => requestView('Profile')}
             title="View your profile"
             type="button"
           >
-            <Avatar className="ad-user-avatar" name={displayName} photoUrl={profile.photo_url} />
-            <div className="ad-user-main">
-              <p className="ad-user-name">{displayName}</p>
-              <p className="ad-user-role">{roleLabel}</p>
+            <Avatar className="ic-user-avatar" name={displayName} photoUrl={profile.photo_url} />
+            <div className="ic-user-main">
+              <p className="ic-user-name">{displayName}</p>
+              <p className="ic-user-role">{roleLabel}</p>
             </div>
           </button>
-          <SignOutButton ariaLabel="Sign out" className="ad-signout">
+          <SignOutButton ariaLabel="Sign out" className="ic-signout">
             <LogOut size={15} />
           </SignOutButton>
         </div>

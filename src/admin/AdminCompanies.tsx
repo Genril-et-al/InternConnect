@@ -82,28 +82,28 @@ export function AdminCompanies({
   }
 
   return (
-    <div className="ad-page">
-      <div className="ad-page-head">
+    <div className="ic-page">
+      <div className="ic-page-head">
         <div>
-          <h1 className="ad-title">Manage Companies</h1>
-          <p className="ad-subtitle">
+          <h1 className="ic-title">Manage Companies</h1>
+          <p className="ic-subtitle">
             {companies.length} compan{companies.length === 1 ? 'y' : 'ies'} on the allowlist
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="ad-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button className="ic-secondary" onClick={() => setShowBulkModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Upload size={14} /> Add in Bulk
           </button>
-          <button className="ad-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button className="ic-primary" onClick={() => setShowAddModal(true)} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={14} /> Add Company
           </button>
         </div>
       </div>
 
-      <div className="ad-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
+      <div className="ic-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search companies…" value={search} />
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setFilter(e.target.value as 'all' | VerifStatus)}
           value={filter}
         >
@@ -113,7 +113,7 @@ export function AdminCompanies({
           <option value="rejected">Rejected</option>
         </select>
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setTierFilter(e.target.value)}
           value={tierFilter}
         >
@@ -123,7 +123,7 @@ export function AdminCompanies({
           <option value="Tier 3">Tier 3</option>
         </select>
         <select
-          className="ad-select"
+          className="ic-select"
           onChange={(e) => setLocationFilter(e.target.value)}
           value={locationFilter}
         >
@@ -138,8 +138,8 @@ export function AdminCompanies({
         <p style={{ margin: '0 0 12px', color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{actionError}</p>
       )}
 
-      <div className="ad-table-wrap">
-        <table className="ad-table">
+      <div className="ic-table-wrap">
+        <table className="ic-table">
           <thead>
             <tr>
               {['Company', 'Industry', 'Verification', 'Docs', 'Listings'].map((h) => (
@@ -152,15 +152,15 @@ export function AdminCompanies({
               return (
                 <tr key={c.id} onClick={() => setViewTarget(c)} style={{ cursor: 'pointer' }} className={c.id === highlightedCompanyId ? 'highlighted' : ''}>
                   <td>
-                    <div className="ad-cell-person">
-                      <span className="ad-cell-mark square">{c.name.slice(0, 2).toUpperCase()}</span>
+                    <div className="ic-cell-person">
+                      <span className="ic-cell-mark square">{c.name.slice(0, 2).toUpperCase()}</span>
                       <div>
                         <div>{c.name}</div>
-                        <p className="ad-muted">{c.registered ? `Submitted ${c.submitted}` : 'Not registered yet'}</p>
+                        <p className="ic-muted">{c.registered ? `Submitted ${c.submitted}` : 'Not registered yet'}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="ad-muted">{c.industry}</td>
+                  <td className="ic-muted">{c.industry}</td>
                   <td>
                     {c.registered ? (
                       <AdBadge
@@ -190,7 +190,7 @@ export function AdminCompanies({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td className="ad-empty" colSpan={5}>
+                <td className="ic-empty" colSpan={5}>
                   {loading ? 'Loading companies…' : loadError ? `Could not load companies: ${loadError}` : 'No companies found'}
                 </td>
               </tr>
@@ -354,11 +354,11 @@ function ViewCompanyModal({
           <h3>Company Account</h3>
           <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         </div>
-        <div className="ad-view">
-          <div className="ad-view-head">
-            <span className="ad-cell-mark square" style={{ width: 48, height: 48, fontSize: 16 }}>{initials}</span>
+        <div className="ic-view">
+          <div className="ic-view-head">
+            <span className="ic-cell-mark square" style={{ width: 48, height: 48, fontSize: 16 }}>{initials}</span>
             <div>
-              <p className="ad-view-name">{company.name}</p>
+              <p className="ic-view-name">{company.name}</p>
               {company.registered ? (
                 <AdBadge
                   text={
@@ -387,9 +387,9 @@ function ViewCompanyModal({
             <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: 'var(--text-strong)' }}>{displayDetails.description}</p>
           </div>
 
-          <dl className="ad-view-list" style={{ marginTop: '18px' }}>
+          <dl className="ic-view-list" style={{ marginTop: '18px' }}>
             {rows.map(([label, value]) => (
-              <div className="ad-view-row" key={label}>
+              <div className="ic-view-row" key={label}>
                 <dt>{label}</dt>
                 <dd>{value}</dd>
               </div>
@@ -399,7 +399,7 @@ function ViewCompanyModal({
           <div style={{ marginTop: '20px' }}>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 700, color: 'var(--brand-brown)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Verification Documents</h4>
             {displayDocs.length === 0 ? (
-              <p className="ad-muted" style={{ margin: 0, fontSize: '13px' }}>No documents submitted.</p>
+              <p className="ic-muted" style={{ margin: 0, fontSize: '13px' }}>No documents submitted.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {displayDocs.map((doc) => (
@@ -418,13 +418,13 @@ function ViewCompanyModal({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <FileText size={16} className="ad-muted" />
+                        <FileText size={16} className="ic-muted" />
                         <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-strong)' }}>
                           {doc.name}
                         </span>
                       </div>
                       <button
-                        className="ad-secondary"
+                        className="ic-secondary"
                         onClick={() => handleDownload(doc.id, doc.name, doc.file_path)}
                         type="button"
                         style={{ minHeight: '28px', padding: '2px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -444,10 +444,10 @@ function ViewCompanyModal({
           </div>
 
           {company.registered && (
-            <div className="ad-view-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '24px' }}>
+            <div className="ic-view-actions" style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '24px' }}>
               {company.verification !== 'verified' && (
                 <button
-                  className="ad-approve"
+                  className="ic-approve"
                   onClick={() => onVerif(company, 'verified')}
                   type="button"
                   disabled={busy}
@@ -458,7 +458,7 @@ function ViewCompanyModal({
               )}
               {company.verification !== 'rejected' && (
                 <button
-                  className="ad-danger"
+                  className="ic-danger"
                   onClick={() => onVerif(company, 'rejected')}
                   type="button"
                   disabled={busy}
@@ -469,7 +469,7 @@ function ViewCompanyModal({
               )}
               {company.verification === 'rejected' && (
                 <button
-                  className="ad-secondary"
+                  className="ic-secondary"
                   onClick={() => onVerif(company, 'pending')}
                   type="button"
                   disabled={busy}
@@ -482,9 +482,9 @@ function ViewCompanyModal({
           )}
 
           {!company.registered && (
-            <div className="ad-view-actions" style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+            <div className="ic-view-actions" style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
               <button
-                className="ad-danger"
+                className="ic-danger"
                 onClick={() => onRemove(company)}
                 type="button"
                 disabled={busy}
@@ -532,28 +532,28 @@ function AddCompanyModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
           <button aria-label="Close" className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-          <p className="ad-muted" style={{ margin: 0 }}>
+          <p className="ic-muted" style={{ margin: 0 }}>
             This clears the company to self-register. They finish creating their account from the sign-up page.
           </p>
           <label className="cp-modal-label">
             Company Name *
-            <input className="ad-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Corp" required />
+            <input className="ic-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Acme Corp" required />
           </label>
           <label className="cp-modal-label">
             Contact Email *
-            <input className="ad-input" type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="e.g. hr@acme.com" required />
+            <input className="ic-input" type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="e.g. hr@acme.com" required />
           </label>
           <label className="cp-modal-label">
             Industry *
-            <input className="ad-input" value={industry} onChange={e => setIndustry(e.target.value)} placeholder="e.g. Technology" required />
+            <input className="ic-input" value={industry} onChange={e => setIndustry(e.target.value)} placeholder="e.g. Technology" required />
           </label>
           <label className="cp-modal-label">
             Business ID / Permit No. *
-            <input className="ad-input" value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="e.g. SEC-123456" required />
+            <input className="ic-input" value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="e.g. SEC-123456" required />
           </label>
           {error && <p style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
-            <button className="ad-primary" type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add Company'}</button>
+            <button className="ic-primary" type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add Company'}</button>
           </div>
         </form>
       </div>

@@ -170,16 +170,16 @@ export function AdminReports({
   }
 
   return (
-    <div className="ad-page">
-      <div className="ad-page-head">
+    <div className="ic-page">
+      <div className="ic-page-head">
         <div>
-          <h1 className="ad-title">Generate Reports</h1>
-          <p className="ad-subtitle">Compile and export platform analytics</p>
+          <h1 className="ic-title">Generate Reports</h1>
+          <p className="ic-subtitle">Compile and export platform analytics</p>
         </div>
       </div>
 
-      <section className="ad-card">
-        <div className="ad-form-grid">
+      <section className="ic-card">
+        <div className="ic-form-grid">
           <label>
             Report Type
             <select
@@ -267,12 +267,12 @@ export function AdminReports({
             <input onChange={(e) => setDateTo(e.target.value)} type="date" value={dateTo} />
           </label>
         </div>
-        <div className="ad-actions">
-          <button className="ad-primary" onClick={() => setGenerated(true)} type="button">
+        <div className="ic-actions">
+          <button className="ic-primary" onClick={() => setGenerated(true)} type="button">
             <BarChart3 size={14} /> Generate Report
           </button>
           {generated && (
-            <button className="ad-secondary" onClick={exportCsv} type="button">
+            <button className="ic-secondary" onClick={exportCsv} type="button">
               <Download size={14} /> Export CSV
             </button>
           )}
@@ -280,26 +280,26 @@ export function AdminReports({
       </section>
 
       {generated && (
-        <section className="ad-card">
-          <div className="ad-page-head" style={{ marginBottom: 16 }}>
+        <section className="ic-card">
+          <div className="ic-page-head" style={{ marginBottom: 16 }}>
             <h3 style={{ margin: 0 }}>{REPORT_TITLES[reportType]}</h3>
-            <p className="ad-muted">
+            <p className="ic-muted">
               {dateFrom} to {dateTo}
             </p>
           </div>
-          <div className="ad-report-tiles">
+          <div className="ic-report-tiles">
             {REPORT_DATA[reportType].map((item) => (
-              <div className="ad-report-tile" key={item.label}>
-                <p className="ad-quick-label">{item.label}</p>
-                <p className="ad-quick-value">{item.value}</p>
+              <div className="ic-report-tile" key={item.label}>
+                <p className="ic-quick-label">{item.label}</p>
+                <p className="ic-quick-value">{item.value}</p>
               </div>
             ))}
           </div>
 
           <div style={{ marginTop: '24px' }}>
             <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 600, color: 'var(--text-strong)' }}>Report Preview</h4>
-            <div className="ad-table-wrap" style={{ maxHeight: '280px', overflowY: 'auto' }}>
-              <table className="ad-table">
+            <div className="ic-table-wrap" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              <table className="ic-table">
                 <thead>
                   <tr>
                     {headers.map((h) => <th key={h}>{h}</th>)}
@@ -308,19 +308,19 @@ export function AdminReports({
                 <tbody>
                   {dataRows.slice(0, 5).map((row, idx) => (
                     <tr key={idx}>
-                      {row.map((cell, cIdx) => <td key={cIdx} className="ad-muted" style={{ fontSize: '13px' }}>{cell}</td>)}
+                      {row.map((cell, cIdx) => <td key={cIdx} className="ic-muted" style={{ fontSize: '13px' }}>{cell}</td>)}
                     </tr>
                   ))}
                   {dataRows.length === 0 && (
                     <tr>
-                      <td colSpan={headers.length} className="ad-empty">No records found matching filters.</td>
+                      <td colSpan={headers.length} className="ic-empty">No records found matching filters.</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
             {dataRows.length > 5 && (
-              <p className="ad-muted" style={{ margin: '8px 0 0', fontSize: '12px', textAlign: 'center' }}>
+              <p className="ic-muted" style={{ margin: '8px 0 0', fontSize: '12px', textAlign: 'center' }}>
                 Showing first 5 of {dataRows.length} records. Export to CSV for the full report.
               </p>
             )}

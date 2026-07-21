@@ -105,17 +105,17 @@ export function AdminApp() {
   const name = profile?.full_name?.trim() || profile?.email || 'NLO Admin'
 
   return (
-    <div className={`ad-shell${collapsed ? ' sb-collapsed' : ''}`}>
-      <aside className="ad-sidebar">
-        <div className="ad-brand">
-          <img className="ad-logo" src="/logo.png" alt="InternConnect" />
-          <div className="ad-brand-text">
-            <div className="ad-brand-name">InternConnect</div>
-            <div className="ad-brand-sub">Admin Panel</div>
+    <div className={`ic-shell${collapsed ? ' sb-collapsed' : ''}`}>
+      <aside className="ic-sidebar">
+        <div className="ic-brand">
+          <img className="ic-logo" src="/logo.png" alt="InternConnect" />
+          <div className="ic-brand-text">
+            <div className="ic-brand-name">InternConnect</div>
+            <div className="ic-brand-sub">Admin Panel</div>
           </div>
           <button
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="ad-collapse"
+            className="ic-collapse"
             onClick={toggleCollapsed}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             type="button"
@@ -124,7 +124,7 @@ export function AdminApp() {
           </button>
         </div>
 
-        <nav className="ad-nav">
+        <nav className="ic-nav">
           {NAV.map((item, i) => {
             const Icon = item.icon
             return (
@@ -135,30 +135,30 @@ export function AdminApp() {
                 title={item.label}
                 type="button"
               >
-                <Icon size={16} /> <span className="ad-nav-label">{item.label}</span>
+                <Icon size={16} /> <span className="ic-nav-label">{item.label}</span>
               </button>
             )
           })}
         </nav>
 
-        <div className="ad-user">
+        <div className="ic-user">
           <Avatar
-            className="ad-user-avatar"
+            className="ic-user-avatar"
             fallback="NA"
             name={name}
             photoUrl={profile?.photo_url}
           />
-          <div className="ad-user-main">
-            <p className="ad-user-name">{name}</p>
-            <p className="ad-user-role">NLO Admin</p>
+          <div className="ic-user-main">
+            <p className="ic-user-name">{name}</p>
+            <p className="ic-user-role">NLO Admin</p>
           </div>
-          <SignOutButton ariaLabel="Sign out" className="ad-signout">
+          <SignOutButton ariaLabel="Sign out" className="ic-signout">
             <LogOut size={15} />
           </SignOutButton>
         </div>
       </aside>
 
-      <main className="ad-main">
+      <main className="ic-main">
         {/* Keyed on the active section so the enter animation replays on every
             switch. Wrapping here rather than keying <main> keeps the shell's
             fetched data (companies, listings, students) mounted. */}

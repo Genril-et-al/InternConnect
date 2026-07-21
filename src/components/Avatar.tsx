@@ -16,7 +16,7 @@ function initialsOf(name: string): string {
 /**
  * Circular user avatar: shows the uploaded profile photo when there is one,
  * and falls back to name initials otherwise. Styling comes from `className`
- * (e.g. .ad-user-avatar) so this drops into any existing avatar slot.
+ * (e.g. .ic-user-avatar) so this drops into any existing avatar slot.
  */
 export function Avatar({
   className,

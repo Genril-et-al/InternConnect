@@ -1,18 +1,18 @@
 /* Admin portal — separate shell from the student/company workspace. */
 
-.ad-shell {
+.ic-shell {
   /* Sidebar width is a variable so the fixed sidebar and the content margin
      always stay in sync — collapsing just changes this one value. */
   --sb-w: 256px;
   min-height: 100svh;
 }
 
-.ad-shell.sb-collapsed {
+.ic-shell.sb-collapsed {
   --sb-w: 76px;
 }
 
 /* ── Sidebar (fixed rail) ──────────────────────────────────────────── */
-.ad-sidebar {
+.ic-sidebar {
   background: var(--brand-dark-red);
   display: flex;
   flex-direction: column;
@@ -37,7 +37,7 @@
 }
 
 /* Collapse / expand toggle */
-.ad-collapse {
+.ic-collapse {
   align-items: center;
   background: rgba(255, 255, 255, 0.08);
   border: none;
@@ -55,14 +55,14 @@
   width: 30px;
 }
 
-.ad-collapse:hover {
+.ic-collapse:hover {
   background: rgba(255, 255, 255, 0.16);
   box-shadow: none;
   color: #fff;
   transform: none;
 }
 
-.ad-brand-text {
+.ic-brand-text {
   min-width: 0;
   /* Collapsed via max-width rather than display:none, so the label slides away
      with the rail instead of vanishing in one frame. */
@@ -74,7 +74,7 @@
   white-space: nowrap;
 }
 
-.ad-brand {
+.ic-brand {
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
@@ -90,7 +90,7 @@
     padding var(--dur-2) var(--ease-out);
 }
 
-.ad-logo {
+.ic-logo {
   border-radius: 10px;
   display: block;
   flex-shrink: 0;
@@ -103,19 +103,19 @@
     width var(--dur-2) var(--ease-out);
 }
 
-.ad-brand-name {
+.ic-brand-name {
   color: #fff;
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
 }
 
-.ad-brand-sub {
+.ic-brand-sub {
   color: rgba(255, 255, 255, 0.5);
   font-size: 11px;
 }
 
-.ad-nav {
+.ic-nav {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -125,7 +125,7 @@
   padding: 14px 12px;
 }
 
-.ad-nav button {
+.ic-nav button {
   align-items: center;
   background: transparent;
   border: none;
@@ -149,7 +149,7 @@
   white-space: nowrap;
 }
 
-.ad-nav-label {
+.ic-nav-label {
   max-width: 170px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -158,19 +158,19 @@
     opacity var(--dur-1) var(--ease-out);
 }
 
-.ad-nav button:hover {
+.ic-nav button:hover {
   background: rgba(255, 255, 255, 0.08);
   box-shadow: none;
   color: #fff;
   transform: none;
 }
 
-.ad-nav button.active {
+.ic-nav button.active {
   background: var(--brand-orange);
   color: #fff;
 }
 
-.ad-user {
+.ic-user {
   align-items: center;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
@@ -182,7 +182,7 @@
 }
 
 /* Clickable account card — opens the signed-in user's own profile. */
-.ad-user-trigger {
+.ic-user-trigger {
   align-items: center;
   background: none;
   border: none;
@@ -205,18 +205,18 @@
     margin var(--dur-2) var(--ease-out);
 }
 
-.ad-user-trigger:hover {
+.ic-user-trigger:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: transparent;
   box-shadow: none;
   transform: none;
 }
 
-.ad-user-trigger.active {
+.ic-user-trigger.active {
   background: rgba(255, 255, 255, 0.12);
 }
 
-.ad-user-avatar {
+.ic-user-avatar {
   align-items: center;
   background: #ffffff;
   border-radius: 999px;
@@ -232,13 +232,13 @@
 }
 
 /* Uploaded profile photo fills the circle; initials show when there's none. */
-.ad-user-avatar img {
+.ic-user-avatar img {
   height: 100%;
   object-fit: contain;
   width: 100%;
 }
 
-.ad-user-main {
+.ic-user-main {
   flex: 1;
   min-width: 0;
   /* Same collapse-by-max-width treatment as the brand and nav labels. */
@@ -250,7 +250,7 @@
   white-space: nowrap;
 }
 
-.ad-user-name {
+.ic-user-name {
   color: #fff;
   font-size: 12px;
   font-weight: 600;
@@ -260,28 +260,28 @@
   white-space: nowrap;
 }
 
-.ad-user-role {
+.ic-user-role {
   color: rgba(255, 255, 255, 0.4);
   font-size: 11px;
   margin: 0;
-  /* nowrap has to be re-declared here rather than inherited from .ad-user-main,
+  /* nowrap has to be re-declared here rather than inherited from .ic-user-main,
      and this is load-bearing — without it the collapsed rail grows to 162px.
 
      `white-space: nowrap` is a shorthand that sets `text-wrap-mode: nowrap`,
      and `p { text-wrap: pretty }` in index.css is a shorthand that resets
      `text-wrap-mode` back to `wrap`. So every <p> silently overrides the
-     nowrap it inherits. When .ad-user-main collapses to max-width:0 this text
+     nowrap it inherits. When .ic-user-main collapses to max-width:0 this text
      then wraps one character per line — "Student" becomes seven lines and
      94px of extra height, which shoves the whole user block up the rail.
 
-     .ad-user-name survives only because it happens to re-declare nowrap too.
+     .ic-user-name survives only because it happens to re-declare nowrap too.
      overflow/ellipsis match it so a long role degrades the same way. */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ad-signout {
+.ic-signout {
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.4);
@@ -299,14 +299,14 @@
   transition-delay: 0s, 0s, 0s, 0s;
 }
 
-.ad-signout:hover {
+.ic-signout:hover {
   box-shadow: none;
   color: #fff;
   transform: none;
 }
 
 /* ── Content ───────────────────────────────────────────────────────── */
-.ad-main {
+.ic-main {
   /* Centred brand watermark under an almost-opaque wash of the page colour —
      same construction as .workspace, see the note there and --wm-size in
      index.css. */
@@ -327,7 +327,7 @@
      rearranging itself rather than as the sidebar moving. Snapping it means the
      text wraps exactly once, in a single frame.
 
-     Nothing is lost visually: .ad-sidebar still animates its own width, so the
+     Nothing is lost visually: .ic-sidebar still animates its own width, so the
      rail slides as before. The content simply arrives at its final width
      immediately instead of being recomputed on the way there.
 
@@ -345,39 +345,39 @@
    at 46px it cannot sit beside the 30px toggle inside a 76px rail — so the
    logo is collapsed away instead and the toggle simply centres. The header
    keeps its height and nothing below it moves. */
-.sb-collapsed .ad-brand {
+.sb-collapsed .ic-brand {
   gap: 0;
   justify-content: center;
   padding: 20px 8px;
 }
 
-.sb-collapsed .ad-logo {
+.sb-collapsed .ic-logo {
   opacity: 0;
   width: 0;
 }
 
-.sb-collapsed .ad-brand-text {
+.sb-collapsed .ic-brand-text {
   max-width: 0;
   opacity: 0;
 }
 
-.sb-collapsed .ad-collapse {
+.sb-collapsed .ic-collapse {
   margin-left: 0;
 }
 
-.sb-collapsed .ad-nav {
+.sb-collapsed .ic-nav {
   padding: 14px 10px;
 }
 
 /* gap:0 as well as the label collapse — a 12px gap beside a zero-width label
    would push each icon off-centre in the rail. */
-.sb-collapsed .ad-nav button {
+.sb-collapsed .ic-nav button {
   gap: 0;
   justify-content: center;
   padding: 10px 0;
 }
 
-.sb-collapsed .ad-nav-label {
+.sb-collapsed .ic-nav-label {
   max-width: 0;
   opacity: 0;
 }
@@ -386,7 +386,7 @@
    only thing that could not sit beside the avatar in a 76px rail, so it is
    collapsed away and the avatar simply centres. Keeps this block at its
    expanded 68px instead of restacking to 124px and jolting the rail. */
-.sb-collapsed .ad-user {
+.sb-collapsed .ic-user {
   gap: 0;
   justify-content: center;
   /* Vertical padding matches the expanded state exactly; only the horizontal
@@ -394,7 +394,7 @@
   padding: 16px 8px;
 }
 
-.sb-collapsed .ad-signout {
+.sb-collapsed .ic-signout {
   max-width: 0;
   opacity: 0;
   padding-left: 0;
@@ -407,12 +407,12 @@
   transition-delay: 0s, 0s, 0s, var(--dur-2);
 }
 
-.sb-collapsed .ad-user-main {
+.sb-collapsed .ic-user-main {
   max-width: 0;
   opacity: 0;
 }
 
-.sb-collapsed .ad-user-trigger {
+.sb-collapsed .ic-user-trigger {
   gap: 0;
   justify-content: center;
   /* Keeps the vertical pull-in (only the left inset is dropped) — zeroing it
@@ -421,7 +421,7 @@
   width: 100%;
 }
 
-.ad-page {
+.ic-page {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -429,7 +429,7 @@
   max-width: 1040px;
 }
 
-.ad-page-head {
+.ic-page-head {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
@@ -437,7 +437,7 @@
   justify-content: space-between;
 }
 
-.ad-title {
+.ic-title {
   color: var(--brand-dark-red);
   font-family: var(--font-display);
   font-size: 26px;
@@ -445,13 +445,13 @@
   margin: 0;
 }
 
-.ad-subtitle {
+.ic-subtitle {
   color: var(--text-muted);
   font-size: 14px;
   margin: 4px 0 0;
 }
 
-.ad-primary {
+.ic-primary {
   align-items: center;
   background: var(--brand-orange);
   border: none;
@@ -466,12 +466,12 @@
   padding: 8px 16px;
 }
 
-.ad-primary:hover {
+.ic-primary:hover {
   border-color: var(--brand-orange);
   filter: brightness(1.05);
 }
 
-.ad-secondary {
+.ic-secondary {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -486,7 +486,7 @@
   padding: 4px 12px;
 }
 
-.ad-danger {
+.ic-danger {
   align-items: center;
   background: var(--brand-crimson);
   border: none;
@@ -501,7 +501,7 @@
   padding: 4px 12px;
 }
 
-.ad-approve {
+.ic-approve {
   align-items: center;
   background: var(--brand-orange);
   border: none;
@@ -517,28 +517,28 @@
 }
 
 /* Keep button labels (and their icons) on a single line. */
-.ad-primary,
-.ad-secondary,
-.ad-danger,
-.ad-approve {
+.ic-primary,
+.ic-secondary,
+.ic-danger,
+.ic-approve {
   white-space: nowrap;
 }
 
-.ad-primary svg,
-.ad-secondary svg,
-.ad-danger svg,
-.ad-approve svg {
+.ic-primary svg,
+.ic-secondary svg,
+.ic-danger svg,
+.ic-approve svg {
   flex-shrink: 0;
 }
 
 /* ── Cards / stats ─────────────────────────────────────────────────── */
-.ad-stats {
+.ic-stats {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.ad-stat {
+.ic-stat {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -549,19 +549,19 @@
   padding: 18px;
 }
 
-.ad-stat-top {
+.ic-stat-top {
   align-items: center;
   display: flex;
   justify-content: space-between;
 }
 
-.ad-stat-label {
+.ic-stat-label {
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 600;
 }
 
-.ad-stat-icon {
+.ic-stat-icon {
   align-items: center;
   border-radius: 12px;
   display: inline-flex;
@@ -569,7 +569,7 @@
   padding: 8px;
 }
 
-.ad-stat-value {
+.ic-stat-value {
   color: var(--brand-dark-red);
   font-family: var(--font-display);
   font-size: 28px;
@@ -578,13 +578,13 @@
   margin: 0;
 }
 
-.ad-stat-sub {
+.ic-stat-sub {
   color: var(--text-muted);
   font-size: 12px;
   margin: 0;
 }
 
-.ad-card {
+.ic-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -592,7 +592,7 @@
   padding: 22px;
 }
 
-.ad-card h3 {
+.ic-card h3 {
   color: var(--brand-dark-red);
   font-family: var(--font-display);
   font-size: 16px;
@@ -600,21 +600,21 @@
   margin: 0 0 16px;
 }
 
-.ad-charts {
+.ic-charts {
   display: grid;
   gap: 16px;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
 /* CSS bar chart */
-.ad-bars {
+.ic-bars {
   align-items: flex-end;
   display: flex;
   gap: 12px;
   height: 190px;
 }
 
-.ad-bar-col {
+.ic-bar-col {
   align-items: center;
   display: flex;
   flex: 1;
@@ -624,13 +624,13 @@
   justify-content: flex-end;
 }
 
-.ad-bar-value {
+.ic-bar-value {
   color: var(--brand-brown);
   font-size: 11px;
   font-weight: 700;
 }
 
-.ad-bar {
+.ic-bar {
   background: var(--brand-orange);
   border-radius: 6px 6px 0 0;
   min-height: 4px;
@@ -639,27 +639,27 @@
   max-width: 42px;
 }
 
-.ad-bar-label {
+.ic-bar-label {
   color: var(--text-muted);
   font-size: 12px;
 }
 
 /* CSS donut chart */
-.ad-donut-wrap {
+.ic-donut-wrap {
   align-items: center;
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.ad-donut {
+.ic-donut {
   border-radius: 999px;
   height: 140px;
   position: relative;
   width: 140px;
 }
 
-.ad-donut::after {
+.ic-donut::after {
   background: var(--surface);
   border-radius: 999px;
   content: '';
@@ -667,47 +667,47 @@
   position: absolute;
 }
 
-.ad-legend {
+.ic-legend {
   display: flex;
   flex-direction: column;
   gap: 8px;
   width: 100%;
 }
 
-.ad-legend-row {
+.ic-legend-row {
   align-items: center;
   display: flex;
   font-size: 12px;
   justify-content: space-between;
 }
 
-.ad-legend-name {
+.ic-legend-name {
   align-items: center;
   color: var(--text-muted);
   display: inline-flex;
   gap: 8px;
 }
 
-.ad-legend-dot {
+.ic-legend-dot {
   border-radius: 999px;
   display: inline-block;
   height: 10px;
   width: 10px;
 }
 
-.ad-legend-value {
+.ic-legend-value {
   color: var(--brand-dark-red);
   font-weight: 700;
 }
 
 /* Quick action cards */
-.ad-quick {
+.ic-quick {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
-.ad-quick-card {
+.ic-quick-card {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -719,13 +719,13 @@
   padding: 18px;
 }
 
-.ad-quick-label {
+.ic-quick-label {
   color: var(--text-muted);
   font-size: 12px;
   margin: 0;
 }
 
-.ad-quick-value {
+.ic-quick-value {
   color: var(--brand-orange);
   font-family: var(--font-display);
   font-size: 24px;
@@ -734,13 +734,13 @@
 }
 
 /* ── Toolbar / search ──────────────────────────────────────────────── */
-.ad-toolbar {
+.ic-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.ad-search {
+.ic-search {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -753,7 +753,7 @@
   padding: 0 12px;
 }
 
-.ad-search input {
+.ic-search input {
   background: transparent;
   border: none;
   flex: 1;
@@ -763,7 +763,7 @@
   width: 100%;
 }
 
-.ad-select {
+.ic-select {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -775,7 +775,7 @@
 }
 
 /* ── Table ─────────────────────────────────────────────────────────── */
-.ad-table-wrap {
+.ic-table-wrap {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -783,13 +783,13 @@
   overflow-x: auto;
 }
 
-.ad-table {
+.ic-table {
   border-collapse: collapse;
   min-width: 640px;
   width: 100%;
 }
 
-.ad-table th {
+.ic-table th {
   border-bottom: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 11px;
@@ -800,7 +800,7 @@
   white-space: nowrap;
 }
 
-.ad-table td {
+.ic-table td {
   border-bottom: 1px solid var(--border);
   color: var(--text-strong);
   font-size: 13px;
@@ -810,27 +810,27 @@
 
 /* Override the global break-anywhere wrapping (index.css) inside data tables:
    it was shrinking columns and breaking button labels / emails mid-token. */
-.ad-table th,
-.ad-table td {
+.ic-table th,
+.ic-table td {
   overflow-wrap: normal;
   word-break: normal;
 }
 
-.ad-table tbody tr:last-child td {
+.ic-table tbody tr:last-child td {
   border-bottom: 0;
 }
 
-.ad-table tbody tr:not(.highlighted):hover {
+.ic-table tbody tr:not(.highlighted):hover {
   background: rgba(240, 237, 228, 0.4);
 }
 
-.ad-cell-person {
+.ic-cell-person {
   align-items: center;
   display: flex;
   gap: 10px;
 }
 
-.ad-cell-mark {
+.ic-cell-mark {
   align-items: center;
   background: var(--brand-orange-soft);
   border-radius: 999px;
@@ -844,19 +844,19 @@
   width: 32px;
 }
 
-.ad-cell-mark.square {
+.ic-cell-mark.square {
   background: var(--brand-brown);
   border-radius: 9px;
 }
 
-.ad-muted {
+.ic-muted {
   color: var(--text-muted);
   font-size: 12px;
   margin: 0;
 }
 
 /* Badges */
-.ad-badge {
+.ic-badge {
   border: 1px solid transparent;
   border-radius: 999px;
   font-size: 11px;
@@ -865,38 +865,38 @@
   white-space: nowrap;
 }
 
-.ad-badge.success {
+.ic-badge.success {
   background: #e8f7ee;
   border-color: #bfe8cf;
   color: #146b3a;
 }
 
-.ad-badge.pending {
+.ic-badge.pending {
   background: #fdf3e0;
   border-color: #f4ddb0;
   color: #8a5a00;
 }
 
-.ad-badge.rejected {
+.ic-badge.rejected {
   background: #fdece9;
   border-color: #f4c7bf;
   color: var(--brand-crimson);
 }
 
-.ad-badge.neutral {
+.ic-badge.neutral {
   background: var(--surface-strong);
   border-color: var(--border);
   color: var(--text-muted);
 }
 
 /* List rows (internships) */
-.ad-rows {
+.ic-rows {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.ad-row {
+.ic-row {
   align-items: center;
   background: var(--surface-strong);
   border: 1px solid var(--border);
@@ -910,18 +910,18 @@
   transition: border-color var(--dur-2) ease, box-shadow var(--dur-2) ease;
 }
 
-.ad-row:not(.highlighted):hover {
+.ic-row:not(.highlighted):hover {
   border-color: var(--accent);
   box-shadow: 0 8px 24px rgba(231, 104, 20, 0.1);
   transform: translateY(-1px);
 }
 
-.ad-row.expanded {
+.ic-row.expanded {
   border-color: var(--brand-orange);
   box-shadow: 0 4px 12px rgba(113, 66, 54, 0.08);
 }
 
-.ad-row-header {
+.ic-row-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -931,7 +931,7 @@
   flex-wrap: wrap;
 }
 
-.ad-row-details {
+.ic-row-details {
   border-top: 1px dashed var(--border);
   padding: 18px;
   background: rgba(240, 237, 228, 0.15);
@@ -951,7 +951,7 @@
   }
 }
 
-.ad-details-content {
+.ic-details-content {
   display: flex;
   gap: 24px;
   justify-content: space-between;
@@ -959,12 +959,12 @@
   flex-wrap: wrap;
 }
 
-.ad-details-section {
+.ic-details-section {
   flex: 1;
   min-width: 280px;
 }
 
-.ad-details-heading {
+.ic-details-heading {
   font-family: var(--font-display);
   color: var(--brand-dark-red);
   font-size: 14px;
@@ -972,14 +972,14 @@
   margin: 0 0 8px 0;
 }
 
-.ad-details-description {
+.ic-details-description {
   color: var(--text-strong);
   font-size: 13px;
   line-height: 1.5;
   margin: 0;
 }
 
-.ad-details-stat-card {
+.ic-details-stat-card {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -991,7 +991,7 @@
   box-shadow: 0 1px 3px rgba(113, 66, 54, 0.04);
 }
 
-.ad-stat-icon-wrapper {
+.ic-stat-icon-wrapper {
   background: rgba(230, 92, 59, 0.1);
   color: var(--brand-orange);
   border-radius: 10px;
@@ -1001,7 +1001,7 @@
   justify-content: center;
 }
 
-.ad-stat-card-value {
+.ic-stat-card-value {
   color: var(--brand-dark-red);
   font-family: var(--font-display);
   font-size: 22px;
@@ -1009,7 +1009,7 @@
   line-height: 1.1;
 }
 
-.ad-stat-card-label {
+.ic-stat-card-label {
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
@@ -1018,41 +1018,41 @@
   margin-top: 2px;
 }
 
-.ad-row-title {
+.ic-row-title {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.ad-row-title p {
+.ic-row-title p {
   color: var(--text-strong);
   font-size: 14px;
   font-weight: 600;
   margin: 0;
 }
 
-.ad-empty {
+.ic-empty {
   color: var(--text-muted);
   padding: 32px;
   text-align: center;
 }
 
 /* ── View account modal ────────────────────────────────────────────── */
-.ad-view {
+.ic-view {
   display: flex;
   flex-direction: column;
   gap: 18px;
   margin-top: 16px;
 }
 
-.ad-view-head {
+.ic-view-head {
   align-items: center;
   display: flex;
   gap: 14px;
 }
 
-.ad-view-name {
+.ic-view-name {
   color: var(--text-strong);
   font-family: var(--font-display);
   font-size: 18px;
@@ -1060,13 +1060,13 @@
   margin: 0 0 6px;
 }
 
-.ad-view-list {
+.ic-view-list {
   display: flex;
   flex-direction: column;
   margin: 0;
 }
 
-.ad-view-row {
+.ic-view-row {
   align-items: baseline;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -1075,18 +1075,18 @@
   padding: 10px 0;
 }
 
-.ad-view-row:last-child {
+.ic-view-row:last-child {
   border-bottom: 0;
 }
 
-.ad-view-row dt {
+.ic-view-row dt {
   color: var(--text-muted);
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 600;
 }
 
-.ad-view-row dd {
+.ic-view-row dd {
   color: var(--text-strong);
   font-size: 13px;
   font-weight: 600;
@@ -1095,14 +1095,14 @@
   word-break: break-word;
 }
 
-.ad-view-reason {
+.ic-view-reason {
   background: #fdece9;
   border: 1px solid #f4c7bf;
   border-radius: 12px;
   padding: 12px 14px;
 }
 
-.ad-view-reason-label {
+.ic-view-reason-label {
   color: var(--brand-crimson);
   font-size: 11px;
   font-weight: 700;
@@ -1111,7 +1111,7 @@
   text-transform: uppercase;
 }
 
-.ad-view-reason-text {
+.ic-view-reason-text {
   color: var(--text-strong);
   font-size: 13px;
   line-height: 1.5;
@@ -1119,13 +1119,13 @@
 }
 
 /* Reports */
-.ad-form-grid {
+.ic-form-grid {
   display: grid;
   gap: 14px;
   grid-template-columns: 1fr 1fr;
 }
 
-.ad-form-grid label {
+.ic-form-grid label {
   color: var(--brand-brown);
   display: flex;
   flex-direction: column;
@@ -1134,8 +1134,8 @@
   gap: 6px;
 }
 
-.ad-form-grid input,
-.ad-form-grid select {
+.ic-form-grid input,
+.ic-form-grid select {
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -1144,23 +1144,23 @@
   padding: 8px 12px;
 }
 
-.ad-report-tiles {
+.ic-report-tiles {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
-.ad-report-tile {
+.ic-report-tile {
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
 }
 
-.ad-report-tile p {
+.ic-report-tile p {
   margin: 0;
 }
 
-.ad-actions {
+.ic-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1169,7 +1169,7 @@
 
 /* Responsive */
 @media (max-width: 900px) {
-  .ad-charts {
+  .ic-charts {
     grid-template-columns: 1fr;
   }
 }
@@ -1178,58 +1178,58 @@
 
   /* On narrow screens the sidebar always shows as a compact icon rail. */
   .app-shell,
-  .ad-shell {
+  .ic-shell {
     --sb-w: 72px;
   }
 
-  .ad-brand {
+  .ic-brand {
     flex-direction: column;
     gap: 12px;
     padding: 18px 8px;
   }
 
-  .ad-brand-text {
+  .ic-brand-text {
     display: none;
   }
 
-  .ad-collapse {
+  .ic-collapse {
     display: none;
   }
 
-  .ad-nav {
+  .ic-nav {
     padding: 14px 10px;
   }
 
-  .ad-nav button {
+  .ic-nav button {
     justify-content: center;
     padding: 10px 0;
   }
 
-  .ad-nav-label {
+  .ic-nav-label {
     display: none;
   }
 
-  .ad-user {
+  .ic-user {
     flex-direction: column;
     gap: 10px;
     padding: 14px 8px;
   }
 
-  .ad-user-main {
+  .ic-user-main {
     display: none;
   }
 
-  .ad-user-trigger {
+  .ic-user-trigger {
     justify-content: center;
     margin: 0;
     width: 100%;
   }
 
-  .ad-main {
+  .ic-main {
     padding: 20px;
   }
 
-  .ad-form-grid {
+  .ic-form-grid {
     grid-template-columns: 1fr;
   }
 }
