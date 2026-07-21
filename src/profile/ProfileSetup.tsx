@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import {
   completeProfile,
@@ -11,11 +11,24 @@ import {
 } from '../lib/profile'
 import { analyzeResume, NO_SKILLS_MESSAGE } from '../lib/resumeAnalysis'
 import { formatMiddleInitial } from '../lib/name'
+import { setUnsavedGuard } from '../lib/unsavedGuard'
 import { useAuth } from '../auth/context'
 import { SignOutButton } from '../components/SignOutButton'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { TagInput } from './TagInput'
 import { Pencil, Trash2, X } from 'lucide-react'
 import './profile.css'
+/**
+ * Tag lists compare as unordered sets — analysis reorders skills (AI-extracted
+ * ones move to the front), and a reorder alone isn't an unsaved change.
+ */
+function sameTags(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  const normalise = (list: string[]) => list.map((t) => t.toLowerCase()).sort()
+  const [left, right] = [normalise(a), normalise(b)]
+  return left.every((tag, i) => tag === right[i])
+}
+
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) {
     return String((err as { message: unknown }).message)
@@ -86,6 +99,62 @@ export function ProfileSetup({
       }
       : null,
   )
+
+  // Set while saving (and after a successful save) so the unsaved-changes
+  // guard doesn't challenge the redirect the save itself triggers.
+  const savingRef = useRef(false)
+
+  // Unsaved work is anything the student changed that isn't on the profile row
+  // yet: edited fields, files picked but not uploaded, or a resume analysis
+  // whose extracted skills only exist in local state until Save.
+  const dirty =
+    !sameTags(skills, profile?.skills ?? []) ||
+    !sameTags(specializations, profile?.specializations ?? []) ||
+    // Compared against the same fallback the state was seeded from, so a legacy
+    // profile with an empty ai_skills column doesn't read as dirty on mount.
+    !sameTags(aiSkills, fallbackAiSkills) ||
+    !sameTags(aiSpecializations, fallbackAiSpecializations) ||
+    photo !== null ||
+    resume !== null ||
+    coverLetter !== null ||
+    portfolioFile !== null ||
+    photoPreview !== (profile?.photo_url ?? null) ||
+    portfolioLink !== (profile?.portfolio_link ?? '') ||
+    age !== (profile?.age != null ? String(profile.age) : '') ||
+    sex !== (profile?.gender ?? '') ||
+    address !== (profile?.address ?? '') ||
+    personalEmail !== (profile?.personal_email ?? '') ||
+    contactNumber !== (profile?.contact_number ?? '')
+
+  // In-app navigation (sidebar, account card) routes through this guard. The
+  // navigation is parked here while the student answers the modal below.
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null)
+
+  useEffect(() => {
+    if (!dirty) return
+    setUnsavedGuard((proceed) => {
+      if (savingRef.current) {
+        proceed()
+        return
+      }
+      // Wrapped in a function: setState treats a bare function argument as an
+      // updater, which would call the navigation instead of storing it.
+      setPendingLeave(() => proceed)
+    })
+    return () => setUnsavedGuard(null)
+  }, [dirty])
+
+  // Closing or reloading the tab is outside React's reach — the browser shows
+  // its own generic prompt when the event is cancelled.
+  useEffect(() => {
+    if (!dirty) return
+    function warn(event: BeforeUnloadEvent) {
+      if (savingRef.current) return
+      event.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 
   const userId = session?.user.id
   const first = profile?.first_name ?? ''
@@ -159,7 +228,10 @@ export function ProfileSetup({
         setSpecializations((prev) => [...result.specializations, ...prev.filter(s => !result.specializations.some(rs => rs.toLowerCase() === s.toLowerCase()))])
         setResumeRejected(null)
       }
-      await refreshProfile()
+      // Deliberately no refreshProfile() here. The extracted skills live in
+      // local state until the student saves, and pulling a fresh profile
+      // re-runs StudentPortal's listings effect, which blanks the workspace
+      // long enough to unmount this form — taking the new skills with it.
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -202,6 +274,10 @@ export function ProfileSetup({
       setError('Your session expired. Please sign in again.')
       return
     }
+
+    // Past validation, so the save is going ahead — stop the guard challenging
+    // the redirect this triggers. Cleared again if the save fails.
+    savingRef.current = true
 
     // Offline demo: no Supabase, so persist to local state instead of uploading.
     if (demo) {
@@ -304,6 +380,7 @@ export function ProfileSetup({
         setError(
           'Your resume did not include enough to fill your skills and specializations. Please add them manually.',
         )
+        savingRef.current = false
         return
       }
 
@@ -343,6 +420,7 @@ export function ProfileSetup({
       onDone?.() // Redirect to the dashboard after saving.
     } catch (err) {
       setError(errorMessage(err))
+      savingRef.current = false // Changes are still unsaved — re-arm the guard.
     } finally {
       setBusy(false)
     }
@@ -350,6 +428,20 @@ export function ProfileSetup({
 
   const formCard = (
     <>
+      <ConfirmDialog
+        cancelLabel="Keep editing"
+        confirmLabel="Leave without saving"
+        danger
+        message="Your edits — including any skills the resume analysis found — will be lost unless you save first."
+        onCancel={() => setPendingLeave(null)}
+        onConfirm={() => {
+          const leave = pendingLeave
+          setPendingLeave(null)
+          leave?.()
+        }}
+        open={pendingLeave !== null}
+        title="Unsaved changes"
+      />
       {showPhotoModal && photoPreview && (
         <div 
           className="photo-modal-overlay"
