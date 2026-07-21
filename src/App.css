@@ -28,9 +28,20 @@ button {
   cursor: pointer;
   min-height: 38px;
   padding: 8px 12px;
+  /* background and color are in here because hover states across the app change
+     them — .modal-close swaps colour, .nb-load-more swaps background — and a
+     property the base list omits simply snaps. Anything added to a :hover later
+     should be added here too, or it will jump while its neighbours ease.
+
+     Note that a `transition` on a class REPLACES this whole list rather than
+     adding to it, so a component that needs its own timing has to restate every
+     property it wants animated. That is why the ones below were re-checked. */
   transition:
+    background var(--dur-1) var(--ease-out),
     border-color var(--dur-1) var(--ease-out),
     box-shadow var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    filter var(--dur-1) var(--ease-out),
     transform var(--dur-1) var(--ease-out);
 }
 
@@ -606,20 +617,26 @@ tr.highlighted {
   gap: 20px;
 }
 
+/* The one back-button design, used by every portal. Carries a lucide ArrowLeft
+   plus its label — the layout properties here are what let the icon sit on the
+   text baseline, so a bare text arrow is no longer needed. */
 .detail-back {
+  align-items: center;
   align-self: flex-start;
   background: none;
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text-muted);
   cursor: pointer;
+  display: inline-flex;
   font-size: 13px;
   font-weight: 600;
+  gap: 6px;
   min-height: 36px;
   padding: 6px 14px;
-  transition:
-    border-color var(--dur-1) ease,
-    color var(--dur-1) ease;
+  /* No `transition` of its own — the base button rule already animates
+     border-color and colour, and restating a partial list here would drop the
+     rest. */
 }
 
 .detail-back:hover {

@@ -352,7 +352,7 @@ function ViewCompanyModal({
       <div className="modal-panel" style={{ width: '460px' }}>
         <div className="modal-header">
           <h3>Company Account</h3>
-          <button className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         </div>
         <div className="ad-view">
           <div className="ad-view-head">
@@ -529,7 +529,7 @@ function AddCompanyModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
       <div className="modal-panel" style={{ width: '400px' }}>
         <div className="modal-header">
           <h3>Add New Company</h3>
-          <button className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
+          <button aria-label="Close" className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
           <p className="ad-muted" style={{ margin: 0 }}>

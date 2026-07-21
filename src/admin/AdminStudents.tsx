@@ -272,7 +272,7 @@ function ViewStudentModal({
       <div className="modal-panel" style={{ width: '440px' }}>
         <div className="modal-header">
           <h3>Student Account</h3>
-          <button className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         </div>
         <div className="ad-view">
           <div className="ad-view-head">
@@ -367,7 +367,7 @@ function DeactivateStudentModal({
       <div className="modal-panel" style={{ width: '420px' }}>
         <div className="modal-header">
           <h3>Deactivate Account</h3>
-          <button className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
+          <button aria-label="Close" className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
           <p className="ad-muted" style={{ margin: 0 }}>
@@ -427,7 +427,7 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
       <div className="modal-panel" style={{ width: '400px' }}>
         <div className="modal-header">
           <h3>Add New Student</h3>
-          <button className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
+          <button aria-label="Close" className="modal-close" onClick={onClose} disabled={busy} type="button"><X size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
           <p className="ad-muted" style={{ margin: 0 }}>
@@ -503,7 +503,7 @@ export function BulkUploadModal({ type, onClose, onDone }: { type: 'student' | '
       <div className="modal-panel" style={{ width: '420px' }}>
         <div className="modal-header">
           <h3>Add in Bulk</h3>
-          <button className="modal-close" onClick={onClose} disabled={uploading} type="button"><X size={16} /></button>
+          <button aria-label="Close" className="modal-close" onClick={onClose} disabled={uploading} type="button"><X size={16} /></button>
         </div>
         <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <p className="ad-muted" style={{ margin: 0 }}>

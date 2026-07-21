@@ -7,6 +7,7 @@ import {
   FileText,
   Link2,
   Search,
+  X,
   XCircle,
 } from 'lucide-react'
 import { MATCH_FILTERS } from './companyData'
@@ -203,7 +204,7 @@ function ApplicantDetail({
 
   return (
     <div className="cp-root">
-      <button className="cp-back" onClick={onBack} type="button">
+      <button className="detail-back" onClick={onBack} type="button">
         <ArrowLeft size={14} /> Back to applications
       </button>
 
@@ -562,8 +563,8 @@ function ScheduleInterviewModal({
       <div className="modal-panel">
         <div className="modal-header">
           <h3>Schedule Interview</h3>
-          <button className="modal-close" onClick={onClose} type="button">
-            ✕
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button">
+            <X size={16} />
           </button>
         </div>
         <p className="cp-muted" style={{ marginBottom: '16px' }}>
@@ -649,8 +650,8 @@ function DocumentPreviewModal({
             >
               <Download size={14} /> Download
             </a>
-            <button className="modal-close" onClick={onClose} type="button">
-              ✕
+            <button aria-label="Close" className="modal-close" onClick={onClose} type="button">
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -683,8 +684,8 @@ function RevisionModal({
       <div className="modal-panel">
         <div className="modal-header">
           <h3>Request Revision</h3>
-          <button className="modal-close" onClick={onClose} type="button">
-            ✕
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button">
+            <X size={16} />
           </button>
         </div>
         <p className="cp-muted">
@@ -739,8 +740,8 @@ function RejectModal({
       <div className="modal-panel">
         <div className="modal-header">
           <h3>Reject</h3>
-          <button className="modal-close" onClick={onClose} type="button">
-            ✕
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button">
+            <X size={16} />
           </button>
         </div>
         <p className="cp-muted">

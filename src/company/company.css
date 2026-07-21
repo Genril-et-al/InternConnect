@@ -351,25 +351,10 @@
 }
 
 /* ── Applicant detail ──────────────────────────────────────────────── */
-.cp-back {
-  align-items: center;
-  background: none;
-  border: none;
-  color: var(--brand-orange);
-  cursor: pointer;
-  display: inline-flex;
-  font-size: 13px;
-  font-weight: 700;
-  gap: 6px;
-  padding: 0;
-  width: fit-content;
-}
-
-.cp-back:hover {
-  box-shadow: none;
-  text-decoration: underline;
-  transform: none;
-}
+/* .cp-back was a second back-button design — borderless, orange, underline on
+   hover — sitting alongside .detail-back's bordered pill. The company portal now
+   uses .detail-back like every other portal, so this is gone rather than kept as
+   an alias; leaving it would just invite the split to reappear. */
 
 .cp-detail-head {
   align-items: center;

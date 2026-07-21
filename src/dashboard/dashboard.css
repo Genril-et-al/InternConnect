@@ -45,7 +45,9 @@
   gap: 8px;
   min-height: 42px;
   padding: 8px 16px;
-  transition: filter var(--dur-1) ease;
+  /* No `transition` here — a class-level one replaces the base button list
+     wholesale, and this rule used to name only `filter`, so the border-color
+     its own :hover sets was left to snap. The base covers both. */
 }
 
 .sd-primary:hover {

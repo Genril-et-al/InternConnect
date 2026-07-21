@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
-import { Plus, Search, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Plus, Search, Trash2, X } from 'lucide-react'
 import type { CompanyApplicant, CompanyListing, PreEmploymentRequirement } from './companyData'
 import type { NewListingInput } from './companyQueries'
 
@@ -210,8 +210,8 @@ function PreviewListingView({
       <div className="modal-panel detail-view" style={{ maxWidth: '750px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <button className="detail-back" onClick={onBack} type="button" style={{ margin: 0, padding: 0, background: 'none', border: 'none', color: 'var(--text-light)', cursor: 'pointer', fontSize: '14px' }}>
-            ← Back to listings
+          <button className="detail-back" onClick={onBack} type="button">
+            <ArrowLeft size={14} /> Back to listings
           </button>
           <button className="cp-primary" onClick={onEdit} type="button" style={{ padding: '8px 16px', borderRadius: '20px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
             Edit Listing
@@ -357,7 +357,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
       <div className="modal-panel" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', padding: '0', borderRadius: '12px', border: '1px solid var(--border)' }}>
         <div className="modal-header" style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, color: 'var(--brand-brown)', fontSize: '20px' }}>Post New Listing</h3>
-          <button className="modal-close" onClick={onClose} type="button" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><X size={18} /></button>
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         </div>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>

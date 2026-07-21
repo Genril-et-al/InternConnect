@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowLeft,
   Briefcase,
   Bookmark,
   CheckCircle2,
@@ -12,6 +13,7 @@ import {
   Search,
   Upload,
   Users,
+  X,
   XCircle,
 } from 'lucide-react'
 import './App.css'
@@ -772,7 +774,7 @@ function ProgressModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel progress-modal" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} type="button">×</button>
+        <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         
         {internship && (
           <div className="progress-header-card">
@@ -1346,7 +1348,7 @@ function InternshipDetailView({
   return (
     <div className="detail-view">
       <button className="detail-back" onClick={onBack} type="button">
-        ← Back to listings
+        <ArrowLeft size={14} /> Back to listings
       </button>
 
       <div className="detail-header">
@@ -1531,7 +1533,7 @@ function ApplyModal({
           <>
             <div className="modal-header">
               <h3>Apply for Internship</h3>
-              <button className="modal-close" onClick={onClose} type="button">✕</button>
+              <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
             </div>
 
             {/* Internship preview */}
