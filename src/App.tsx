@@ -41,6 +41,7 @@ import { useSidebarCollapsed } from './lib/useSidebar'
 import { SignOutButton } from './components/SignOutButton'
 import { Avatar } from './components/Avatar'
 import { signedDocumentUrl } from './lib/profile'
+import { requestLeave } from './lib/unsavedGuard'
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 // Profile isn't a nav item — users open their own profile from the account
@@ -61,6 +62,14 @@ function App() {
   const { session, profile, loading, recovery, signOut } = useAuth()
   const [activeView, setActiveView] = useState('Dashboard')
   const [collapsed, toggleCollapsed] = useSidebarCollapsed()
+
+  // Every view switch goes through here so a form holding unsaved work (the
+  // profile editor) can confirm before it's discarded. When nothing is
+  // unsaved the switch happens immediately.
+  function requestView(view: string) {
+    if (view === activeView) return
+    requestLeave(() => setActiveView(view))
+  }
 
   // Auth gate — resolve the session before deciding what to render.
   if (loading) {
@@ -152,7 +161,7 @@ function App() {
               <button
                 className={activeView === item.label ? 'active' : ''}
                 key={item.label}
-                onClick={() => setActiveView(item.label)}
+                onClick={() => requestView(item.label)}
                 title={item.label}
                 type="button"
               >
@@ -165,7 +174,7 @@ function App() {
         <div className="ad-user">
           <button
             className={`ad-user-trigger${activeView === 'Profile' ? ' active' : ''}`}
-            onClick={() => setActiveView('Profile')}
+            onClick={() => requestView('Profile')}
             title="View your profile"
             type="button"
           >
@@ -182,8 +191,8 @@ function App() {
       </aside>
 
       <section className="workspace">
-        {role === 'student' && <StudentPortal activeView={activeView} onNavigate={setActiveView} />}
-        {role === 'company' && <CompanyPortal activeView={activeView} onNavigate={setActiveView} />}
+        {role === 'student' && <StudentPortal activeView={activeView} onNavigate={requestView} />}
+        {role === 'company' && <CompanyPortal activeView={activeView} onNavigate={requestView} />}
       </section>
     </main>
   )
@@ -210,11 +219,15 @@ function StudentPortal({
   const [loadError, setLoadError] = useState<string | null>(null)
 
   const userId = profile?.id
-  const skills = profile?.skills
-  const specializations = profile?.specializations
+  // Compared by value, not reference: every refreshProfile() hands back a new
+  // profile object with new (but usually identical) arrays, and keying the
+  // refresh on those references made the whole portal flip back to its loading
+  // state — unmounting whatever view the student was working in.
+  const matchKey = JSON.stringify([profile?.skills ?? [], profile?.specializations ?? []])
 
   const refresh = useCallback(async () => {
     if (!userId) return
+    const [skills, specializations] = JSON.parse(matchKey) as [string[], string[]]
     const [l, a, b] = await Promise.all([
       // Match against the full profile pool: resume-extracted skills plus any
       // manually added skills and specializations.
@@ -225,12 +238,15 @@ function StudentPortal({
     setInternships(l)
     setApplications(a)
     setBookmarkedIds(b)
-  }, [userId, skills, specializations])
+  }, [userId, matchKey])
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      setLoading(true)
+      // `loading` starts true and is cleared in the finally below, so only the
+      // first load shows the spinner. Later refetches (a profile save, an
+      // apply) swap the data in underneath whatever view is open rather than
+      // unmounting it.
       setLoadError(null)
       try {
         await refresh()
