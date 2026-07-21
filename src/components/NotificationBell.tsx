@@ -17,8 +17,11 @@ interface NotificationBellProps {
   unreadCount?: number
   /** Older rows exist beyond what is loaded. */
   hasMore?: boolean
+  /** The list has grown past the first page, so it can be shrunk back. */
+  canCollapse?: boolean
   loadingMore?: boolean
   onLoadMore?: () => void
+  onCollapse?: () => void
 }
 
 export function NotificationBell({
@@ -27,8 +30,10 @@ export function NotificationBell({
   onMarkRead,
   unreadCount: unreadCountProp,
   hasMore = false,
+  canCollapse = false,
   loadingMore = false,
   onLoadMore,
+  onCollapse,
 }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [clickedId, setClickedId] = useState<string | null>(null)
@@ -135,15 +140,40 @@ export function NotificationBell({
                   </div>
                 ))
               )}
-              {hasMore && (
-                <button
-                  className="nb-load-more"
-                  onClick={onLoadMore}
-                  disabled={loadingMore}
-                  type="button"
-                >
-                  {loadingMore ? 'Loading…' : 'Load older notifications'}
-                </button>
+              {(hasMore || canCollapse) && (
+                <div className="nb-list-actions">
+                  {hasMore && (
+                    <button
+                      className="nb-load-more"
+                      onClick={onLoadMore}
+                      disabled={loadingMore}
+                      type="button"
+                    >
+                      {/* Shortened once it shares the row: at half of a 288px
+                          panel (a 320px phone) the full label wraps to two
+                          lines, and even the 320px desktop panel fits it with
+                          nothing to spare. Alone, it keeps the fuller wording. */}
+                      {loadingMore
+                        ? 'Loading…'
+                        : canCollapse
+                          ? 'Load older'
+                          : 'Load older notifications'}
+                    </button>
+                  )}
+                  {/* Disabled mid-load: truncating while a page is in flight
+                      would append that page onto the shortened list and leave a
+                      gap where the dropped rows were. */}
+                  {canCollapse && (
+                    <button
+                      className="nb-show-less"
+                      onClick={onCollapse}
+                      disabled={loadingMore}
+                      type="button"
+                    >
+                      Show less
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>

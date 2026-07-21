@@ -44,8 +44,10 @@ export function StudentDashboard({
     notifications,
     unreadCount,
     hasMore,
+    canCollapse,
     loadingMore,
     loadMore,
+    collapse,
     handleMarkRead,
     handleMarkAllRead,
   } = useNotifications((hint, notification) => {
@@ -106,8 +108,10 @@ export function StudentDashboard({
             notifications={notifications}
             unreadCount={unreadCount}
             hasMore={hasMore}
+            canCollapse={canCollapse}
             loadingMore={loadingMore}
             onLoadMore={loadMore}
+            onCollapse={collapse}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />

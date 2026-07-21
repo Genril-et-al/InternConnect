@@ -1908,31 +1908,52 @@ label {
 
 /* Sits at the end of the list, inside the scroller, so it is reached by
    scrolling rather than occupying height the notifications could use. */
-.nb-load-more {
-  background: none;
-  border: none;
+.nb-list-actions {
   /* --border, not --border-light: the latter is referenced in five other
      places but never defined, so any rule using it silently renders no border
      at all. See the note in the commit that added this. */
   border-top: 1px solid var(--border);
+  display: flex;
+}
+
+.nb-load-more,
+.nb-show-less {
+  background: none;
+  border: none;
   border-radius: 0;
-  color: var(--brand-dark-red);
   cursor: pointer;
+  /* Each takes half the row when both show, the full width when one does. */
+  flex: 1;
   font-size: 12px;
   font-weight: 600;
   padding: 12px 16px;
   text-align: center;
-  width: 100%;
 }
 
-.nb-load-more:hover {
+.nb-load-more {
+  color: var(--brand-dark-red);
+}
+
+/* Muted against "Load older": undoing the list is the lesser action. */
+.nb-show-less {
+  color: var(--text-muted);
+}
+
+/* Only when both are present -- a lone button needs no divider. */
+.nb-load-more + .nb-show-less {
+  border-left: 1px solid var(--border);
+}
+
+.nb-load-more:hover,
+.nb-show-less:hover {
   background: var(--surface-light, #f5f5f5);
   border-color: var(--border);
   box-shadow: none;
   transform: none;
 }
 
-.nb-load-more:disabled {
+.nb-load-more:disabled,
+.nb-show-less:disabled {
   color: var(--text-muted);
   cursor: default;
 }

@@ -19,8 +19,10 @@ export function useNotifications(onNavHint: (hint: string, notification?: { mess
   notifications: Notification[]
   unreadCount: number
   hasMore: boolean
+  canCollapse: boolean
   loadingMore: boolean
   loadMore: () => void
+  collapse: () => void
   handleMarkRead: (id: string) => void
   handleMarkAllRead: () => void
 } {
@@ -104,6 +106,15 @@ export function useNotifications(onNavHint: (hint: string, notification?: { mess
       })
   }, [adapt, commit])
 
+  const collapse = useCallback(() => {
+    // Nothing to give back when the list never grew past the first page.
+    if (listRef.current.length <= NOTIFICATIONS_PAGE_SIZE) return
+    commit(listRef.current.slice(0, NOTIFICATIONS_PAGE_SIZE))
+    // Older rows exist beyond the truncated window by definition, whatever the
+    // last page reported -- the button that got us here has to come back.
+    setHasMore(true)
+  }, [commit])
+
   const handleMarkRead = useCallback(
     (id: string) => {
       const target = listRef.current.find((n) => n.id === id)
@@ -126,8 +137,10 @@ export function useNotifications(onNavHint: (hint: string, notification?: { mess
     notifications,
     unreadCount,
     hasMore,
+    canCollapse: notifications.length > NOTIFICATIONS_PAGE_SIZE,
     loadingMore,
     loadMore,
+    collapse,
     handleMarkRead,
     handleMarkAllRead,
   }

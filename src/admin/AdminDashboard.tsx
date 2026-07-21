@@ -44,8 +44,10 @@ export function AdminDashboard({
     notifications,
     unreadCount,
     hasMore,
+    canCollapse,
     loadingMore,
     loadMore,
+    collapse,
     handleMarkRead,
     handleMarkAllRead,
   } = useNotifications((hint, notification) => {
@@ -86,8 +88,10 @@ export function AdminDashboard({
             notifications={notifications}
             unreadCount={unreadCount}
             hasMore={hasMore}
+            canCollapse={canCollapse}
             loadingMore={loadingMore}
             onLoadMore={loadMore}
+            onCollapse={collapse}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />
