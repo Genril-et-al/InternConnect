@@ -481,9 +481,9 @@
      not zero — the gap is what keeps the card reading as a floating dialog
      rather than a full-bleed screen. The safe-area term keeps it clear of the
      home indicator on the short axis. */
-    padding: 16px calc(16px + env(safe-area-inset-left, 0px))
+    padding: 16px calc(16px + env(safe-area-inset-right, 0px))
       calc(16px + env(safe-area-inset-bottom, 0px))
-      calc(16px + env(safe-area-inset-right, 0px));
+      calc(16px + env(safe-area-inset-left, 0px));
   }
 
   .modal-panel {
