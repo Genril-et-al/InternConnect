@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react'
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
   CheckCircle2,
   Download,
   Eye,
@@ -48,6 +50,7 @@ export function CompanyApplicants({
   const [statusFilter, setStatusFilter] = useState<'All' | ApplicantStatus>('All')
   const [matchFilter, setMatchFilter] = useState('Any match %')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showEmptyListings, setShowEmptyListings] = useState(false)
 
   // Smart default expansion
   const [expandedListings, setExpandedListings] = useState<Set<string>>(() => {
@@ -82,9 +85,17 @@ export function CompanyApplicants({
   const visibleListings = useMemo(() => {
     return listings.filter(l => {
       if (listingFilter !== 'All listings' && l.title !== listingFilter) return false
-      return filteredApplicants.some(a => a.role === l.title)
+      const hasMatches = filteredApplicants.some(a => a.role === l.title)
+      const hasAny = applicants.some(a => a.role === l.title)
+      
+      // If we're searching/filtering and there are no matches, always hide
+      const isFiltering = search !== '' || matchFilter !== 'Any match %' || statusFilter !== 'All'
+      if (isFiltering) return hasMatches
+      
+      // If not filtering, obey the toggle
+      return showEmptyListings ? true : hasAny
     })
-  }, [listings, listingFilter, filteredApplicants])
+  }, [listings, listingFilter, filteredApplicants, showEmptyListings, applicants, search, matchFilter, statusFilter])
 
   const selected = applicants.find((a) => a.id === selectedId) ?? null
 
@@ -112,7 +123,7 @@ export function CompanyApplicants({
         </div>
       </div>
 
-      <div className="cp-toolbar">
+      <div className="cp-toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
         <div className="cp-search">
           <Search size={14} />
           <input
@@ -139,6 +150,16 @@ export function CompanyApplicants({
           options={Object.keys(MATCH_FILTERS)}
           value={matchFilter}
         />
+        
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-light)', cursor: 'pointer', marginLeft: 'auto' }}>
+          <input 
+            type="checkbox" 
+            checked={showEmptyListings} 
+            onChange={e => setShowEmptyListings(e.target.checked)} 
+            style={{ margin: 0, cursor: 'pointer', accentColor: 'var(--brand-orange)' }}
+          />
+          Show empty listings
+        </label>
       </div>
 
       <div className="cp-rows" style={{ gap: '16px' }}>
@@ -164,6 +185,7 @@ export function CompanyApplicants({
                 onSelectApplicant={setSelectedId}
                 highlightedApplicantId={highlightedApplicantId}
                 onBulkReject={onBulkReject}
+                onSetStatus={onSetStatus}
               />
             )
           })
@@ -181,7 +203,8 @@ function ListingGroupCard({
   onToggleExpand,
   onSelectApplicant,
   highlightedApplicantId,
-  onBulkReject
+  onBulkReject,
+  onSetStatus
 }: {
   listing: CompanyListing
   applicants: CompanyApplicant[]
@@ -191,6 +214,7 @@ function ListingGroupCard({
   onSelectApplicant: (id: string) => void
   highlightedApplicantId?: string | null
   onBulkReject?: (rejections: { id: string; feedback: string }[]) => Promise<void>
+  onSetStatus?: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false)
@@ -204,14 +228,30 @@ function ListingGroupCard({
 
   const isFull = acceptedCount >= listing.slots
 
-  const handleSelectAllPending = () => {
+  const handleSelectAllPending = (e: React.MouseEvent) => {
+    e.stopPropagation()
     setSelectedIds(new Set(applicants.filter(a => a.status === 'Pending').map(a => a.id)))
+    if (!isExpanded) onToggleExpand()
   }
-  const handleSelectInterviewed = () => {
+  const handleSelectInterviewed = (e: React.MouseEvent) => {
+    e.stopPropagation()
     setSelectedIds(new Set(applicants.filter(a => a.status === 'Interview Scheduled').map(a => a.id)))
+    if (!isExpanded) onToggleExpand()
   }
-  const handleSelectAll = () => {
+  const handleSelectAll = (e: React.MouseEvent) => {
+    e.stopPropagation()
     setSelectedIds(new Set(applicants.map(a => a.id)))
+    if (!isExpanded) onToggleExpand()
+  }
+  
+  const handleMoveToInterview = async () => {
+    if (onSetStatus) {
+      // Loop over and update status
+      for (const id of Array.from(selectedIds)) {
+        await onSetStatus(id, 'Interview Scheduled')
+      }
+    }
+    setSelectedIds(new Set())
   }
 
   return (
@@ -220,41 +260,40 @@ function ListingGroupCard({
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
              <h3 style={{ margin: 0, color: 'var(--text-strong)', fontSize: '18px' }}>{listing.title}</h3>
-             {isFull && <span style={{ background: 'var(--brand-crimson)', color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>Quota Reached</span>}
+             <span style={{ color: 'var(--text-light)', fontSize: '13px' }}>
+               {acceptedCount} of {listing.slots} positions filled
+             </span>
           </div>
           
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px', color: 'var(--text-light)', alignItems: 'center' }}>
-            <span style={{ color: isFull ? 'var(--brand-crimson)' : 'inherit', fontWeight: isFull ? 600 : 400 }}>
-              {acceptedCount} of {listing.slots} positions filled
-            </span>
             <span>{allApplicants.length} total applicants</span>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {pendingCount > 0 && <span style={{ background: '#FFF8E1', color: '#F57F17', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🟡 Pending ({pendingCount})</span>}
-              {reviewCount > 0 && <span style={{ background: '#E3F2FD', color: '#1976D2', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔵 Review ({reviewCount})</span>}
-              {interviewCount > 0 && <span style={{ background: '#E3F2FD', color: '#1976D2', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔵 Interview ({interviewCount})</span>}
-              {acceptedCount > 0 && <span style={{ background: '#E8F5E9', color: '#388E3C', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🟢 Accepted ({acceptedCount})</span>}
-              {rejectedCount > 0 && <span style={{ background: '#FFEBEE', color: '#D32F2F', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔴 Rejected ({rejectedCount})</span>}
+              <span style={{ background: '#FFF8E1', color: '#F57F17', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🟡 Pending ({pendingCount})</span>
+              <span style={{ background: '#E3F2FD', color: '#1976D2', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔵 Interview ({interviewCount})</span>
+              <span style={{ background: '#E8F5E9', color: '#388E3C', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🟢 Accepted ({acceptedCount})</span>
+              <span style={{ background: '#FFEBEE', color: '#D32F2F', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔴 Rejected ({rejectedCount})</span>
             </div>
           </div>
         </div>
-        <div style={{ color: 'var(--text-light)', paddingLeft: '16px' }}>
-          {isExpanded ? <X size={20} /> : <span style={{fontSize: '20px', fontWeight: 'bold'}}>+</span>}
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {isFull && pendingCount > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); setCloseHiringOpen(true) }} style={{ background: 'white', color: 'var(--brand-crimson)', border: '1px solid var(--brand-crimson)', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+              Close Hiring
+            </button>
+          )}
+          <div style={{ color: 'var(--text-light)', display: 'flex', alignItems: 'center' }}>
+            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </div>
         </div>
       </div>
 
       {isExpanded && (
         <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
-          {isFull && pendingCount > 0 && (
-            <div style={{ background: '#FFEBEE', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #ffcdd2' }}>
-              <span style={{ color: '#D32F2F', fontWeight: 600 }}>Hiring quota reached ({acceptedCount} of {listing.slots} positions filled).</span>
-              <button onClick={() => setCloseHiringOpen(true)} style={{ background: '#D32F2F', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>Close Hiring</button>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', fontSize: '13px' }}>
-            <span style={{ cursor: 'pointer', color: 'var(--brand-brown)', fontWeight: 600, textDecoration: 'underline' }} onClick={handleSelectAllPending}>Select All Pending</span>
-            <span style={{ cursor: 'pointer', color: 'var(--brand-brown)', fontWeight: 600, textDecoration: 'underline' }} onClick={handleSelectInterviewed}>Select Interviewed</span>
-            <span style={{ cursor: 'pointer', color: 'var(--brand-brown)', fontWeight: 600, textDecoration: 'underline' }} onClick={handleSelectAll}>Select All</span>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', fontSize: '13px' }}>
+            <button type="button" onClick={handleSelectAllPending} style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '16px', padding: '4px 12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-strong)' }}>Select Pending</button>
+            <button type="button" onClick={handleSelectInterviewed} style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '16px', padding: '4px 12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-strong)' }}>Select Interviewed</button>
+            <button type="button" onClick={handleSelectAll} style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '16px', padding: '4px 12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-strong)' }}>Select All</button>
           </div>
 
           <div className="cp-rows" style={{ gap: '8px' }}>
@@ -291,7 +330,7 @@ function ListingGroupCard({
               </div>
             ))}
             {applicants.length === 0 && (
-              <p className="cp-muted" style={{ margin: 0 }}>No applicants match current filters.</p>
+              <p className="cp-muted" style={{ margin: 0, fontStyle: 'italic' }}>No applicants to display.</p>
             )}
           </div>
 
@@ -300,6 +339,8 @@ function ListingGroupCard({
               <span style={{ fontWeight: 600, color: 'var(--brand-brown)' }}>{selectedIds.size} applicant{selectedIds.size > 1 ? 's' : ''} selected</span>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" onClick={() => setSelectedIds(new Set())} style={{ background: 'transparent', border: 'none', color: 'var(--text-light)', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+                <button type="button" onClick={handleMoveToInterview} style={{ background: 'white', color: 'var(--text-strong)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 12px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Move to Interview</button>
+                <button type="button" onClick={() => alert('Send Bulk Feedback is not yet configured.')} style={{ background: 'white', color: 'var(--text-strong)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 12px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Send Bulk Feedback</button>
                 <button type="button" onClick={() => setBulkRejectOpen(true)} style={{ background: 'var(--brand-crimson)', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 16px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Reject Selected</button>
               </div>
             </div>
@@ -345,7 +386,6 @@ function ListingGroupCard({
     </div>
   )
 }
-
 /* ── Applicant profile detail ─────────────────────────────────────────── */
 
 function ApplicantDetail({
