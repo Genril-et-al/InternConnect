@@ -613,7 +613,6 @@ export function ProfileSetup({
       <section className="profile-section">
         <div className="profile-section-head">
           <h2>Skills</h2>
-          <span className="profile-optional">Optional</span>
         </div>
         <TagInput
           onChange={setSkills}
@@ -621,13 +620,15 @@ export function ProfileSetup({
           tags={skills}
           lockedTags={aiSkills}
         />
+        <p className="profile-info-subtext" style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
+          Faded tags represent skills automatically extracted from your resume and cannot be removed. You can still manually add additional skills and remove them.
+        </p>
       </section>
 
       {/* Specializations — optional */}
       <section className="profile-section">
         <div className="profile-section-head">
           <h2>Specializations</h2>
-          <span className="profile-optional">Optional</span>
         </div>
         <TagInput
           onChange={setSpecializations}
@@ -635,6 +636,9 @@ export function ProfileSetup({
           tags={specializations}
           lockedTags={aiSpecializations}
         />
+        <p className="profile-info-subtext" style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
+          Faded tags represent specializations automatically extracted from your resume and cannot be removed. You can still manually add additional specializations and remove them.
+        </p>
       </section>
 
       {/* Resume & Cover Letter — upload */}

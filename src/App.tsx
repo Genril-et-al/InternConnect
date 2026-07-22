@@ -727,7 +727,6 @@ function ProgressModal({
     { label: 'Offer Extended', active: ['Offered', 'Accepted'].includes(application.status), done: ['Offered', 'Accepted'].includes(application.status), status: application.status === 'Offered' ? 'warning' : '' },
     { label: 'Pre-Employment Requirements', active: application.status === 'Accepted' && (application.approvedRequirements || 0) < (application.requirements?.length || 0), done: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length },
     { label: 'Ready to Start', active: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length, done: false },
-    { label: 'Internship Started', active: false, done: false },
   ]
 
   return (
