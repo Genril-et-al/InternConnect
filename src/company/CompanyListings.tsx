@@ -363,7 +363,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal-panel" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', padding: '0', borderRadius: '12px', border: '1px solid var(--border)' }}>
-        <div className="modal-header" style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="modal-header" style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10, padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, color: 'var(--brand-brown)', fontSize: '20px' }}>Post New Listing</h3>
           <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         </div>
@@ -397,7 +397,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
           
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--brand-brown)', fontSize: '14px' }}>Job Description / Responsibilities <span style={{color:'var(--brand-crimson)'}}>*</span></label>
-            <textarea required value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the role, responsibilities, and qualifications..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', minHeight: '100px', resize: 'vertical' }} />
+            <textarea required value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the role, responsibilities, and qualifications..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', minHeight: '100px', resize: 'vertical', fontFamily: 'inherit' }} />
           </div>
 
           <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
@@ -408,13 +408,13 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
             
             <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', fontSize: '14px', color: 'var(--text)' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input type="radio" checked={interviewMode === 'none'} onChange={() => setInterviewMode('none')} /> No Interview
+                <input type="radio" checked={interviewMode === 'none'} onChange={() => setInterviewMode('none')} style={{ width: '16px', height: '16px', margin: 0 }} /> No Interview
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input type="radio" checked={interviewMode === 'single'} onChange={() => setInterviewMode('single')} /> Single Interview
+                <input type="radio" checked={interviewMode === 'single'} onChange={() => setInterviewMode('single')} style={{ width: '16px', height: '16px', margin: 0 }} /> Single Interview
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input type="radio" checked={interviewMode === 'multi'} onChange={() => setInterviewMode('multi')} /> Multi-stage Interview
+                <input type="radio" checked={interviewMode === 'multi'} onChange={() => setInterviewMode('multi')} style={{ width: '16px', height: '16px', margin: 0 }} /> Multi-stage Interview
               </label>
             </div>
 
