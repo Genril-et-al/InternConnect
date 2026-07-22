@@ -598,3 +598,158 @@
     width: 100px;
   }
 }
+
+/* ── Listing preview modal ─────────────────────────────────────────────
+   Follows the .progress-modal idiom in App.css: a warm cream sheet holding
+   white cards, rather than one opaque slab with the content poured straight
+   into it.
+
+   This used to be styled entirely inline on the elements. Beyond the noise,
+   half of it did nothing: the pills asked for `.status.neutral` and
+   `.status.rejected`, which don't exist, and the colours reached for
+   --text-light, --bg-subtle and --brand-sand, none of which are defined
+   anywhere (see the note at App.css:1942 about --border-light). An undefined
+   var is invalid at computed-value time, so those backgrounds resolved to
+   transparent and the muted text simply inherited — which is why the panel
+   read as one flat block. Everything below uses tokens that exist. */
+
+/* Compound selector, not !important: .modal-panel already supplies the
+   animation, radius, shadow, max-height, overflow and column layout. */
+.modal-panel.listing-preview {
+  background: #fdfaf7;
+  gap: 16px;
+  max-width: 800px;
+  padding: 24px;
+}
+
+.listing-preview-bar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.listing-preview-note {
+  align-items: center;
+  background: rgba(231, 104, 20, 0.1);
+  border-radius: 8px;
+  color: var(--brand-orange);
+  display: flex;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.listing-preview-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.listing-preview-card h4 {
+  color: var(--brand-brown);
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+
+.listing-preview-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.listing-preview-header h2 {
+  color: var(--text-strong);
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.listing-preview-header p {
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+.listing-preview-description {
+  line-height: 1.6;
+  margin: 0;
+}
+
+.listing-preview-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.listing-preview-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.listing-preview-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.listing-preview-value {
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.listing-preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.listing-preview-tags span {
+  background: var(--accent-soft);
+  border-radius: 16px;
+  color: var(--brand-brown);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+}
+
+.listing-preview-subtext {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: -4px 0 16px;
+}
+
+.listing-preview-reqs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The cream of the sheet rather than --surface-strong, which is grey enough to
+   reintroduce the slab look one level down. */
+.listing-preview-reqs > div {
+  background: #fdfaf7;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+}
+
+.listing-preview-req-name {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.listing-preview-req-meta {
+  color: var(--text-muted);
+  font-size: 12px;
+}
