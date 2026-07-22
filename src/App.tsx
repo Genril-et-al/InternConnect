@@ -604,10 +604,17 @@ const statusRank = (status: ApplicationStatus): number => (status === 'Accepted'
  * of silently falling through to the neutral badge -- which is exactly what
  * happened to 'Withdrawn', styled as if it were still live.
  */
+/* The variants are .status.success / .warning / .error in App.css — those three
+   and no others. This map used to send Pending and Shortlisted to a `pending`
+   variant that was never written, which left both falling through to bare
+   .status: the grey pill. ProgressModal has always drawn Pending as `warning`
+   (see the badge beside the header card), so the same application read amber in
+   the modal and grey in the strip behind it. Amber in both now — every state
+   that is still in flight is warning, and only the terminal ones are coloured. */
 const STATUS_BADGE: Record<ApplicationStatus, string> = {
-  Pending: 'pending',
+  Pending: 'warning',
   'Under review': 'warning',
-  Shortlisted: 'pending',
+  Shortlisted: 'warning',
   'Interview scheduled': 'warning',
   Offered: 'success',
   Accepted: 'success',
@@ -617,7 +624,7 @@ const STATUS_BADGE: Record<ApplicationStatus, string> = {
 }
 
 function ApplicationStrip({ application, onClick, isHighlighted, isShaded }: { application: Application; onClick: () => void; isHighlighted?: boolean; isShaded?: boolean }) {
-  const statusClass = STATUS_BADGE[application.status] ?? 'pending'
+  const statusClass = STATUS_BADGE[application.status] ?? 'warning'
 
   return (
     <article className={`application-strip ${isHighlighted ? 'highlighted' : ''} ${isShaded ? 'shaded' : ''}`} role="button" tabIndex={0} onClick={isShaded ? undefined : onClick}>
