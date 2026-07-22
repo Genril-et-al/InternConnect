@@ -8,13 +8,17 @@
   z-index: 1500;
 }
 
+/* The displayed width is set inline by the component — see fitWidth() there for
+   why the fit can't be expressed in CSS alone. It always lands inside the
+   bounds below, so these only guard the frame before measuring and any case
+   where the width never arrives. */
 .photo-lightbox-image {
   animation: modal-slide-up var(--dur-3) var(--ease-out);
   border-radius: 12px;
   box-shadow: 0 32px 64px rgba(28, 10, 4, 0.45);
+  height: auto;
   max-height: 90vh;
   max-width: 90vw;
-  object-fit: contain;
 }
 
 /* Pinned to the viewport rather than to the image. Anchoring it to the image
