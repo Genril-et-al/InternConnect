@@ -320,12 +320,21 @@ a {
    `key` of the active view (App.tsx, AdminApp.tsx) so React remounts it on
    every switch and the animation re-runs.
 
-   `both` matters: the held end state is `transform: none`, so the wrapper
-   stops being a containing block once the animation settles and any
-   `position: fixed` modal rendered inside a view positions against the
-   viewport as intended. */
+   `backwards`, NOT `both`. A forwards fill holds the `to` keyframe, and
+   `transform: none` in a keyframe computes to the identity *matrix*, not the
+   keyword — `getComputedStyle` reads back `matrix(1, 0, 0, 1, 0, 0)` forever
+   after. A transform of any value, identity included, makes the element the
+   containing block for `position: fixed` descendants, so every modal opened
+   inside a view was sized and centred against this wrapper instead of the
+   viewport. The wrapper's box is zero-height here (its only in-flow content is
+   the view, and an overlay is out of flow), which is why the overlay landed
+   halfway down the scrolled page rather than over it.
+
+   Dropping the forwards fill costs nothing: the end state is identical to the
+   element's natural state. `backwards` still covers the real need, which is
+   holding the `from` state during the frame before the animation starts. */
 .page-enter {
-  animation: page-enter var(--dur-3) var(--ease-out) both;
+  animation: page-enter var(--dur-3) var(--ease-out) backwards;
 }
 
 @keyframes page-enter {
@@ -355,9 +364,13 @@ a {
    section from the sidebar both animations run at once. Two 10px rises would
    compound into a 20px slide and two opacity ramps would multiply. A fade with
    a 4px rise disappears into the outer motion when they coincide, and still
-   reads as movement on its own when only this one plays. */
+   reads as movement on its own when only this one plays.
+
+   `backwards` for the same reason as .page-enter above — a forwards fill would
+   leave an identity transform on the wrapper and trap every fixed overlay
+   rendered inside it. */
 .view-swap {
-  animation: view-swap var(--dur-2) var(--ease-out) both;
+  animation: view-swap var(--dur-2) var(--ease-out) backwards;
 }
 
 @keyframes view-swap {
