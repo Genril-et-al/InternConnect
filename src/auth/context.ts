@@ -23,6 +23,12 @@ export type AuthState = {
   endRecovery: () => void
   refreshProfile: () => Promise<void>
   signOut: () => Promise<void>
+  /**
+   * True from the moment a sign-out starts until the login screen has faded in.
+   * The provider draws its own veil over the app while this is set — nothing
+   * else needs to read it, but it is exposed so a screen can disable controls.
+   */
+  signingOut: boolean
   /** Enter offline demo mode with the given profile (demo builds only). */
   enterDemo: (profile: Profile) => void
   /** Merge a patch into the current profile locally (used by the demo). */

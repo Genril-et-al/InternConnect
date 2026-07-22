@@ -632,6 +632,50 @@
   }
 }
 
+/* Sign-out veil — the same gate screen, but laid over whatever workspace the
+   user is signing out of. It fades in while the session is torn down, then
+   holds one fade over the login screen underneath so the two cross-dissolve
+   rather than swapping in a single frame. Above .modal-overlay (z-index 1000)
+   so signing out from inside a modal is covered too. Timings are mirrored in
+   AuthProvider.tsx (VEIL_IN_MS / VEIL_OUT_MS). */
+.signout-veil {
+  animation: auth-fade-in var(--dur-2) var(--ease-out) both;
+  inset: 0;
+  position: fixed;
+  z-index: 2000;
+}
+
+/* A second animation rather than a transition to opacity: 0. The fade-in holds
+   its end value with `both`, and a transition started from an animation's held
+   value does not run reliably — swapping the animation-name always does. */
+.signout-veil.leaving {
+  animation: signout-veil-out var(--dur-2) var(--ease-out) both;
+  /* Nothing under here should be clickable through the fade-out. */
+  pointer-events: none;
+}
+
+@keyframes signout-veil-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .signout-veil {
+    animation: none;
+  }
+
+  .signout-veil.leaving {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 /* Simple branded loading spinner. */
 .ic-spinner {
   animation: ic-spin 0.8s linear infinite;
