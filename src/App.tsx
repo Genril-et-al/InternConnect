@@ -760,7 +760,6 @@ function ProgressModal({
     { label: 'Offer Extended', active: ['Offered', 'Accepted'].includes(application.status), done: ['Offered', 'Accepted'].includes(application.status), status: application.status === 'Offered' ? 'warning' : '' },
     { label: 'Pre-Employment Requirements', active: application.status === 'Accepted' && (application.approvedRequirements || 0) < (application.requirements?.length || 0), done: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length },
     { label: 'Ready to Start', active: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length, done: false },
-    { label: 'Internship Started', active: false, done: false },
   ]
 
   return (
@@ -843,6 +842,11 @@ function ProgressModal({
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                        {details.roundName && (
+                          <>
+                            <strong style={{ color: 'var(--brand-brown)' }}>Round:</strong> <span>{details.roundName}</span>
+                          </>
+                        )}
                         <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date || 'TBD'}</span>
                         <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time || 'TBD'}</span>
                         <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>

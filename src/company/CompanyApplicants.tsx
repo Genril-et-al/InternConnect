@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react'
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronUp,
   CheckCircle2,
   Download,
   Eye,
@@ -30,6 +32,7 @@ export function CompanyApplicants({
   applicants,
   listings,
   onSetStatus,
+  onBulkReject,
   onScheduleInterview,
   onReviewSubmission,
   highlightedApplicantId,
@@ -37,6 +40,7 @@ export function CompanyApplicants({
   applicants: CompanyApplicant[]
   listings: CompanyListing[]
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onBulkReject?: (rejections: { id: string; feedback: string }[]) => Promise<void>
   onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
   highlightedApplicantId?: string | null
@@ -46,6 +50,17 @@ export function CompanyApplicants({
   const [statusFilter, setStatusFilter] = useState<'All' | ApplicantStatus>('All')
   const [matchFilter, setMatchFilter] = useState('Any match %')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [showEmptyListings, setShowEmptyListings] = useState(false)
+
+  // Smart default expansion
+  const [expandedListings, setExpandedListings] = useState<Set<string>>(() => {
+    const initial = new Set<string>()
+    listings.forEach(l => {
+      const needsAttention = applicants.some(a => a.role === l.title && (a.status === 'Pending' || a.status === 'Interview Scheduled' || a.status === 'Reviewed'))
+      if (needsAttention) initial.add(l.id)
+    })
+    return initial
+  })
 
   useEffect(() => {
     if (highlightedApplicantId) {
@@ -56,17 +71,31 @@ export function CompanyApplicants({
     }
   }, [highlightedApplicantId])
 
-  const filtered = useMemo(() => {
+  const filteredApplicants = useMemo(() => {
     const minMatch = MATCH_FILTERS[matchFilter] ?? 0
     return applicants.filter(
       (a) =>
         a.name.toLowerCase().includes(search.toLowerCase()) &&
         (listingFilter === 'All listings' || a.role === listingFilter) &&
         (statusFilter === 'All' || a.status === statusFilter) &&
-        // Unscored applicants only pass the "Any match %" option.
         (a.match === null ? minMatch === 0 : a.match >= minMatch),
     )
   }, [applicants, search, listingFilter, statusFilter, matchFilter])
+
+  const visibleListings = useMemo(() => {
+    return listings.filter(l => {
+      if (listingFilter !== 'All listings' && l.title !== listingFilter) return false
+      const hasMatches = filteredApplicants.some(a => a.role === l.title)
+      const hasAny = applicants.some(a => a.role === l.title)
+      
+      // If we're searching/filtering and there are no matches, always hide
+      const isFiltering = search !== '' || matchFilter !== 'Any match %' || statusFilter !== 'All'
+      if (isFiltering) return hasMatches
+      
+      // If not filtering, obey the toggle
+      return showEmptyListings ? true : hasAny
+    })
+  }, [listings, listingFilter, filteredApplicants, showEmptyListings, applicants, search, matchFilter, statusFilter])
 
   const selected = applicants.find((a) => a.id === selectedId) ?? null
 
@@ -74,6 +103,7 @@ export function CompanyApplicants({
     return (
       <ApplicantDetail
         applicant={selected}
+        listings={listings}
         onBack={() => setSelectedId(null)}
         onSetStatus={onSetStatus}
         onScheduleInterview={onScheduleInterview}
@@ -88,13 +118,12 @@ export function CompanyApplicants({
         <div>
           <h1 className="cp-title">Applications</h1>
           <p className="cp-subtitle">
-            {applicants.length} total ·{' '}
-            {applicants.filter((a) => a.status === 'Pending').length} pending review
+            {applicants.length} total · {applicants.filter((a) => a.status === 'Pending').length} pending review
           </p>
         </div>
       </div>
 
-      <div className="cp-toolbar">
+      <div className="cp-toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
         <div className="cp-search">
           <Search size={14} />
           <input
@@ -115,48 +144,261 @@ export function CompanyApplicants({
           options={['All', 'Pending', 'Reviewed', 'Accepted', 'Rejected']}
           value={statusFilter}
         />
-        {/* Match percent filter */}
         <Dropdown
           ariaLabel="Filter by match percentage"
           onChange={setMatchFilter}
           options={Object.keys(MATCH_FILTERS)}
           value={matchFilter}
         />
+        
+        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-light)', cursor: 'pointer', marginLeft: 'auto' }}>
+          <input 
+            type="checkbox" 
+            checked={showEmptyListings} 
+            onChange={e => setShowEmptyListings(e.target.checked)} 
+            style={{ margin: 0, cursor: 'pointer', accentColor: 'var(--brand-orange)', width: '16px', height: '16px' }}
+          />
+          Show empty listings
+        </label>
       </div>
 
-      <div className="cp-rows">
-        {filtered.length === 0 ? (
+      <div className="cp-rows" style={{ gap: '16px' }}>
+        {visibleListings.length === 0 ? (
           <div className="cp-card cp-empty">No applications match the current filters.</div>
         ) : (
-          filtered.map((a) => (
-            <button className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''}`} key={a.id} onClick={() => setSelectedId(a.id)} type="button">
-              <span className="cp-row-avatar">{initials(a.name)}</span>
-              <div className="cp-row-main">
-                <p className="cp-row-name">{a.name}</p>
-                <p className="cp-muted">
-                  {a.role} · Applied {a.applied}
-                </p>
-              </div>
-              <MatchBar value={a.match} />
-              <StatusBadge status={a.status} nextStep={a.nextStep} />
-            </button>
-          ))
+          visibleListings.map(listing => {
+            const listingApplicants = filteredApplicants.filter(a => a.role === listing.title)
+            const allListingApplicants = applicants.filter(a => a.role === listing.title)
+            return (
+              <ListingGroupCard
+                key={listing.id}
+                listing={listing}
+                applicants={listingApplicants}
+                allApplicants={allListingApplicants}
+                isExpanded={expandedListings.has(listing.id)}
+                onToggleExpand={() => {
+                  const next = new Set(expandedListings)
+                  if (next.has(listing.id)) next.delete(listing.id)
+                  else next.add(listing.id)
+                  setExpandedListings(next)
+                }}
+                onSelectApplicant={setSelectedId}
+                highlightedApplicantId={highlightedApplicantId}
+                onBulkReject={onBulkReject}
+                onSetStatus={onSetStatus}
+              />
+            )
+          })
         )}
       </div>
     </div>
   )
 }
 
+function ListingGroupCard({
+  listing,
+  applicants,
+  allApplicants,
+  isExpanded,
+  onToggleExpand,
+  onSelectApplicant,
+  highlightedApplicantId,
+  onBulkReject,
+  onSetStatus
+}: {
+  listing: CompanyListing
+  applicants: CompanyApplicant[]
+  allApplicants: CompanyApplicant[]
+  isExpanded: boolean
+  onToggleExpand: () => void
+  onSelectApplicant: (id: string) => void
+  highlightedApplicantId?: string | null
+  onBulkReject?: (rejections: { id: string; feedback: string }[]) => Promise<void>
+  onSetStatus?: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+}) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false)
+  const [closeHiringOpen, setCloseHiringOpen] = useState(false)
+
+  const pendingCount = allApplicants.filter(a => a.status === 'Pending').length
+  const reviewCount = allApplicants.filter(a => a.status === 'Reviewed').length
+  const interviewCount = allApplicants.filter(a => a.status === 'Interview Scheduled').length
+  const acceptedCount = allApplicants.filter(a => a.status === 'Accepted').length
+  const rejectedCount = allApplicants.filter(a => a.status === 'Rejected').length
+
+  const isFull = acceptedCount >= listing.slots
+
+  const handleSelectAllPending = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedIds(new Set(applicants.filter(a => a.status === 'Pending').map(a => a.id)))
+    if (!isExpanded) onToggleExpand()
+  }
+  const handleSelectInterviewed = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedIds(new Set(applicants.filter(a => a.status === 'Interview Scheduled').map(a => a.id)))
+    if (!isExpanded) onToggleExpand()
+  }
+  const handleSelectAll = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedIds(new Set(applicants.map(a => a.id)))
+    if (!isExpanded) onToggleExpand()
+  }
+  
+  const handleMoveToInterview = async () => {
+    if (onSetStatus) {
+      // Loop over and update status
+      for (const id of Array.from(selectedIds)) {
+        await onSetStatus(id, 'Interview Scheduled')
+      }
+    }
+    setSelectedIds(new Set())
+  }
+
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(113,66,54,0.06)' }}>
+      <div onClick={onToggleExpand} style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+             <h3 style={{ margin: 0, color: 'var(--text-strong)', fontSize: '18px' }}>{listing.title}</h3>
+             <span style={{ color: 'var(--text-light)', fontSize: '13px' }}>
+               {acceptedCount} of {listing.slots} positions filled
+             </span>
+          </div>
+          
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px', color: 'var(--text-light)', alignItems: 'center' }}>
+            <span>{allApplicants.length} total applicants</span>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ background: '#FFF8E1', color: '#F57F17', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🟡 Pending ({pendingCount})</span>
+              {reviewCount > 0 && <span style={{ background: '#E3F2FD', color: '#1976D2', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔵 Review ({reviewCount})</span>}
+              <span style={{ background: '#E3F2FD', color: '#1976D2', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔵 Interview ({interviewCount})</span>
+              <span style={{ background: '#E8F5E9', color: '#388E3C', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🟢 Accepted ({acceptedCount})</span>
+              <span style={{ background: '#FFEBEE', color: '#D32F2F', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔴 Rejected ({rejectedCount})</span>
+            </div>
+          </div>
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {isFull && pendingCount > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); setCloseHiringOpen(true) }} style={{ background: 'white', color: 'var(--brand-crimson)', border: '1px solid var(--brand-crimson)', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+              Close Hiring
+            </button>
+          )}
+          <div style={{ color: 'var(--text-light)', display: 'flex', alignItems: 'center' }}>
+            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </div>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', fontSize: '13px' }}>
+            <button type="button" onClick={handleSelectAllPending} style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '16px', padding: '4px 12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-strong)' }}>Select Pending</button>
+            <button type="button" onClick={handleSelectInterviewed} style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '16px', padding: '4px 12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-strong)' }}>Select Interviewed</button>
+            <button type="button" onClick={handleSelectAll} style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '16px', padding: '4px 12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-strong)' }}>Select All</button>
+          </div>
+
+          <div className="cp-rows" style={{ gap: '8px' }}>
+            {applicants.map(a => (
+              <div className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''}`} key={a.id} style={{ padding: 0, overflow: 'hidden', borderRadius: '8px', boxShadow: 'none', border: '1px solid var(--border-light, #eee)' }}>
+                <div style={{ padding: '0 0 0 16px', display: 'flex', alignItems: 'center' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.has(a.id)}
+                    onChange={(e) => {
+                      const newSet = new Set(selectedIds)
+                      if (e.target.checked) newSet.add(a.id)
+                      else newSet.delete(a.id)
+                      setSelectedIds(newSet)
+                    }}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--brand-orange)', margin: 0 }}
+                  />
+                </div>
+                <button 
+                  onClick={() => onSelectApplicant(a.id)} 
+                  type="button" 
+                  style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', padding: '12px 16px', cursor: 'pointer', textAlign: 'left', minWidth: 0, outline: 'none' }}
+                >
+                  <span className="cp-row-avatar" style={{ width: '32px', height: '32px', fontSize: '12px' }}>{initials(a.name)}</span>
+                  <div className="cp-row-main">
+                    <p className="cp-row-name" style={{ fontSize: '14px' }}>{a.name}</p>
+                    <p className="cp-muted" style={{ fontSize: '12px' }}>
+                      Applied {a.applied}
+                    </p>
+                  </div>
+                  <MatchBar value={a.match} />
+                  <StatusBadge status={a.status} />
+                </button>
+              </div>
+            ))}
+            {applicants.length === 0 && (
+              <p className="cp-muted" style={{ margin: 0, fontStyle: 'italic' }}>No applicants to display.</p>
+            )}
+          </div>
+
+          {selectedIds.size > 0 && (
+            <div style={{ marginTop: '16px', background: 'var(--bg-subtle)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--border)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--brand-brown)' }}>{selectedIds.size} applicant{selectedIds.size > 1 ? 's' : ''} selected</span>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" onClick={() => setSelectedIds(new Set())} style={{ background: 'transparent', border: 'none', color: 'var(--text-light)', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+                <button type="button" onClick={handleMoveToInterview} style={{ background: 'white', color: 'var(--text-strong)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 12px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Move to Interview</button>
+                <button type="button" onClick={() => alert('Send Bulk Feedback is not yet configured.')} style={{ background: 'white', color: 'var(--text-strong)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 12px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Send Bulk Feedback</button>
+                <button type="button" onClick={() => setBulkRejectOpen(true)} style={{ background: 'var(--brand-crimson)', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 16px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Reject Selected</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Modals rendered here so they overlay properly */}
+      {bulkRejectOpen && onBulkReject && (
+        <BulkRejectModal 
+          count={selectedIds.size}
+          onClose={() => setBulkRejectOpen(false)}
+          onSubmit={async (template) => {
+            const rejections = Array.from(selectedIds).map(id => {
+              const app = applicants.find(a => a.id === id)
+              return {
+                id,
+                feedback: template.replace('{Applicant Name}', app?.name ?? 'Applicant')
+              }
+            })
+            await onBulkReject(rejections)
+            setBulkRejectOpen(false)
+            setSelectedIds(new Set())
+          }}
+        />
+      )}
+
+      {closeHiringOpen && onBulkReject && (
+        <AutoRejectModal
+          info={{ listing, count: pendingCount, pendingIds: allApplicants.filter(a => a.status === 'Pending').map(a => a.id) }}
+          onClose={() => setCloseHiringOpen(false)}
+          onSubmit={async (template) => {
+            const pendingApps = allApplicants.filter(a => a.status === 'Pending')
+            const rejections = pendingApps.map(app => ({
+              id: app.id,
+              feedback: template.replace('{Applicant Name}', app.name)
+            }))
+            await onBulkReject(rejections)
+            setCloseHiringOpen(false)
+          }}
+        />
+      )}
+    </div>
+  )
+}
 /* ── Applicant profile detail ─────────────────────────────────────────── */
 
 function ApplicantDetail({
   applicant,
+  listings,
   onBack,
   onSetStatus,
   onScheduleInterview,
   onReviewSubmission,
 }: {
   applicant: CompanyApplicant
+  listings: CompanyListing[]
   onBack: () => void
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
   onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
@@ -165,6 +407,7 @@ function ApplicantDetail({
   const [rejectOpen, setRejectOpen] = useState(false)
   const [scheduleInterviewOpen, setScheduleInterviewOpen] = useState(false)
   const [isRescheduling, setIsRescheduling] = useState(false)
+  const [nextRoundName, setNextRoundName] = useState<string>('Interview')
   const [revisionOpen, setRevisionOpen] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -226,8 +469,35 @@ function ApplicantDetail({
               onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
               type="button"
             >
-              <CheckCircle2 size={13} /> Pass Interview
+              <CheckCircle2 size={13} /> Finalize Acceptance
             </button>
+            {(() => {
+              // Find if there is a next round based on listing's process
+              const rounds = listings.find((l) => l.title === applicant.role)?.interviewProcess?.rounds ?? ['Interview']
+              let currentRoundIdx = -1
+              try {
+                const details = JSON.parse(applicant.nextStep ?? '{}')
+                if (details.roundName) {
+                  currentRoundIdx = rounds.indexOf(details.roundName)
+                }
+              } catch {}
+              
+              if (currentRoundIdx >= 0 && currentRoundIdx + 1 < rounds.length) {
+                return (
+                  <button
+                    className="cp-secondary"
+                    onClick={() => {
+                      setNextRoundName(rounds[currentRoundIdx + 1])
+                      setScheduleInterviewOpen(true)
+                    }}
+                    type="button"
+                  >
+                    <CheckCircle2 size={13} /> Schedule Next Round
+                  </button>
+                )
+              }
+              return null
+            })()}
             <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
               <XCircle size={13} /> Fail Interview
             </button>
@@ -236,7 +506,15 @@ function ApplicantDetail({
         {applicant.status !== 'Accepted' && applicant.status !== 'Rejected' && applicant.status !== 'Interview Scheduled' && (
           <button
             className="cp-accept"
-            onClick={() => setScheduleInterviewOpen(true)}
+            onClick={() => {
+              const rounds = listings.find((l) => l.title === applicant.role)?.interviewProcess?.rounds ?? ['Interview']
+              if (rounds.length === 0) {
+                run(() => onSetStatus(applicant.id, 'Accepted'))
+              } else {
+                setNextRoundName(rounds[0])
+                setScheduleInterviewOpen(true)
+              }
+            }}
             type="button"
           >
             <CheckCircle2 size={13} /> Accept
@@ -276,6 +554,11 @@ function ApplicantDetail({
               return (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                    {details.roundName && (
+                      <>
+                        <strong style={{ color: 'var(--brand-brown)' }}>Round:</strong> <span>{details.roundName}</span>
+                      </>
+                    )}
                     <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date || 'TBD'}</span>
                     <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time || 'TBD'}</span>
                     <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
@@ -498,6 +781,7 @@ function ApplicantDetail({
       {scheduleInterviewOpen && (
         <ScheduleInterviewModal
           isRescheduling={isRescheduling}
+          roundName={nextRoundName}
           onClose={() => {
             setScheduleInterviewOpen(false)
             setIsRescheduling(false)
@@ -579,11 +863,13 @@ function ApplicantDetail({
 /* ── Schedule Interview Modal ────────────────────────────── */
 
 function ScheduleInterviewModal({
+  roundName,
   onClose,
   onSubmit,
   onSkip,
   isRescheduling,
 }: {
+  roundName: string
   onClose: () => void
   onSubmit: (details: InterviewDetails) => void
   onSkip?: () => void
@@ -622,6 +908,14 @@ function ScheduleInterviewModal({
         </p>
         
         <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+          {roundName && (
+            <div className="cp-modal-label">
+              Round Name
+              <div style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%', background: 'var(--bg-subtle)', color: 'var(--text-light)' }}>
+                {roundName}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {dateOptions.map((opt, idx) => (
               <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
@@ -675,10 +969,10 @@ function ScheduleInterviewModal({
               Cancel
             </button>
             <button
-              className="cp-accept"
+              className="cp-primary"
               disabled={!isValid}
               onClick={() => {
-                const details: any = { mode, locationOrLink: locationOrLink.trim() }
+                const details: any = { roundName, mode, locationOrLink: locationOrLink.trim() }
                 if (dateOptions.length === 1) {
                   details.date = dateOptions[0].date
                   details.time = dateOptions[0].time
@@ -901,7 +1195,7 @@ export function StatusBadge({ status, nextStep }: { status: ApplicantStatus, nex
           ? 'pending'
           : 'info'
           
-  if (status === 'Interview scheduled' && nextStep) {
+  if (status === 'Interview Scheduled' && nextStep) {
     try {
       const parsed = JSON.parse(nextStep)
       if (parsed.studentResponse === 'reschedule_requested') {
@@ -931,4 +1225,96 @@ function initials(name: string): string {
 function docLabel(path: string, applicant: string, kind: string): string {
   const ext = path.split('.').pop()?.toLowerCase()
   return `${applicant} — ${kind}${ext ? `.${ext}` : ''}`
+}
+
+/* ── Bulk Actions & Auto Reject ─────────────────────────────────────────── */
+
+function BulkRejectModal({
+  count,
+  onClose,
+  onSubmit,
+}: {
+  count: number
+  onClose: () => void
+  onSubmit: (template: string) => void
+}) {
+  useScrollLock()
+  const [feedback, setFeedback] = useState('Thank you for applying. Unfortunately, we have decided to move forward with other candidates at this time.')
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal-panel">
+        <h3 style={{ margin: '0 0 16px', color: 'var(--brand-brown)' }}>Reject {count} Applicants</h3>
+        <p className="cp-muted" style={{ marginBottom: 16 }}>
+          Send a standard rejection message to all {count} selected candidates. 
+          Use <code>{'{Applicant Name}'}</code> to automatically insert their name.
+        </p>
+        <textarea
+          onChange={(e) => setFeedback(e.target.value)}
+          placeholder="Feedback (optional)"
+          style={{ width: '100%', minHeight: 100, marginBottom: 16, fontFamily: 'inherit', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}
+          value={feedback}
+        />
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button className="cp-secondary" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="cp-danger" onClick={() => onSubmit(feedback)} type="button">
+            Confirm Bulk Rejection
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AutoRejectModal({
+  info,
+  onClose,
+  onSubmit,
+}: {
+  info: { listing: CompanyListing; count: number; pendingIds: string[] }
+  onClose: () => void
+  onSubmit: (template: string) => void
+}) {
+  useScrollLock()
+  const [feedback, setFeedback] = useState('Thank you for your interest in the ' + info.listing.title + ' position. Unfortunately, we have already filled all available slots for this role and are no longer accepting candidates. We wish you the best in your internship search!')
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal-panel">
+        <h3 style={{ margin: '0 0 16px', color: 'var(--brand-brown)' }}>Close Hiring</h3>
+        <p className="cp-muted" style={{ marginBottom: 16 }}>
+          You have successfully filled all <strong>{info.listing.slots} slots</strong> for <strong>{info.listing.title}</strong>.
+        </p>
+        <p className="cp-muted" style={{ marginBottom: 16 }}>
+          By closing hiring, all remaining <strong>{info.count}</strong> Pending applicants for this listing only will be automatically rejected using the feedback below. Interviewed and Accepted applicants will remain unchanged.
+        </p>
+        <textarea
+          onChange={(e) => setFeedback(e.target.value)}
+          placeholder="Rejection message..."
+          style={{ width: '100%', minHeight: 100, marginBottom: 16, fontFamily: 'inherit', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}
+          value={feedback}
+        />
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button className="cp-secondary" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="cp-danger" onClick={() => onSubmit(feedback)} type="button">
+            Reject Pending & Close Hiring
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }

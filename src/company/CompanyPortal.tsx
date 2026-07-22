@@ -140,6 +140,12 @@ export function CompanyPortal({
           applicants={applicants}
           listings={listings}
           onSetStatus={handleApplicantStatus}
+          onBulkReject={async (rejections) => {
+            await withRefresh(() => {
+              // Ensure we import it at the top of the file! Wait, I should add the import first.
+              return import('./companyQueries').then(m => m.bulkRejectApplications(rejections))
+            })
+          }}
           onScheduleInterview={handleScheduleInterview}
           onReviewSubmission={handleReviewSubmission}
           highlightedApplicantId={highlightedApplicantId}
