@@ -13,6 +13,7 @@ import {
   splitName,
 } from './allowlist'
 import { removeApprovedStudent, setStudentActive } from './adminQueries'
+import { Dropdown } from '../components/Dropdown'
 
 /** UC-A01 — Manage Student Accounts: roster, activate, deactivate. */
 export function AdminStudents({
@@ -104,37 +105,40 @@ export function AdminStudents({
 
       <div className="ic-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search by name or email…" value={search} />
-        <select
-          className="ic-select"
-          onChange={(e) => setFilter(e.target.value as 'all' | 'active' | 'inactive' | 'pending')}
+        <Dropdown
+          ariaLabel="Filter by status"
+          onChange={(v) => setFilter(v as 'all' | 'active' | 'inactive' | 'pending')}
+          options={[
+            { value: 'all', label: 'All Status' },
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+            { value: 'pending', label: 'Not registered' },
+          ]}
           value={filter}
-        >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="pending">Not registered</option>
-        </select>
-        <select
-          className="ic-select"
-          onChange={(e) => setMajorFilter(e.target.value)}
+        />
+        <Dropdown
+          ariaLabel="Filter by major"
+          onChange={setMajorFilter}
+          options={[
+            { value: 'all', label: 'All Majors' },
+            'BSCS',
+            'BSIT',
+            'BSIS',
+          ]}
           value={majorFilter}
-        >
-          <option value="all">All Majors</option>
-          <option value="BSCS">BSCS</option>
-          <option value="BSIT">BSIT</option>
-          <option value="BSIS">BSIS</option>
-        </select>
-        <select
-          className="ic-select"
-          onChange={(e) => setYearFilter(e.target.value)}
+        />
+        <Dropdown
+          ariaLabel="Filter by year level"
+          onChange={setYearFilter}
+          options={[
+            { value: 'all', label: 'All Years' },
+            '1st Year',
+            '2nd Year',
+            '3rd Year',
+            '4th Year',
+          ]}
           value={yearFilter}
-        >
-          <option value="all">All Years</option>
-          <option value="1st Year">1st Year</option>
-          <option value="2nd Year">2nd Year</option>
-          <option value="3rd Year">3rd Year</option>
-          <option value="4th Year">4th Year</option>
-        </select>
+        />
         <input
           className="ic-select"
           style={{ padding: '8px 12px', minWidth: '130px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface)', fontSize: '13px' }}

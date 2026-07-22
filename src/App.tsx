@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   Briefcase,
@@ -42,6 +42,7 @@ import type { PreEmploymentRequirement } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
 import { SignOutButton } from './components/SignOutButton'
 import { Avatar } from './components/Avatar'
+import { Dropdown } from './components/Dropdown'
 import { signedDocumentUrl } from './lib/profile'
 import { requestLeave } from './lib/unsavedGuard'
 
@@ -410,19 +411,6 @@ function BrowseInternships({
   const [matchFilter, setMatchFilter] = useState('All')
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
-  
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   const filtered = useMemo(() => {
     const pillMin = matchThresholds[matchFilter] ?? 0
@@ -513,74 +501,14 @@ function BrowseInternships({
             value={query}
           />
           <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />
-          <div style={{ position: 'relative', height: '100%' }} ref={dropdownRef}>
-            <button 
-              type="button"
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              style={{ 
-                margin: 0, 
-                border: 'none', 
-                background: 'transparent', 
-                fontWeight: 600, 
-                color: 'var(--text)', 
-                cursor: 'pointer',
-                padding: '0 8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                height: '100%',
-                outline: 'none',
-                fontSize: '14px'
-              }}
-            >
-              {searchField}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-            {isDropdownOpen && (
-              <div className="menu-pop" style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                right: 0,
-                background: 'white',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                zIndex: 100,
-                minWidth: '140px',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column'
-              }}>
-                {['All', 'Location', 'Title', 'Company', 'Skill'].map(opt => (
-                  <div 
-                    key={opt}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => { setSearchField(opt); setIsDropdownOpen(false) }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { setSearchField(opt); setIsDropdownOpen(false) } }}
-                    style={{
-                      padding: '10px 16px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      color: searchField === opt ? 'var(--accent)' : 'var(--text)',
-                      background: searchField === opt ? 'var(--accent-soft)' : 'transparent',
-                      fontWeight: searchField === opt ? 600 : 400,
-                      transition: 'background var(--dur-2) var(--ease-out)',
-                      userSelect: 'none'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (searchField !== opt) e.currentTarget.style.background = 'var(--surface-strong)'
-                    }}
-                    onMouseLeave={(e) => {
-                      if (searchField !== opt) e.currentTarget.style.background = 'transparent'
-                    }}
-                  >
-                    {opt}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <Dropdown
+            align="right"
+            ariaLabel="Search field"
+            onChange={setSearchField}
+            options={['All', 'Location', 'Title', 'Company', 'Skill']}
+            value={searchField}
+            variant="bare"
+          />
         </div>
         <button
           aria-label="Toggle bookmarks filter"

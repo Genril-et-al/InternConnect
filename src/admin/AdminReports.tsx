@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { BarChart3, Download } from 'lucide-react'
 import type { AdminAppStats, AdminCompany, AdminListing, AdminStudent } from './adminData'
+import { Dropdown } from '../components/Dropdown'
 
 type ReportType = 'student_records' | 'company_records' | 'company_verification'
 
@@ -180,41 +181,53 @@ export function AdminReports({
 
       <section className="ic-card">
         <div className="ic-form-grid">
-          <label>
+          <div className="ic-form-field">
             Report Type
-            <select
-              onChange={(e) => {
-                setReportType(e.target.value as ReportType)
+            <Dropdown
+              ariaLabel="Report type"
+              onChange={(v) => {
+                setReportType(v as ReportType)
                 setGenerated(false)
               }}
+              options={[
+                { value: 'student_records', label: 'Student Records Report' },
+                { value: 'company_records', label: 'Company Records Report' },
+                { value: 'company_verification', label: 'Company Verification Report' },
+              ]}
               value={reportType}
-            >
-              <option value="student_records">Student Records Report</option>
-              <option value="company_records">Company Records Report</option>
-              <option value="company_verification">Company Verification Report</option>
-            </select>
-          </label>
+            />
+          </div>
           {reportType === 'student_records' && (
             <>
-              <label>
+              <div className="ic-form-field">
                 Major / Course
-                <select onChange={(e) => setMajorFilter(e.target.value)} value={majorFilter}>
-                  <option value="all">All Majors</option>
-                  <option value="BSCS">BSCS</option>
-                  <option value="BSIT">BSIT</option>
-                  <option value="BSIS">BSIS</option>
-                </select>
-              </label>
-              <label>
+                <Dropdown
+                  ariaLabel="Major or course"
+                  onChange={setMajorFilter}
+                  options={[
+                    { value: 'all', label: 'All Majors' },
+                    'BSCS',
+                    'BSIT',
+                    'BSIS',
+                  ]}
+                  value={majorFilter}
+                />
+              </div>
+              <div className="ic-form-field">
                 Year Level
-                <select onChange={(e) => setYearFilter(e.target.value)} value={yearFilter}>
-                  <option value="all">All Year Levels</option>
-                  <option value="1st Year">1st Year</option>
-                  <option value="2nd Year">2nd Year</option>
-                  <option value="3rd Year">3rd Year</option>
-                  <option value="4th Year">4th Year</option>
-                </select>
-              </label>
+                <Dropdown
+                  ariaLabel="Year level"
+                  onChange={setYearFilter}
+                  options={[
+                    { value: 'all', label: 'All Year Levels' },
+                    '1st Year',
+                    '2nd Year',
+                    '3rd Year',
+                    '4th Year',
+                  ]}
+                  value={yearFilter}
+                />
+              </div>
               <label>
                 Skills
                 <input
@@ -228,34 +241,49 @@ export function AdminReports({
           )}
           {(reportType === 'company_records' || reportType === 'company_verification') && (
             <>
-              <label>
+              <div className="ic-form-field">
                 Industry
-                <select onChange={(e) => setIndustry(e.target.value)} value={industry}>
-                  <option value="all">All Industries</option>
-                  <option value="software">Software</option>
-                  <option value="marketing">Marketing</option>
-                  <option value="business-intelligence">Business Intelligence</option>
-                  <option value="agriculture">Agriculture</option>
-                </select>
-              </label>
-              <label>
+                <Dropdown
+                  ariaLabel="Industry"
+                  onChange={setIndustry}
+                  options={[
+                    { value: 'all', label: 'All Industries' },
+                    { value: 'software', label: 'Software' },
+                    { value: 'marketing', label: 'Marketing' },
+                    { value: 'business-intelligence', label: 'Business Intelligence' },
+                    { value: 'agriculture', label: 'Agriculture' },
+                  ]}
+                  value={industry}
+                />
+              </div>
+              <div className="ic-form-field">
                 Company Tier
-                <select onChange={(e) => setTierFilter(e.target.value)} value={tierFilter}>
-                  <option value="all">All Tiers</option>
-                  <option value="Tier 1">Tier 1</option>
-                  <option value="Tier 2">Tier 2</option>
-                  <option value="Tier 3">Tier 3</option>
-                </select>
-              </label>
-              <label>
+                <Dropdown
+                  ariaLabel="Company tier"
+                  onChange={setTierFilter}
+                  options={[
+                    { value: 'all', label: 'All Tiers' },
+                    'Tier 1',
+                    'Tier 2',
+                    'Tier 3',
+                  ]}
+                  value={tierFilter}
+                />
+              </div>
+              <div className="ic-form-field">
                 Geographic Location
-                <select onChange={(e) => setLocationFilter(e.target.value)} value={locationFilter}>
-                  <option value="all">All Locations</option>
-                  <option value="Cebu City">Cebu City</option>
-                  <option value="Manila">Manila</option>
-                  <option value="Davao">Davao</option>
-                </select>
-              </label>
+                <Dropdown
+                  ariaLabel="Geographic location"
+                  onChange={setLocationFilter}
+                  options={[
+                    { value: 'all', label: 'All Locations' },
+                    'Cebu City',
+                    'Manila',
+                    'Davao',
+                  ]}
+                  value={locationFilter}
+                />
+              </div>
             </>
           )}
           <label>

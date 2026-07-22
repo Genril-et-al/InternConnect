@@ -1125,7 +1125,11 @@
   grid-template-columns: 1fr 1fr;
 }
 
-.ic-form-grid label {
+/* .ic-form-field is the same block as a wrapping <label>, for fields whose
+   control is a Dropdown button rather than an input — a <label> around a button
+   would toggle the menu on every click of the caption. */
+.ic-form-grid label,
+.ic-form-grid .ic-form-field {
   color: var(--brand-brown);
   display: flex;
   flex-direction: column;
@@ -1135,7 +1139,8 @@
 }
 
 .ic-form-grid input,
-.ic-form-grid select {
+.ic-form-grid select,
+.ic-form-grid .ic-dropdown-trigger {
   background: var(--surface-strong);
   border: 1px solid var(--border);
   border-radius: 12px;

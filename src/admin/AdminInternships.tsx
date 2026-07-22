@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { AlertCircle, RefreshCw, Users } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
 import type { AdminListing, AdminListingStatus } from './adminData'
+import { Dropdown } from '../components/Dropdown'
 
 /** UC-A04 — Oversee internship listings platform-wide (flag / unflag). */
 export function AdminInternships({
@@ -62,44 +63,48 @@ export function AdminInternships({
 
       <div className="ic-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search by title or company…" value={search} />
-        <select
-          className="ic-select"
-          onChange={(e) => setFilter(e.target.value as 'all' | AdminListingStatus)}
+        <Dropdown
+          ariaLabel="Filter by moderation status"
+          onChange={(v) => setFilter(v as 'all' | AdminListingStatus)}
+          options={[
+            { value: 'all', label: 'All Moderation' },
+            { value: 'open', label: 'Open' },
+            { value: 'closed', label: 'Closed' },
+            { value: 'flagged', label: 'Flagged' },
+          ]}
           value={filter}
-        >
-          <option value="all">All Moderation</option>
-          <option value="open">Open</option>
-          <option value="closed">Closed</option>
-          <option value="flagged">Flagged</option>
-        </select>
-        <select
-          className="ic-select"
-          onChange={(e) => setSetupFilter(e.target.value as 'all' | 'onsite' | 'remote' | 'hybrid')}
+        />
+        <Dropdown
+          ariaLabel="Filter by work setup"
+          onChange={(v) => setSetupFilter(v as 'all' | 'onsite' | 'remote' | 'hybrid')}
+          options={[
+            { value: 'all', label: 'All Setups' },
+            { value: 'onsite', label: 'On-site' },
+            { value: 'remote', label: 'Remote' },
+            { value: 'hybrid', label: 'Hybrid' },
+          ]}
           value={setupFilter}
-        >
-          <option value="all">All Setups</option>
-          <option value="onsite">On-site</option>
-          <option value="remote">Remote</option>
-          <option value="hybrid">Hybrid</option>
-        </select>
-        <select
-          className="ic-select"
-          onChange={(e) => setPaidFilter(e.target.value as 'all' | 'paid' | 'unpaid')}
+        />
+        <Dropdown
+          ariaLabel="Filter by compensation"
+          onChange={(v) => setPaidFilter(v as 'all' | 'paid' | 'unpaid')}
+          options={[
+            { value: 'all', label: 'All Compensation' },
+            { value: 'paid', label: 'Paid' },
+            { value: 'unpaid', label: 'Unpaid' },
+          ]}
           value={paidFilter}
-        >
-          <option value="all">All Compensation</option>
-          <option value="paid">Paid</option>
-          <option value="unpaid">Unpaid</option>
-        </select>
-        <select
-          className="ic-select"
-          onChange={(e) => setScheduleFilter(e.target.value as 'all' | 'part-time' | 'full-time')}
+        />
+        <Dropdown
+          ariaLabel="Filter by schedule"
+          onChange={(v) => setScheduleFilter(v as 'all' | 'part-time' | 'full-time')}
+          options={[
+            { value: 'all', label: 'All Schedules' },
+            { value: 'part-time', label: 'Part-time' },
+            { value: 'full-time', label: 'Full-time' },
+          ]}
           value={scheduleFilter}
-        >
-          <option value="all">All Schedules</option>
-          <option value="part-time">Part-time</option>
-          <option value="full-time">Full-time</option>
-        </select>
+        />
       </div>
 
       {actionError && <div className="ic-card ic-empty">{actionError}</div>}

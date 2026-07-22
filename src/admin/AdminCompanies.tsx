@@ -6,6 +6,7 @@ import { addApprovedCompany } from './allowlist'
 import { setCompanyVerification, removeApprovedCompany } from './adminQueries'
 import type { AdminCompany, VerifStatus } from './adminData'
 import { supabase } from '../lib/supabase'
+import { Dropdown } from '../components/Dropdown'
 
 /** UC-A02 / UC-A03 — Manage company accounts and NLO verification. */
 export function AdminCompanies({
@@ -102,36 +103,39 @@ export function AdminCompanies({
 
       <div className="ic-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search companies…" value={search} />
-        <select
-          className="ic-select"
-          onChange={(e) => setFilter(e.target.value as 'all' | VerifStatus)}
+        <Dropdown
+          ariaLabel="Filter by verification status"
+          onChange={(v) => setFilter(v as 'all' | VerifStatus)}
+          options={[
+            { value: 'all', label: 'All Status' },
+            { value: 'verified', label: 'Verified' },
+            { value: 'pending', label: 'Pending' },
+            { value: 'rejected', label: 'Rejected' },
+          ]}
           value={filter}
-        >
-          <option value="all">All Status</option>
-          <option value="verified">Verified</option>
-          <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option>
-        </select>
-        <select
-          className="ic-select"
-          onChange={(e) => setTierFilter(e.target.value)}
+        />
+        <Dropdown
+          ariaLabel="Filter by tier"
+          onChange={setTierFilter}
+          options={[
+            { value: 'all', label: 'All Tiers' },
+            'Tier 1',
+            'Tier 2',
+            'Tier 3',
+          ]}
           value={tierFilter}
-        >
-          <option value="all">All Tiers</option>
-          <option value="Tier 1">Tier 1</option>
-          <option value="Tier 2">Tier 2</option>
-          <option value="Tier 3">Tier 3</option>
-        </select>
-        <select
-          className="ic-select"
-          onChange={(e) => setLocationFilter(e.target.value)}
+        />
+        <Dropdown
+          ariaLabel="Filter by location"
+          onChange={setLocationFilter}
+          options={[
+            { value: 'all', label: 'All Locations' },
+            'Cebu City',
+            'Manila',
+            'Davao',
+          ]}
           value={locationFilter}
-        >
-          <option value="all">All Locations</option>
-          <option value="Cebu City">Cebu City</option>
-          <option value="Manila">Manila</option>
-          <option value="Davao">Davao</option>
-        </select>
+        />
       </div>
 
       {actionError && (

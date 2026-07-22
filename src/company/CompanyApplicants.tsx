@@ -18,6 +18,7 @@ import type {
 } from './companyData'
 import { signedDocumentUrl } from '../lib/profile'
 import type { InterviewDetails } from './companyQueries'
+import { Dropdown } from '../components/Dropdown'
 
 /**
  * UC-C04 / UC-C05 — review applications, open an applicant's profile
@@ -101,37 +102,25 @@ export function CompanyApplicants({
             value={search}
           />
         </div>
-        <select
-          className="cp-select"
-          onChange={(e) => setListingFilter(e.target.value)}
+        <Dropdown
+          ariaLabel="Filter by listing"
+          onChange={setListingFilter}
+          options={['All listings', ...listings.map((l) => l.title)]}
           value={listingFilter}
-        >
-          <option>All listings</option>
-          {listings.map((l) => (
-            <option key={l.id}>{l.title}</option>
-          ))}
-        </select>
-        <select
-          className="cp-select"
-          onChange={(e) => setStatusFilter(e.target.value as 'All' | ApplicantStatus)}
+        />
+        <Dropdown
+          ariaLabel="Filter by status"
+          onChange={(v) => setStatusFilter(v as 'All' | ApplicantStatus)}
+          options={['All', 'Pending', 'Reviewed', 'Accepted', 'Rejected']}
           value={statusFilter}
-        >
-          <option>All</option>
-          <option>Pending</option>
-          <option>Reviewed</option>
-          <option>Accepted</option>
-          <option>Rejected</option>
-        </select>
+        />
         {/* Match percent filter */}
-        <select
-          className="cp-select"
-          onChange={(e) => setMatchFilter(e.target.value)}
+        <Dropdown
+          ariaLabel="Filter by match percentage"
+          onChange={setMatchFilter}
+          options={Object.keys(MATCH_FILTERS)}
           value={matchFilter}
-        >
-          {Object.keys(MATCH_FILTERS).map((label) => (
-            <option key={label}>{label}</option>
-          ))}
-        </select>
+        />
       </div>
 
       <div className="cp-rows">
@@ -580,13 +569,18 @@ function ScheduleInterviewModal({
             Time *
             <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
           </label>
-          <label className="cp-modal-label">
+          <div className="cp-modal-label">
             Format *
-            <select value={mode} onChange={(e) => setMode(e.target.value as InterviewDetails['mode'])} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }}>
-              <option value="online">Online</option>
-              <option value="in-person">In-person</option>
-            </select>
-          </label>
+            <Dropdown
+              ariaLabel="Interview format"
+              onChange={(v) => setMode(v as InterviewDetails['mode'])}
+              options={[
+                { value: 'online', label: 'Online' },
+                { value: 'in-person', label: 'In-person' },
+              ]}
+              value={mode}
+            />
+          </div>
           <label className="cp-modal-label">
             {mode === 'online' ? 'Meeting Link *' : 'Location Address *'}
             <input type="text" placeholder={mode === 'online' ? "https://meet.google.com/..." : "123 Office Bldg, Floor 4"} value={locationOrLink} onChange={(e) => setLocationOrLink(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />

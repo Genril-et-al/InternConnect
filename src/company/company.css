@@ -211,17 +211,6 @@
   width: 100%;
 }
 
-.cp-select {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  color: var(--text-strong);
-  font-size: 13px;
-  min-height: 42px;
-  padding: 8px 12px;
-  width: auto;
-}
-
 /* Applicant rows */
 .cp-rows {
   display: flex;
