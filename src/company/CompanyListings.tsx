@@ -308,6 +308,9 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  const [interviewMode, setInterviewMode] = useState<'none' | 'single' | 'multi'>('single')
+  const [interviewRounds, setInterviewRounds] = useState<string[]>(['HR Screen', 'Technical Interview'])
+
   const publishImmediately = true
   // Lazy initializer keeps the impure id generation out of render.
   const [requirements, setRequirements] = useState<PreEmploymentRequirement[]>(() => [
@@ -345,6 +348,9 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
         requirements: requirements
           .filter(r => r.name.trim() !== '')
           .map(r => ({ name: r.name.trim(), type: r.type, isPrintable: r.isPrintable })),
+        interviewProcess: {
+          rounds: interviewMode === 'none' ? [] : interviewMode === 'single' ? ['Interview'] : interviewRounds.filter(r => r.trim() !== '')
+        }
       })
       onClose()
     } catch (err) {
@@ -392,6 +398,58 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--brand-brown)', fontSize: '14px' }}>Job Description / Responsibilities <span style={{color:'var(--brand-crimson)'}}>*</span></label>
             <textarea required value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the role, responsibilities, and qualifications..." style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', minHeight: '100px', resize: 'vertical' }} />
+          </div>
+
+          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+            <h4 style={{ marginBottom: '8px', color: 'var(--brand-brown)', fontSize: '16px' }}>Interview Process <span style={{color:'var(--brand-crimson)'}}>*</span></h4>
+            <p className="cp-muted" style={{ fontSize: '13px', marginBottom: '16px' }}>
+              Configure how you want to interview applicants before making an offer.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', fontSize: '14px', color: 'var(--text)' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input type="radio" checked={interviewMode === 'none'} onChange={() => setInterviewMode('none')} /> No Interview
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input type="radio" checked={interviewMode === 'single'} onChange={() => setInterviewMode('single')} /> Single Interview
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                <input type="radio" checked={interviewMode === 'multi'} onChange={() => setInterviewMode('multi')} /> Multi-stage Interview
+              </label>
+            </div>
+
+            {interviewMode === 'multi' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: 'var(--bg-subtle)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                {interviewRounds.map((round, index) => (
+                  <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--brand-brown)', width: '70px', fontSize: '13px' }}>Round {index + 1}</span>
+                    <input 
+                      required
+                      placeholder="e.g. Technical Test" 
+                      value={round} 
+                      onChange={e => {
+                        const newRounds = [...interviewRounds]
+                        newRounds[index] = e.target.value
+                        setInterviewRounds(newRounds)
+                      }}
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}
+                    />
+                    {interviewRounds.length > 1 && (
+                      <button type="button" onClick={() => setInterviewRounds(interviewRounds.filter((_, i) => i !== index))} style={{ padding: '8px', background: 'transparent', color: 'var(--brand-crimson)', border: 'none', cursor: 'pointer' }} title="Remove round">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button 
+                  type="button" 
+                  onClick={() => setInterviewRounds([...interviewRounds, ''])}
+                  style={{ alignSelf: 'flex-start', padding: '6px 12px', background: 'transparent', border: '1px dashed var(--brand-orange)', borderRadius: '6px', cursor: 'pointer', color: 'var(--brand-orange)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+                >
+                  <Plus size={14} /> Add another round
+                </button>
+              </div>
+            )}
           </div>
           
           <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>

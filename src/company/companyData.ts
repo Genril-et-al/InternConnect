@@ -20,6 +20,7 @@ export type CompanyListing = {
   skills: string[]
   description: string
   requirements?: PreEmploymentRequirement[]
+  interviewProcess?: { rounds: string[] }
 }
 
 export type ApplicantStatus = 'Pending' | 'Reviewed' | 'Interview Scheduled' | 'Accepted' | 'Rejected'
