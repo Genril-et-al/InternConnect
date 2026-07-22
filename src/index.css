@@ -21,6 +21,34 @@
   --text-muted: #9a7a6e;
   --text-strong: #1c0a04;
 
+  /* Second names for the tokens above, and two shadows.
+     All of these were already referenced across the app — 37 call sites in
+     App.css, App.tsx, dashboard.css, AdminStudents, CompanyApplicants and
+     CompanyListings — but none was ever defined. An undefined custom property
+     is invalid at computed-value time, so every one of those rules quietly
+     rendered nothing: the backgrounds fell back to transparent and the muted
+     text inherited its parent's colour, which is what made the company listing
+     preview read as one flat opaque slab.
+
+     Defining them is the small fix; renaming 34 sites is the tidy one. These
+     are aliases rather than new colours precisely so the tidy version stays
+     available later — nothing here introduces a value the palette didn't
+     already have. (--border-light is the same bug and is deliberately NOT
+     aliased here: App.css:1942 documents the decision to spell it --border at
+     the call sites instead.) */
+  --bg: #faf9f6;                      /* the page cream, as on body */
+  --bg-subtle: var(--surface-strong); /* input and row fills */
+  --brand-sand: var(--accent-soft);   /* skill chips */
+  --text-light: var(--text-muted);
+  --text-main: var(--text);
+
+  /* Darkened --brand-orange, for bold text that has to hold up on white where
+     #e76814 is too light to read (4.6:1 against white, vs 3.1:1). */
+  --brand-orange-dark: #c2560f;
+
+  --shadow-sm: 0 1px 3px rgba(28, 10, 4, 0.08);
+  --shadow-md: 0 8px 24px rgba(28, 10, 4, 0.12);
+
   /* Motion tokens — one easing curve + a small duration scale keep every
      transition/animation in the app feeling like it comes from one place.
      --ease-out is a soft "settle" curve for enter/hover/expand motion. */
