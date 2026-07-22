@@ -14,6 +14,7 @@ export type ApplicationStatus =
   | 'Rejected'
   | 'Discarded'
   | 'Withdrawn'
+  | 'Expired'
 
 export type Internship = {
   id: string

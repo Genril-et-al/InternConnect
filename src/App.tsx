@@ -593,7 +593,8 @@ function BrowseInternships({
  * tab that silently matches nothing -- the filter compares the label against
  * application.status directly.
  */
-const FILTER_STATUSES: ApplicationStatus[] = ['Pending', 'Accepted', 'Rejected', 'Withdrawn']
+const FILTER_TABS = ['Pending', 'Accepted', 'Closed']
+const TERMINAL_STATUSES: ApplicationStatus[] = ['Rejected', 'Withdrawn', 'Discarded', 'Expired']
 
 /** Accepted sorts to the top of My Applications; all other statuses hold their order. */
 const statusRank = (status: ApplicationStatus): number => (status === 'Accepted' ? 0 : 1)
@@ -614,6 +615,7 @@ const STATUS_BADGE: Record<ApplicationStatus, string> = {
   Rejected: 'error',
   Discarded: 'error',
   Withdrawn: 'error',
+  Expired: 'error',
 }
 
 function ApplicationStrip({ application, onClick, isHighlighted, isShaded }: { application: Application; onClick: () => void; isHighlighted?: boolean; isShaded?: boolean }) {
@@ -1141,7 +1143,11 @@ function StudentApplications({
   }, [highlightedAppId])
 
   const visible = applications.filter((application) => {
-    const matchesFilter = filter === 'All' || application.status === filter
+    let matchesFilter = false
+    if (filter === 'All') matchesFilter = true
+    else if (filter === 'Closed') matchesFilter = TERMINAL_STATUSES.includes(application.status)
+    else matchesFilter = application.status === filter
+
     const matchesSearch = [application.company, application.role]
       .join(' ')
       .toLowerCase()
@@ -1163,7 +1169,15 @@ function StudentApplications({
 
   const filters: { label: string; count: number }[] = [
     { label: 'All', count: total },
-    ...FILTER_STATUSES.map((status) => ({ label: status, count: counts[status] ?? 0 })),
+    ...FILTER_TABS.map((tab) => {
+      let count = 0
+      if (tab === 'Closed') {
+        count = TERMINAL_STATUSES.reduce((sum, status) => sum + (counts[status] ?? 0), 0)
+      } else {
+        count = counts[tab as ApplicationStatus] ?? 0
+      }
+      return { label: tab, count }
+    }),
   ]
 
   return (

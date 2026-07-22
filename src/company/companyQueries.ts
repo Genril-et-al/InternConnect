@@ -142,11 +142,21 @@ export async function setListingStatus(
   listingId: string,
   status: CompanyListing['status'],
 ): Promise<void> {
+  const dbStatus = LISTING_STATUS_TO_DB[status]
   const { error } = await supabase
     .from('listings')
-    .update({ status: LISTING_STATUS_TO_DB[status] })
+    .update({ status: dbStatus })
     .eq('id', listingId)
   if (error) throw new Error(error.message)
+
+  if (dbStatus === 'closed') {
+    const { error: appError } = await supabase
+      .from('applications')
+      .update({ status: 'expired' })
+      .eq('listing_id', listingId)
+      .in('status', ['pending', 'under_review', 'shortlisted', 'interview_scheduled'])
+    if (appError) throw new Error(appError.message)
+  }
 }
 
 export async function deleteListing(listingId: string): Promise<void> {
