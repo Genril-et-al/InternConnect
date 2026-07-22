@@ -808,6 +808,11 @@ function ProgressModal({
                   const details = JSON.parse(application.nextStep)
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                      {details.roundName && (
+                        <>
+                          <strong style={{ color: 'var(--brand-brown)' }}>Round:</strong> <span>{details.roundName}</span>
+                        </>
+                      )}
                       <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date}</span>
                       <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time}</span>
                       <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>

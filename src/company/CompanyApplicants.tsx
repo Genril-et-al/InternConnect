@@ -225,7 +225,14 @@ function ApplicantDetail({
               onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
               type="button"
             >
-              <CheckCircle2 size={13} /> Pass Interview
+              <CheckCircle2 size={13} /> Finalize Acceptance
+            </button>
+            <button
+              className="cp-secondary"
+              onClick={() => setScheduleInterviewOpen(true)}
+              type="button"
+            >
+              <CheckCircle2 size={13} /> Schedule Next Round
             </button>
             <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
               <XCircle size={13} /> Fail Interview
@@ -274,6 +281,11 @@ function ApplicantDetail({
               const details = JSON.parse(applicant.nextStep)
               return (
                 <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                  {details.roundName && (
+                    <>
+                      <strong style={{ color: 'var(--brand-brown)' }}>Round:</strong> <span>{details.roundName}</span>
+                    </>
+                  )}
                   <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date}</span>
                   <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time}</span>
                   <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
@@ -542,12 +554,13 @@ function ScheduleInterviewModal({
 }) {
   useScrollLock()
 
+  const [roundName, setRoundName] = useState('Interview')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [mode, setMode] = useState<'online' | 'in-person'>('online')
   const [locationOrLink, setLocationOrLink] = useState('')
 
-  const isValid = date && time && locationOrLink.trim()
+  const isValid = roundName.trim() && date && time && locationOrLink.trim()
 
   return (
     <div
@@ -568,6 +581,10 @@ function ScheduleInterviewModal({
         </p>
         
         <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+          <label className="cp-modal-label">
+            Round Name *
+            <input type="text" placeholder="e.g. HR Screen, Technical Test" value={roundName} onChange={(e) => setRoundName(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+          </label>
           <label className="cp-modal-label">
             Date *
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
@@ -603,9 +620,13 @@ function ScheduleInterviewModal({
               Cancel
             </button>
             <button
-              className="cp-accept"
+              className="cp-primary"
               disabled={!isValid}
-              onClick={() => onSubmit({ date, time, mode, locationOrLink: locationOrLink.trim() })}
+              onClick={() => {
+                if (isValid) {
+                  onSubmit({ roundName: roundName.trim(), date, time, mode, locationOrLink })
+                }
+              }}
               type="button"
               style={{ border: 'none', background: 'var(--brand-orange)', color: 'white' }}
             >

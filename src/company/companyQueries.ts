@@ -303,6 +303,7 @@ export async function updateApplicationStatus(
  * side that renders it.
  */
 export type InterviewDetails = {
+  roundName?: string
   date: string
   time: string
   mode: 'online' | 'in-person'
