@@ -152,6 +152,26 @@ export function CompanyApplicants({
       </div>
 
       <div className="cp-rows">
+        {filtered.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', padding: '4px 16px 12px', gap: '16px', fontSize: '14px', color: 'var(--text-light)', fontWeight: 500 }}>
+            <input
+              type="checkbox"
+              checked={filtered.length > 0 && selectedApplicantIds.size === filtered.length}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setSelectedApplicantIds(new Set(filtered.map(a => a.id)))
+                } else {
+                  setSelectedApplicantIds(new Set())
+                }
+              }}
+              style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--brand-orange)', margin: 0 }}
+            />
+            <span style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => {
+              if (selectedApplicantIds.size === filtered.length) setSelectedApplicantIds(new Set())
+              else setSelectedApplicantIds(new Set(filtered.map(a => a.id)))
+            }}>Select all {filtered.length} applicants</span>
+          </div>
+        )}
         {filtered.length === 0 ? (
           <div className="cp-card cp-empty">No applications match the current filters.</div>
         ) : (
