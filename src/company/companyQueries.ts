@@ -298,6 +298,21 @@ export async function updateApplicationStatus(
   if (error) throw new Error(error.message)
 }
 
+export async function bulkRejectApplications(
+  rejections: { id: string; feedback: string }[]
+): Promise<void> {
+  const promises = rejections.map((r) =>
+    supabase
+      .from('applications')
+      .update({ status: 'rejected', feedback: r.feedback })
+      .eq('id', r.id)
+  )
+  const results = await Promise.all(promises)
+  for (const res of results) {
+    if (res.error) throw new Error(res.error.message)
+  }
+}
+
 /**
  * What the company fills in when scheduling an interview. Stored as JSON on
  * the application's next_step, so the shape is the contract with the student

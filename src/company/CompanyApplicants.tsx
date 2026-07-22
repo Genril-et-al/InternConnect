@@ -37,6 +37,7 @@ export function CompanyApplicants({
   applicants: CompanyApplicant[]
   listings: CompanyListing[]
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onBulkReject?: (rejections: { id: string; feedback: string }[]) => Promise<void>
   onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
   highlightedApplicantId?: string | null
@@ -46,6 +47,31 @@ export function CompanyApplicants({
   const [statusFilter, setStatusFilter] = useState<'All' | ApplicantStatus>('All')
   const [matchFilter, setMatchFilter] = useState('Any match %')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedApplicantIds, setSelectedApplicantIds] = useState<Set<string>>(new Set())
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false)
+  const [autoRejectInfo, setAutoRejectInfo] = useState<{ listing: CompanyListing; count: number; pendingIds: string[] } | null>(null)
+
+  const handleSetStatusWrapper = async (id: string, status: ApplicantStatus, feedback?: string) => {
+    await onSetStatus(id, status, feedback)
+
+    if (status === 'Accepted') {
+      const applicant = applicants.find(a => a.id === id)
+      if (applicant) {
+        const listing = listings.find(l => l.title === applicant.role)
+        if (listing) {
+          const currentlyAccepted = applicants.filter(a => a.role === listing.title && a.status === 'Accepted').length + 1
+          if (currentlyAccepted === listing.slots) {
+            const pendingIds = applicants
+              .filter(a => a.role === listing.title && (a.status === 'Pending' || a.status === 'Reviewed' || a.status === 'Interview Scheduled') && a.id !== id)
+              .map(a => a.id)
+            if (pendingIds.length > 0) {
+              setAutoRejectInfo({ listing, count: pendingIds.length, pendingIds })
+            }
+          }
+        }
+      }
+    }
+  }
 
   useEffect(() => {
     if (highlightedApplicantId) {
@@ -74,8 +100,9 @@ export function CompanyApplicants({
     return (
       <ApplicantDetail
         applicant={selected}
+        listings={listings}
         onBack={() => setSelectedId(null)}
-        onSetStatus={onSetStatus}
+        onSetStatus={handleSetStatusWrapper}
         onScheduleInterview={onScheduleInterview}
         onReviewSubmission={onReviewSubmission}
       />
@@ -129,20 +156,86 @@ export function CompanyApplicants({
           <div className="cp-card cp-empty">No applications match the current filters.</div>
         ) : (
           filtered.map((a) => (
-            <button className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''}`} key={a.id} onClick={() => setSelectedId(a.id)} type="button">
-              <span className="cp-row-avatar">{initials(a.name)}</span>
+            <div className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''}`} key={a.id} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <input 
+                  type="checkbox" 
+                  checked={selectedApplicantIds.has(a.id)}
+                  onChange={(e) => {
+                    const newSet = new Set(selectedApplicantIds)
+                    if (e.target.checked) newSet.add(a.id)
+                    else newSet.delete(a.id)
+                    setSelectedApplicantIds(newSet)
+                  }}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+              </div>
+              <button 
+                onClick={() => setSelectedId(a.id)} 
+                type="button" 
+                style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', padding: '16px', cursor: 'pointer', textAlign: 'left', minWidth: 0 }}
+              >
+                <span className="cp-row-avatar">{initials(a.name)}</span>
               <div className="cp-row-main">
                 <p className="cp-row-name">{a.name}</p>
                 <p className="cp-muted">
                   {a.role} · Applied {a.applied}
                 </p>
               </div>
-              <MatchBar value={a.match} />
-              <StatusBadge status={a.status} />
-            </button>
+                <MatchBar value={a.match} />
+                <StatusBadge status={a.status} />
+              </button>
+            </div>
           ))
         )}
       </div>
+
+      {selectedApplicantIds.size > 0 && (
+        <div style={{ position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)', background: 'var(--surface)', padding: '16px 24px', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', gap: '24px', zIndex: 100 }}>
+          <span style={{ fontWeight: 500, color: 'var(--brand-brown)' }}>{selectedApplicantIds.size} applicant{selectedApplicantIds.size > 1 ? 's' : ''} selected</span>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button type="button" onClick={() => setSelectedApplicantIds(new Set())} style={{ background: 'transparent', border: 'none', color: 'var(--text-light)', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+            <button type="button" onClick={() => setBulkRejectOpen(true)} style={{ background: 'var(--brand-crimson)', color: 'white', border: 'none', borderRadius: '6px', padding: '8px 16px', fontWeight: 600, cursor: 'pointer' }}>Reject Selected</button>
+          </div>
+        </div>
+      )}
+
+      {bulkRejectOpen && onBulkReject && (
+        <BulkRejectModal 
+          count={selectedApplicantIds.size}
+          onClose={() => setBulkRejectOpen(false)}
+          onSubmit={async (template) => {
+            const rejections = Array.from(selectedApplicantIds).map(id => {
+              const app = applicants.find(a => a.id === id)
+              return {
+                id,
+                feedback: template.replace('{Applicant Name}', app?.name ?? 'Applicant')
+              }
+            })
+            await onBulkReject(rejections)
+            setBulkRejectOpen(false)
+            setSelectedApplicantIds(new Set())
+          }}
+        />
+      )}
+
+      {autoRejectInfo && onBulkReject && (
+        <AutoRejectModal
+          info={autoRejectInfo}
+          onClose={() => setAutoRejectInfo(null)}
+          onSubmit={async (template) => {
+            const rejections = autoRejectInfo.pendingIds.map(id => {
+              const app = applicants.find(a => a.id === id)
+              return {
+                id,
+                feedback: template.replace('{Applicant Name}', app?.name ?? 'Applicant')
+              }
+            })
+            await onBulkReject(rejections)
+            setAutoRejectInfo(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -151,12 +244,14 @@ export function CompanyApplicants({
 
 function ApplicantDetail({
   applicant,
+  listings,
   onBack,
   onSetStatus,
   onScheduleInterview,
   onReviewSubmission,
 }: {
   applicant: CompanyApplicant
+  listings: CompanyListing[]
   onBack: () => void
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
   onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
@@ -890,4 +985,96 @@ function initials(name: string): string {
 function docLabel(path: string, applicant: string, kind: string): string {
   const ext = path.split('.').pop()?.toLowerCase()
   return `${applicant} — ${kind}${ext ? `.${ext}` : ''}`
+}
+
+/* ── Bulk Actions & Auto Reject ─────────────────────────────────────────── */
+
+function BulkRejectModal({
+  count,
+  onClose,
+  onSubmit,
+}: {
+  count: number
+  onClose: () => void
+  onSubmit: (template: string) => void
+}) {
+  useScrollLock()
+  const [feedback, setFeedback] = useState('Thank you for applying. Unfortunately, we have decided to move forward with other candidates at this time.')
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal-panel">
+        <h3 style={{ margin: '0 0 16px', color: 'var(--brand-brown)' }}>Reject {count} Applicants</h3>
+        <p className="cp-muted" style={{ marginBottom: 16 }}>
+          Send a standard rejection message to all {count} selected candidates. 
+          Use <code>{'{Applicant Name}'}</code> to automatically insert their name.
+        </p>
+        <textarea
+          onChange={(e) => setFeedback(e.target.value)}
+          placeholder="Feedback (optional)"
+          style={{ width: '100%', minHeight: 100, marginBottom: 16, fontFamily: 'inherit', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}
+          value={feedback}
+        />
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button className="cp-secondary" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="cp-danger" onClick={() => onSubmit(feedback)} type="button">
+            Confirm Bulk Rejection
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AutoRejectModal({
+  info,
+  onClose,
+  onSubmit,
+}: {
+  info: { listing: CompanyListing; count: number; pendingIds: string[] }
+  onClose: () => void
+  onSubmit: (template: string) => void
+}) {
+  useScrollLock()
+  const [feedback, setFeedback] = useState('Thank you for your interest in the ' + info.listing.title + ' position. Unfortunately, we have already filled all available slots for this role and are no longer accepting candidates. We wish you the best in your internship search!')
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal-panel">
+        <h3 style={{ margin: '0 0 16px', color: 'var(--brand-brown)' }}>Slots Filled!</h3>
+        <p className="cp-muted" style={{ marginBottom: 16 }}>
+          You have successfully filled all <strong>{info.listing.slots} slots</strong> for <strong>{info.listing.title}</strong>.
+        </p>
+        <p className="cp-muted" style={{ marginBottom: 16 }}>
+          Would you like to automatically reject the remaining <strong>{info.count}</strong> pending applicants?
+        </p>
+        <textarea
+          onChange={(e) => setFeedback(e.target.value)}
+          placeholder="Rejection message..."
+          style={{ width: '100%', minHeight: 100, marginBottom: 16, fontFamily: 'inherit', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}
+          value={feedback}
+        />
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button className="cp-secondary" onClick={onClose} type="button">
+            No, keep them pending
+          </button>
+          <button className="cp-danger" onClick={() => onSubmit(feedback)} type="button">
+            Yes, reject remaining
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
