@@ -138,7 +138,7 @@ export function CompanyApplicants({
                 </p>
               </div>
               <MatchBar value={a.match} />
-              <StatusBadge status={a.status} />
+              <StatusBadge status={a.status} nextStep={a.nextStep} />
             </button>
           ))
         )}
@@ -164,6 +164,7 @@ function ApplicantDetail({
 }) {
   const [rejectOpen, setRejectOpen] = useState(false)
   const [scheduleInterviewOpen, setScheduleInterviewOpen] = useState(false)
+  const [isRescheduling, setIsRescheduling] = useState(false)
   const [revisionOpen, setRevisionOpen] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -214,7 +215,7 @@ function ApplicantDetail({
               <MatchBar value={applicant.match} />
             </div>
           </div>
-          <StatusBadge status={applicant.status} />
+          <StatusBadge status={applicant.status} nextStep={applicant.nextStep} />
         </div>
 
       <div className="cp-detail-actions" style={{ marginTop: 18 }}>
@@ -273,11 +274,46 @@ function ApplicantDetail({
             try {
               const details = JSON.parse(applicant.nextStep)
               return (
-                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
-                  <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date}</span>
-                  <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time}</span>
-                  <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
-                  <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                    <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date || 'TBD'}</span>
+                    <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time || 'TBD'}</span>
+                    <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
+                    <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                  </div>
+                  
+                  {details.studentResponse === 'reschedule_requested' && (
+                    <div style={{ marginTop: '16px', padding: '12px', background: '#fff3cd', border: '1px solid #ffeeba', borderRadius: '6px' }}>
+                      <h4 style={{ margin: '0 0 8px 0', color: '#856404', fontSize: '14px' }}>Reschedule Requested</h4>
+                      <p style={{ margin: '0 0 12px 0', color: '#856404', fontSize: '13px' }}><strong>Reason:</strong> {details.rescheduleReason}</p>
+                      
+                      {!details.proposedDates && (
+                        <button 
+                          className="cp-primary"
+                          onClick={() => {
+                            setIsRescheduling(true)
+                            setScheduleInterviewOpen(true)
+                          }}
+                          type="button"
+                          style={{ fontSize: '13px', padding: '6px 12px' }}
+                        >
+                          Propose New Dates
+                        </button>
+                      )}
+                      
+                      {details.proposedDates && (
+                        <p style={{ margin: '8px 0 0 0', color: '#856404', fontSize: '13px', fontStyle: 'italic' }}>
+                          You have proposed {details.proposedDates.length} alternative {details.proposedDates.length === 1 ? 'date' : 'dates'}. Waiting for student response.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {details.studentResponse === 'accepted' && (
+                    <div style={{ marginTop: '16px', padding: '12px', background: '#d4edda', border: '1px solid #c3e6cb', borderRadius: '6px', color: '#155724', fontSize: '13px' }}>
+                      <strong>Interview Confirmed:</strong> The student has accepted the interview schedule.
+                    </div>
+                  )}
                 </div>
               )
             } catch {
@@ -461,15 +497,26 @@ function ApplicantDetail({
 
       {scheduleInterviewOpen && (
         <ScheduleInterviewModal
-          onClose={() => setScheduleInterviewOpen(false)}
-          onSubmit={(details) => {
-            run(() => onScheduleInterview(applicant.id, details))
+          isRescheduling={isRescheduling}
+          onClose={() => {
             setScheduleInterviewOpen(false)
+            setIsRescheduling(false)
           }}
-          onSkip={() => {
+          onSubmit={(details) => {
+            if (isRescheduling) {
+              const currentDetails = JSON.parse(applicant.nextStep!)
+              run(() => onScheduleInterview(applicant.id, { ...currentDetails, ...details }))
+            } else {
+              run(() => onScheduleInterview(applicant.id, details as any))
+            }
+            setScheduleInterviewOpen(false)
+            setIsRescheduling(false)
+          }}
+          onSkip={!isRescheduling ? () => {
             run(() => onSetStatus(applicant.id, 'Accepted'))
             setScheduleInterviewOpen(false)
-          }}
+            setIsRescheduling(false)
+          } : undefined}
         />
       )}
 
@@ -535,19 +582,24 @@ function ScheduleInterviewModal({
   onClose,
   onSubmit,
   onSkip,
+  isRescheduling,
 }: {
   onClose: () => void
   onSubmit: (details: InterviewDetails) => void
-  onSkip: () => void
+  onSkip?: () => void
+  isRescheduling?: boolean
 }) {
   useScrollLock()
 
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('')
+  const [dateOptions, setDateOptions] = useState<{date: string, time: string}[]>([{date: '', time: ''}])
   const [mode, setMode] = useState<'online' | 'in-person'>('online')
   const [locationOrLink, setLocationOrLink] = useState('')
 
-  const isValid = date && time && locationOrLink.trim()
+  const isValid = dateOptions.every(o => o.date && o.time) && locationOrLink.trim()
+
+  const handleUpdateDateOption = (index: number, field: 'date' | 'time', value: string) => {
+    setDateOptions(prev => prev.map((opt, i) => i === index ? { ...opt, [field]: value } : opt))
+  }
 
   return (
     <div
@@ -558,24 +610,42 @@ function ScheduleInterviewModal({
     >
       <div className="modal-panel">
         <div className="modal-header">
-          <h3>Schedule Interview</h3>
+          <h3>{isRescheduling ? 'Propose New Dates' : 'Schedule Interview'}</h3>
           <button aria-label="Close" className="modal-close" onClick={onClose} type="button">
             <X size={16} />
           </button>
         </div>
         <p className="cp-muted" style={{ marginBottom: '16px' }}>
-          Schedule an interview or skip directly to accepting the applicant.
+          {isRescheduling 
+            ? 'Propose one or more alternative dates and times for the interview.'
+            : 'Schedule an interview or skip directly to accepting the applicant. You can provide multiple options.'}
         </p>
         
         <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
-          <label className="cp-modal-label">
-            Date *
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
-          </label>
-          <label className="cp-modal-label">
-            Time *
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
-          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {dateOptions.map((opt, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                <label className="cp-modal-label" style={{ flex: 1 }}>
+                  Date {dateOptions.length > 1 ? idx + 1 : ''} *
+                  <input type="date" value={opt.date} onChange={(e) => handleUpdateDateOption(idx, 'date', e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+                </label>
+                <label className="cp-modal-label" style={{ flex: 1 }}>
+                  Time {dateOptions.length > 1 ? idx + 1 : ''} *
+                  <input type="time" value={opt.time} onChange={(e) => handleUpdateDateOption(idx, 'time', e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+                </label>
+                {dateOptions.length > 1 && (
+                  <button onClick={() => setDateOptions(prev => prev.filter((_, i) => i !== idx))} type="button" style={{ padding: '8px', background: 'none', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-light)', marginBottom: '1px' }}>
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+            {dateOptions.length < 3 && (
+              <button onClick={() => setDateOptions(prev => [...prev, {date: '', time: ''}])} type="button" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: 'var(--brand-orange)', cursor: 'pointer', fontWeight: 500, alignSelf: 'flex-start' }}>
+                + Add another date option
+              </button>
+            )}
+          </div>
           <div className="cp-modal-label">
             Format *
             <Dropdown
@@ -594,10 +664,12 @@ function ScheduleInterviewModal({
           </label>
         </div>
 
-        <div className="cp-modal-footer" style={{ justifyContent: 'space-between' }}>
-          <button className="cp-secondary" onClick={onSkip} type="button" style={{ border: '2px solid var(--brand-orange)', color: 'var(--brand-orange-dark)', fontWeight: 'bold' }}>
-            Skip & Accept Directly
-          </button>
+        <div className="cp-modal-footer" style={{ justifyContent: onSkip ? 'space-between' : 'flex-end' }}>
+          {onSkip && (
+            <button className="cp-secondary" onClick={onSkip} type="button" style={{ border: '2px solid var(--brand-orange)', color: 'var(--brand-orange-dark)', fontWeight: 'bold' }}>
+              Skip & Accept Directly
+            </button>
+          )}
           <div style={{ display: 'flex', gap: '12px' }}>
             <button className="cp-secondary" onClick={onClose} type="button">
               Cancel
@@ -605,7 +677,18 @@ function ScheduleInterviewModal({
             <button
               className="cp-accept"
               disabled={!isValid}
-              onClick={() => onSubmit({ date, time, mode, locationOrLink: locationOrLink.trim() })}
+              onClick={() => {
+                const details: any = { mode, locationOrLink: locationOrLink.trim() }
+                if (dateOptions.length === 1) {
+                  details.date = dateOptions[0].date
+                  details.time = dateOptions[0].time
+                } else {
+                  details.proposedDates = dateOptions
+                  details.date = ''
+                  details.time = ''
+                }
+                onSubmit(details)
+              }}
               type="button"
               style={{ border: 'none', background: 'var(--brand-orange)', color: 'white' }}
             >
@@ -807,8 +890,9 @@ export function MatchBar({ value }: { value: number | null }) {
   )
 }
 
-export function StatusBadge({ status }: { status: ApplicantStatus }) {
-  const variant =
+export function StatusBadge({ status, nextStep }: { status: ApplicantStatus, nextStep?: string }) {
+  let displayStatus = status
+  let variant =
     status === 'Accepted'
       ? 'success'
       : status === 'Rejected'
@@ -816,7 +900,18 @@ export function StatusBadge({ status }: { status: ApplicantStatus }) {
         : status === 'Pending'
           ? 'pending'
           : 'info'
-  return <span className={`cp-badge ${variant}`}>{status}</span>
+          
+  if (status === 'Interview scheduled' && nextStep) {
+    try {
+      const parsed = JSON.parse(nextStep)
+      if (parsed.studentResponse === 'reschedule_requested') {
+        displayStatus = 'Reschedule Req.' as any
+        variant = 'pending'
+      }
+    } catch {}
+  }
+
+  return <span className={`cp-badge ${variant}`}>{displayStatus}</span>
 }
 
 function initials(name: string): string {

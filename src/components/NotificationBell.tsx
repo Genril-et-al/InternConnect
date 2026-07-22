@@ -1,5 +1,6 @@
-import { Bell, X } from 'lucide-react'
+import { Bell, X, Trash2 } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
+import { formatTimeAgo } from '../lib/listingsApi'
 
 export interface Notification {
   id: string
@@ -22,6 +23,8 @@ interface NotificationBellProps {
   loadingMore?: boolean
   onLoadMore?: () => void
   onCollapse?: () => void
+  onRemove?: (id: string) => void
+  onRemoveAll?: () => void
 }
 
 export function NotificationBell({
@@ -34,6 +37,8 @@ export function NotificationBell({
   loadingMore = false,
   onLoadMore,
   onCollapse,
+  onRemove,
+  onRemoveAll,
 }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [clickedId, setClickedId] = useState<string | null>(null)
@@ -91,6 +96,11 @@ export function NotificationBell({
             <div className="nb-header">
               <h3>Notifications</h3>
               <div className="nb-header-actions">
+                {notifications.length > 0 && onRemoveAll && (
+                  <button className="nb-mark-read" onClick={onRemoveAll} type="button" title="Remove all">
+                    <Trash2 size={16} />
+                  </button>
+                )}
                 {unreadCount > 0 && onMarkAllRead && (
                   <button className="nb-mark-read" onClick={onMarkAllRead} type="button">
                     Mark all as read
@@ -130,13 +140,26 @@ export function NotificationBell({
                     role={n.onClick ? "button" : undefined}
                     tabIndex={n.onClick ? 0 : undefined}
                   >
-                    <div className="nb-item-content">
+                    <div className="nb-item-content" style={{ flex: 1 }}>
                       {!n.read && <span className="nb-unread-dot" />}
                       <div>
                         <p className="nb-message">{n.message}</p>
-                        <span className="nb-date">{n.date}</span>
+                        <span className="nb-date">{formatTimeAgo(n.date)}</span>
                       </div>
                     </div>
+                    {onRemove && (
+                      <button
+                        className="nb-remove-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onRemove(n.id)
+                        }}
+                        type="button"
+                        title="Remove"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
                   </div>
                 ))
               )}

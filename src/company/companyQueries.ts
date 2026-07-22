@@ -308,6 +308,9 @@ export type InterviewDetails = {
   mode: 'online' | 'in-person'
   /** A meeting URL when online, a street address when in-person. */
   locationOrLink: string
+  studentResponse?: 'accepted' | 'reschedule_requested'
+  rescheduleReason?: string
+  proposedDates?: { date: string; time: string }[]
 }
 
 export async function scheduleInterview(
@@ -316,6 +319,18 @@ export async function scheduleInterview(
 ): Promise<void> {
   const payload = {
     status: 'interview_scheduled',
+    next_step: JSON.stringify(interviewDetails),
+  }
+  const { error } = await supabase.from('applications').update(payload).eq('id', applicationId)
+  if (error) throw new Error(error.message)
+
+}
+
+export async function proposeInterviewDates(
+  applicationId: string,
+  interviewDetails: InterviewDetails,
+): Promise<void> {
+  const payload = {
     next_step: JSON.stringify(interviewDetails),
   }
   const { error } = await supabase.from('applications').update(payload).eq('id', applicationId)

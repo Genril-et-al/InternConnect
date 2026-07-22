@@ -40,6 +40,24 @@ export function formatDate(iso: string | null): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+export function formatTimeAgo(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  const diff = Date.now() - d.getTime()
+  
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  
+  return formatDate(iso)
+}
+
 function listingStatus(deadline: string | null): Internship['status'] {
   if (!deadline) return 'Open'
   const due = new Date(deadline)
@@ -146,7 +164,7 @@ type ApplicationRow = {
   created_at: string
   listings: {
     title: string
-    companies: { name: string; logo_url: string | null } | null
+    companies: { id: string; owner_id: string; name: string; logo_url: string | null } | null
     listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
   } | null
   requirement_submissions: { requirement_id: string; status: string; text_value: string | null; file_path: string | null }[]
@@ -158,7 +176,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
     .from('applications')
     .select(
       'id, listing_id, status, next_step, feedback, created_at, ' +
-        'listings(title, companies(name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
+        'listings(title, companies(id, owner_id, name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
         'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
     .eq('student_id', studentId)
@@ -199,6 +217,8 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
       id: r.id,
       internshipId: r.listing_id,
       company: r.listings?.companies?.name ?? 'Unknown company',
+      companyId: r.listings?.companies?.id ?? '',
+      companyOwnerId: r.listings?.companies?.owner_id ?? '',
       companyLogo: r.listings?.companies?.logo_url ?? null,
       role: r.listings?.title ?? 'Unknown role',
       dateApplied: formatDate(r.created_at),
@@ -416,4 +436,9 @@ export async function withdrawAcceptance(studentId: string, applicationId: strin
       if (restoreError) throw new Error(restoreError.message)
     }
   }
+}
+
+export async function updateInterviewResponse(applicationId: string, responseJson: string) {
+  const { error } = await supabase.from('applications').update({ next_step: responseJson }).eq('id', applicationId)
+  if (error) throw new Error(error.message)
 }

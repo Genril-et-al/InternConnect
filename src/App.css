@@ -476,6 +476,29 @@ tr.highlighted {
   min-width: 0;
 }
 
+.nb-remove-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s, background-color 0.2s, color 0.2s;
+}
+
+.nb-item:hover .nb-remove-btn, .nb-item:focus-within .nb-remove-btn {
+  opacity: 1;
+}
+
+.nb-remove-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text);
+}
+
 .strip-main h3 {
   color: var(--text-strong);
   font-size: 18px;

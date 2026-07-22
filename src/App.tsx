@@ -670,6 +670,39 @@ function ProgressModal({
   const [confirmBusy, setConfirmBusy] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
 
+  // Interview scheduling flow
+  const [rescheduleReason, setRescheduleReason] = useState('')
+  const [showRescheduleForm, setShowRescheduleForm] = useState(false)
+  const [selectedProposedDate, setSelectedProposedDate] = useState<number | null>(null)
+
+  const handleInterviewResponse = async (response: 'accepted' | 'reschedule_requested', reason?: string, dateOptionIndex?: number) => {
+    if (confirmBusy) return
+    setConfirmBusy(true)
+    setConfirmError(null)
+    try {
+      const details = JSON.parse(application.nextStep)
+      const newDetails = { ...details, studentResponse: response }
+      if (reason) newDetails.rescheduleReason = reason
+      if (dateOptionIndex !== undefined && details.proposedDates) {
+        const selected = details.proposedDates[dateOptionIndex]
+        newDetails.date = selected.date
+        newDetails.time = selected.time
+        delete newDetails.proposedDates
+      }
+      
+      const { updateInterviewResponse } = await import('./lib/listingsApi')
+      await updateInterviewResponse(application.id, JSON.stringify(newDetails))
+      
+      onSubmitted?.()
+      setShowRescheduleForm(false)
+      setRescheduleReason('')
+    } catch (e) {
+      setConfirmError(e instanceof Error ? e.message : 'An error occurred')
+    } finally {
+      setConfirmBusy(false)
+    }
+  }
+
   const confirmCopy = {
     accept: {
       title: 'Accept Offer',
@@ -808,11 +841,60 @@ function ProgressModal({
                 try {
                   const details = JSON.parse(application.nextStep)
                   return (
-                    <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
-                      <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date}</span>
-                      <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time}</span>
-                      <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
-                      <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                        <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date || 'TBD'}</span>
+                        <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time || 'TBD'}</span>
+                        <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
+                        <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                      </div>
+                      
+                      {/* Interactive UI based on state */}
+                      {!details.studentResponse && !showRescheduleForm && (
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                           <button className="sd-secondary" disabled={confirmBusy} onClick={() => setShowRescheduleForm(true)} type="button">Request Reschedule</button>
+                        </div>
+                      )}
+                      
+                      {showRescheduleForm && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', padding: '12px', background: 'var(--bg-subtle)', borderRadius: '6px' }}>
+                          <label style={{ fontSize: '13px', fontWeight: 500 }}>Reason for rescheduling:</label>
+                          <textarea value={rescheduleReason} onChange={e => setRescheduleReason(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', minHeight: '60px' }} placeholder="Please let the company know why you need to reschedule." />
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                            <button className="sd-primary" disabled={confirmBusy || !rescheduleReason.trim()} onClick={() => handleInterviewResponse('reschedule_requested', rescheduleReason)} type="button">Submit Request</button>
+                            <button className="sd-secondary" disabled={confirmBusy} onClick={() => setShowRescheduleForm(false)} type="button">Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {details.studentResponse === 'reschedule_requested' && !details.proposedDates && (
+                        <div style={{ padding: '12px', background: '#fff3cd', color: '#856404', borderRadius: '6px', fontSize: '13px' }}>
+                          You have requested a reschedule. Waiting for the company to propose new dates.
+                        </div>
+                      )}
+                      
+                      {details.studentResponse === 'reschedule_requested' && details.proposedDates && (
+                        <div style={{ padding: '12px', background: 'var(--bg-subtle)', borderRadius: '6px', marginTop: '8px' }}>
+                          <h4 style={{ margin: '0 0 12px 0', color: 'var(--brand-brown)', fontSize: '14px' }}>Company Proposed Dates:</h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {details.proposedDates.map((p: any, idx: number) => (
+                              <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                <input type="radio" name="proposedDate" checked={selectedProposedDate === idx} onChange={() => setSelectedProposedDate(idx)} style={{ width: '16px', height: '16px', margin: 0, flexShrink: 0 }} />
+                                <span><strong>{p.date}</strong> at {p.time}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <div style={{ marginTop: '12px' }}>
+                            <button className="sd-primary" disabled={confirmBusy || selectedProposedDate === null} onClick={() => handleInterviewResponse('accepted', undefined, selectedProposedDate!)} type="button">Confirm Selected Date</button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {details.studentResponse === 'accepted' && (
+                        <div style={{ padding: '12px', background: '#d4edda', color: '#155724', borderRadius: '6px', fontSize: '13px' }}>
+                          You have accepted this interview.
+                        </div>
+                      )}
                     </div>
                   )
                 } catch {

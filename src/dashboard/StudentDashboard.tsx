@@ -52,6 +52,8 @@ export function StudentDashboard({
     collapse,
     handleMarkRead: handleDbMarkRead,
     handleMarkAllRead: handleDbMarkAllRead,
+    handleRemove: handleDbRemove,
+    handleRemoveAll: handleDbRemoveAll,
   } = useNotifications((hint, notification) => {
     if (hint === 'Pending') {
       onFilterApplications?.('Pending')
@@ -68,7 +70,7 @@ export function StudentDashboard({
     }
   })
 
-  const { proactiveNotifications, markProactiveRead, markAllProactiveRead } = useProactiveNotifications(
+  const { proactiveNotifications, markProactiveRead, markAllProactiveRead, removeProactiveNotification, removeAllProactiveNotifications } = useProactiveNotifications(
     internships,
     profile?.id,
   )
@@ -78,7 +80,11 @@ export function StudentDashboard({
       ...n,
       onClick: () => {
         markProactiveRead(n.id)
-        onNavigate('Browse Internships')
+        if (onOpenInternship) {
+          onOpenInternship(n.id.replace('proactive-', ''))
+        } else {
+          onNavigate('Browse Internships')
+        }
       }
     })),
     ...dbNotifications
@@ -97,6 +103,19 @@ export function StudentDashboard({
   const handleMarkAllRead = () => {
     markAllProactiveRead()
     handleDbMarkAllRead()
+  }
+  
+  const handleRemove = (id: string) => {
+    if (id.startsWith('proactive-')) {
+      removeProactiveNotification(id)
+    } else {
+      handleDbRemove(id)
+    }
+  }
+
+  const handleRemoveAll = () => {
+    removeAllProactiveNotifications()
+    handleDbRemoveAll()
   }
 
   // Handle combined pagination
@@ -176,6 +195,8 @@ export function StudentDashboard({
             onCollapse={handleCollapse}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
+            onRemove={handleRemove}
+            onRemoveAll={handleRemoveAll}
           />
         </div>
       </div>

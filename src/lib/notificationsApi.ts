@@ -1,5 +1,4 @@
 import { supabase } from './supabase'
-import { formatDate } from './listingsApi'
 
 /**
  * In-app notifications (all portals). Rows are written by database triggers
@@ -13,6 +12,19 @@ export type AppNotification = {
   read: boolean
   /** 'Applications' | 'Applicants' | 'Listings' | 'Profile' | 'admin:<index>' */
   navHint: string | null
+}
+
+export async function insertNotification(
+  userId: string,
+  message: string,
+  navHint?: string,
+): Promise<void> {
+  const { error } = await supabase.from('notifications').insert({
+    user_id: userId,
+    message,
+    nav_hint: navHint || null,
+  })
+  if (error) throw new Error(error.message)
 }
 
 /**
@@ -48,7 +60,7 @@ export async function fetchNotifications(
     items: rows.slice(0, limit).map((r) => ({
       id: r.id as string,
       message: r.message as string,
-      date: formatDate(r.created_at as string),
+      date: r.created_at as string,
       read: Boolean(r.is_read),
       navHint: (r.nav_hint as string | null) ?? null,
     })),
@@ -82,3 +94,17 @@ export async function markAllNotificationsRead(): Promise<void> {
     .eq('is_read', false)
   if (error) throw new Error(error.message)
 }
+
+export async function removeNotification(id: string): Promise<void> {
+  const { error } = await supabase.from('notifications').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function removeAllNotifications(): Promise<void> {
+  // We can't do a blanket delete without a filter in Supabase usually,
+  // but we can filter by the user's own ID which RLS covers anyway, 
+  // or use a dummy filter like id is not null.
+  const { error } = await supabase.from('notifications').delete().not('id', 'is', null)
+  if (error) throw new Error(error.message)
+}
+

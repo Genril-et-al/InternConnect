@@ -52,6 +52,8 @@ export type Application = {
   id: string
   internshipId: string
   company: string
+  companyId: string
+  companyOwnerId: string
   companyLogo?: string | null
   role: string
   dateApplied: string

@@ -10,6 +10,7 @@ export function useProactiveNotifications(internships: Internship[], userId?: st
 
     const storageKeyNotified = `internconnect_proactive_notified_${userId}`
     const storageKeyRead = `internconnect_proactive_read_${userId}`
+    const storageKeyDismissed = `internconnect_proactive_dismissed_${userId}`
 
     const getStored = (key: string) => {
       try {
@@ -21,10 +22,11 @@ export function useProactiveNotifications(internships: Internship[], userId?: st
 
     const notifiedIds = getStored(storageKeyNotified)
     const readIds = getStored(storageKeyRead)
+    const dismissedIds = getStored(storageKeyDismissed)
 
     // Find high-match internships we haven't notified about yet
     const newMatches = internships.filter(
-      (i) => i.match !== null && i.match >= 80 && !notifiedIds.has(i.id)
+      (i) => i.match !== null && i.match >= 80 && !notifiedIds.has(i.id) && !dismissedIds.has(i.id)
     )
 
     if (newMatches.length > 0) {
@@ -32,7 +34,7 @@ export function useProactiveNotifications(internships: Internship[], userId?: st
       localStorage.setItem(storageKeyNotified, JSON.stringify(Array.from(notifiedIds)))
     }
 
-    const activeProactiveIds = Array.from(notifiedIds)
+    const activeProactiveIds = Array.from(notifiedIds).filter(id => !dismissedIds.has(id))
 
     const generated: Notification[] = activeProactiveIds
       .map((id) => {
@@ -41,7 +43,7 @@ export function useProactiveNotifications(internships: Internship[], userId?: st
         return {
           id: `proactive-${internship.id}`,
           message: `New internship matching your skills (${internship.match}%): ${internship.title} at ${internship.company}`,
-          date: new Date().toISOString(), // In a real app we'd store the date we notified them
+          date: new Date().toISOString(), // Keeping raw ISO string for correct sorting
           read: readIds.has(id),
           // onClick is bound dynamically when passing to NotificationBell
         }
@@ -85,9 +87,39 @@ export function useProactiveNotifications(internships: Internship[], userId?: st
     setProactiveNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
   }, [userId])
 
+  const removeProactiveNotification = useCallback((notificationId: string) => {
+    if (!notificationId.startsWith('proactive-') || !userId) return
+    const listingId = notificationId.replace('proactive-', '')
+
+    const storageKeyDismissed = `internconnect_proactive_dismissed_${userId}`
+    try {
+      const dismissedIds = new Set<string>(JSON.parse(localStorage.getItem(storageKeyDismissed) || '[]'))
+      dismissedIds.add(listingId)
+      localStorage.setItem(storageKeyDismissed, JSON.stringify(Array.from(dismissedIds)))
+    } catch {}
+
+    setProactiveNotifications((prev) => prev.filter((n) => n.id !== notificationId))
+  }, [userId])
+
+  const removeAllProactiveNotifications = useCallback(() => {
+    if (!userId) return
+    const storageKeyDismissed = `internconnect_proactive_dismissed_${userId}`
+    try {
+      const dismissedIds = new Set<string>(JSON.parse(localStorage.getItem(storageKeyDismissed) || '[]'))
+      proactiveNotifications.forEach(n => {
+        dismissedIds.add(n.id.replace('proactive-', ''))
+      })
+      localStorage.setItem(storageKeyDismissed, JSON.stringify(Array.from(dismissedIds)))
+    } catch {}
+
+    setProactiveNotifications([])
+  }, [userId, proactiveNotifications])
+
   return {
     proactiveNotifications,
     markProactiveRead,
     markAllProactiveRead,
+    removeProactiveNotification,
+    removeAllProactiveNotifications,
   }
 }

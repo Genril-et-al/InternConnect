@@ -36,6 +36,8 @@ export function CompanyDashboard({
     collapse,
     handleMarkRead,
     handleMarkAllRead,
+    handleRemove,
+    handleRemoveAll,
   } = useNotifications((hint, notification) => {
     onNavigate(hint)
     
@@ -74,6 +76,8 @@ export function CompanyDashboard({
             onCollapse={collapse}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
+            onRemove={handleRemove}
+            onRemoveAll={handleRemoveAll}
           />
         </div>
       </div>

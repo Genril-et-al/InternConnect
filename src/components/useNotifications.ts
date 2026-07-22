@@ -25,6 +25,8 @@ export function useNotifications(onNavHint: (hint: string, notification?: { mess
   collapse: () => void
   handleMarkRead: (id: string) => void
   handleMarkAllRead: () => void
+  handleRemove: (id: string) => void
+  handleRemoveAll: () => void
 } {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -133,6 +135,25 @@ export function useNotifications(onNavHint: (hint: string, notification?: { mess
     markAllNotificationsRead().catch(() => {})
   }, [commit])
 
+  const handleRemove = useCallback(
+    (id: string) => {
+      const target = listRef.current.find((n) => n.id === id)
+      if (!target) return
+      commit(listRef.current.filter((n) => n.id !== id))
+      if (!target.read) {
+        setUnreadCount((c) => Math.max(0, c - 1))
+      }
+      import('../lib/notificationsApi').then(api => api.removeNotification(id)).catch(() => {})
+    },
+    [commit]
+  )
+
+  const handleRemoveAll = useCallback(() => {
+    commit([])
+    setUnreadCount(0)
+    import('../lib/notificationsApi').then(api => api.removeAllNotifications()).catch(() => {})
+  }, [commit])
+
   return {
     notifications,
     unreadCount,
@@ -143,6 +164,8 @@ export function useNotifications(onNavHint: (hint: string, notification?: { mess
     collapse,
     handleMarkRead,
     handleMarkAllRead,
+    handleRemove,
+    handleRemoveAll,
   }
 }
 
