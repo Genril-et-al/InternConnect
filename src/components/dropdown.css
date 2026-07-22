@@ -1,0 +1,132 @@
+/* One dropdown for the whole app. The look is the browse-internships search
+   field's field picker, lifted out of App.tsx so admin, company and student
+   screens all render the same control instead of three native <select>s that
+   each pick up the OS's own styling. */
+
+.ic-dropdown {
+  display: inline-flex;
+  position: relative;
+}
+
+/* ── Trigger ───────────────────────────────────────────────────────── */
+.ic-dropdown-trigger {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-strong);
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  font-weight: 600;
+  gap: 8px;
+  justify-content: space-between;
+  margin: 0;
+  min-height: 42px;
+  padding: 8px 12px;
+  text-align: left;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+  width: 100%;
+}
+
+.ic-dropdown-trigger:hover {
+  border-color: var(--accent);
+}
+
+.ic-dropdown-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The chevron points up while the menu is open so the trigger reads as a
+   toggle rather than a button that happens to have an arrow on it. */
+.ic-dropdown-chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform var(--dur-1) var(--ease-out);
+}
+
+.ic-dropdown[data-open='true'] .ic-dropdown-chevron {
+  transform: rotate(180deg);
+}
+
+/* The "bare" variant sits inside another bordered control (the browse search
+   field), so it drops its own border and background and inherits the height. */
+.ic-dropdown--bare {
+  height: 100%;
+}
+
+.ic-dropdown--bare .ic-dropdown-trigger {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--text);
+  font-size: 14px;
+  height: 100%;
+  min-height: 0;
+  padding: 0 8px;
+  width: auto;
+}
+
+.ic-dropdown--bare .ic-dropdown-trigger:hover {
+  border-color: transparent;
+  color: var(--text-strong);
+}
+
+/* ── Menu ──────────────────────────────────────────────────────────── */
+.ic-dropdown-menu {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  left: 0;
+  max-height: 280px;
+  min-width: 100%;
+  overflow-y: auto;
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 100;
+}
+
+/* Right-aligned menus hang off the end of a trigger that sits near the edge of
+   its row — the browse search field's picker is the case this exists for. */
+.ic-dropdown-menu--right {
+  left: auto;
+  right: 0;
+}
+
+.ic-dropdown-option {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 400;
+  margin: 0;
+  padding: 10px 16px;
+  text-align: left;
+  transition: background var(--dur-2) var(--ease-out);
+  white-space: nowrap;
+  width: 100%;
+}
+
+.ic-dropdown-option:hover,
+.ic-dropdown-option.is-active {
+  background: var(--surface-strong);
+}
+
+.ic-dropdown-option.is-selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ic-dropdown-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}

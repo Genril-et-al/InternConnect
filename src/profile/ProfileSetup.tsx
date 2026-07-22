@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isSupabaseConfigured } from '../lib/supabase'
 import {
   completeProfile,
@@ -11,11 +11,24 @@ import {
 } from '../lib/profile'
 import { analyzeResume, NO_SKILLS_MESSAGE } from '../lib/resumeAnalysis'
 import { formatMiddleInitial } from '../lib/name'
+import { setUnsavedGuard } from '../lib/unsavedGuard'
 import { useAuth } from '../auth/context'
 import { SignOutButton } from '../components/SignOutButton'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { TagInput } from './TagInput'
-import { Pencil, Trash2, X } from 'lucide-react'
+import { PhotoLightbox } from '../components/PhotoLightbox'
+import { Pencil, Trash2 } from 'lucide-react'
 import './profile.css'
+/**
+ * Tag lists compare as unordered sets — analysis reorders skills (AI-extracted
+ * ones move to the front), and a reorder alone isn't an unsaved change.
+ */
+function sameTags(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false
+  const normalise = (list: string[]) => list.map((t) => t.toLowerCase()).sort()
+  const [left, right] = [normalise(a), normalise(b)]
+  return left.every((tag, i) => tag === right[i])
+}
 
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) {
@@ -60,6 +73,7 @@ export function ProfileSetup({
   const [photoPreview, setPhotoPreview] = useState<string | null>(profile?.photo_url ?? null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [resume, setResume] = useState<File | null>(null)
+  const [coverLetter, setCoverLetter] = useState<File | null>(null)
   const [portfolioLink, setPortfolioLink] = useState(profile?.portfolio_link ?? '')
   const [portfolioFile, setPortfolioFile] = useState<File | null>(null)
   // Personal details — filled here on the profile (not during sign-up).
@@ -87,6 +101,62 @@ export function ProfileSetup({
       : null,
   )
 
+  // Set while saving (and after a successful save) so the unsaved-changes
+  // guard doesn't challenge the redirect the save itself triggers.
+  const savingRef = useRef(false)
+
+  // Unsaved work is anything the student changed that isn't on the profile row
+  // yet: edited fields, files picked but not uploaded, or a resume analysis
+  // whose extracted skills only exist in local state until Save.
+  const dirty =
+    !sameTags(skills, profile?.skills ?? []) ||
+    !sameTags(specializations, profile?.specializations ?? []) ||
+    // Compared against the same fallback the state was seeded from, so a legacy
+    // profile with an empty ai_skills column doesn't read as dirty on mount.
+    !sameTags(aiSkills, fallbackAiSkills) ||
+    !sameTags(aiSpecializations, fallbackAiSpecializations) ||
+    photo !== null ||
+    resume !== null ||
+    coverLetter !== null ||
+    portfolioFile !== null ||
+    photoPreview !== (profile?.photo_url ?? null) ||
+    portfolioLink !== (profile?.portfolio_link ?? '') ||
+    age !== (profile?.age != null ? String(profile.age) : '') ||
+    sex !== (profile?.gender ?? '') ||
+    address !== (profile?.address ?? '') ||
+    personalEmail !== (profile?.personal_email ?? '') ||
+    contactNumber !== (profile?.contact_number ?? '')
+
+  // In-app navigation (sidebar, account card) routes through this guard. The
+  // navigation is parked here while the student answers the modal below.
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null)
+
+  useEffect(() => {
+    if (!dirty) return
+    setUnsavedGuard((proceed) => {
+      if (savingRef.current) {
+        proceed()
+        return
+      }
+      // Wrapped in a function: setState treats a bare function argument as an
+      // updater, which would call the navigation instead of storing it.
+      setPendingLeave(() => proceed)
+    })
+    return () => setUnsavedGuard(null)
+  }, [dirty])
+
+  // Closing or reloading the tab is outside React's reach — the browser shows
+  // its own generic prompt when the event is cancelled.
+  useEffect(() => {
+    if (!dirty) return
+    function warn(event: BeforeUnloadEvent) {
+      if (savingRef.current) return
+      event.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+
   const userId = session?.user.id
   const first = profile?.first_name ?? ''
   const mi = formatMiddleInitial(profile?.middle_initial)
@@ -98,6 +168,12 @@ export function ProfileSetup({
     ? (last ? `${last}_resume.${resume.name.split('.').pop()}` : resume.name)
     : profile?.resume_url 
       ? (last ? `${last}_resume.${profile.resume_url.split('.').pop()}` : profile.resume_url.split('/').pop())
+      : null
+
+  const displayCoverLetterName = coverLetter
+    ? (last ? `${last}_cover_letter.${coverLetter.name.split('.').pop()}` : coverLetter.name)
+    : profile?.cover_letter_url
+      ? (last ? `${last}_cover_letter.${profile.cover_letter_url.split('.').pop()}` : profile.cover_letter_url.split('/').pop())
       : null
 
   function handlePhoto(file: File | null) {
@@ -153,7 +229,10 @@ export function ProfileSetup({
         setSpecializations((prev) => [...result.specializations, ...prev.filter(s => !result.specializations.some(rs => rs.toLowerCase() === s.toLowerCase()))])
         setResumeRejected(null)
       }
-      await refreshProfile()
+      // Deliberately no refreshProfile() here. The extracted skills live in
+      // local state until the student saves, and pulling a fresh profile
+      // re-runs StudentPortal's listings effect, which blanks the workspace
+      // long enough to unmount this form — taking the new skills with it.
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -197,6 +276,10 @@ export function ProfileSetup({
       return
     }
 
+    // Past validation, so the save is going ahead — stop the guard challenging
+    // the redirect this triggers. Cleared again if the save fails.
+    savingRef.current = true
+
     // Offline demo: no Supabase, so persist to local state instead of uploading.
     if (demo) {
       updateProfileLocal({
@@ -206,6 +289,7 @@ export function ProfileSetup({
         ai_specializations: aiSpecializations,
         photo_url: photoPreview ?? null,
         resume_url: resume ? resume.name : profile?.resume_url ?? null,
+        cover_letter_url: coverLetter ? coverLetter.name : profile?.cover_letter_url ?? null,
         portfolio_link: portfolioLink.trim() || null,
         portfolio_file_url: portfolioFile ? portfolioFile.name : profile?.portfolio_file_url ?? null,
         age: Number.parseInt(age, 10) || null,
@@ -224,6 +308,7 @@ export function ProfileSetup({
     // the profile row commits, never before.
     const prevPhotoUrl = profile?.photo_url ?? null
     const prevResumePath = profile?.resume_url ?? null
+    const prevCoverLetterPath = profile?.cover_letter_url ?? null
     const prevPortfolioPath = profile?.portfolio_file_url ?? null
     try {
       const photoUrl = photo
@@ -232,6 +317,9 @@ export function ProfileSetup({
       const resumePath = resume
         ? await uploadDocument(userId, 'resume', resume)
         : profile?.resume_url ?? null
+      const coverLetterPath = coverLetter
+        ? await uploadDocument(userId, 'cover_letter', coverLetter)
+        : profile?.cover_letter_url ?? null
 
       // A new resume invalidates the previous AI verdict immediately, so a
       // stale rejection can't outlive the file it was about.
@@ -293,6 +381,7 @@ export function ProfileSetup({
         setError(
           'Your resume did not include enough to fill your skills and specializations. Please add them manually.',
         )
+        savingRef.current = false
         return
       }
 
@@ -307,6 +396,7 @@ export function ProfileSetup({
         aiSpecializations: finalAiSpecializations,
         photoUrl,
         resumePath,
+        coverLetterPath,
         portfolioLink: portfolioLink.trim() || null,
         portfolioFilePath,
         age: age.trim() ? Number(age) : null,
@@ -321,6 +411,7 @@ export function ProfileSetup({
       // drop. Best-effort: an orphaned file is harmless, a missing one is not.
       try {
         if (resumePath !== prevResumePath) await removeDocument(userId, prevResumePath)
+        if (coverLetterPath !== prevCoverLetterPath) await removeDocument(userId, prevCoverLetterPath)
         if (portfolioFilePath !== prevPortfolioPath) await removeDocument(userId, prevPortfolioPath)
         if (photoUrl !== prevPhotoUrl) await removeAvatar(userId, prevPhotoUrl)
       } catch {
@@ -330,6 +421,7 @@ export function ProfileSetup({
       onDone?.() // Redirect to the dashboard after saving.
     } catch (err) {
       setError(errorMessage(err))
+      savingRef.current = false // Changes are still unsaved — re-arm the guard.
     } finally {
       setBusy(false)
     }
@@ -337,23 +429,26 @@ export function ProfileSetup({
 
   const formCard = (
     <>
+      <ConfirmDialog
+        cancelLabel="Keep editing"
+        confirmLabel="Leave without saving"
+        danger
+        message="Your edits — including any skills the resume analysis found — will be lost unless you save first."
+        onCancel={() => setPendingLeave(null)}
+        onConfirm={() => {
+          const leave = pendingLeave
+          setPendingLeave(null)
+          leave?.()
+        }}
+        open={pendingLeave !== null}
+        title="Unsaved changes"
+      />
       {showPhotoModal && photoPreview && (
-        <div 
-          className="photo-modal-overlay"
-          onClick={() => setShowPhotoModal(false)}
-          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
-        >
-          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
-            <button 
-              onClick={() => setShowPhotoModal(false)}
-              style={{ position: 'absolute', top: '-40px', right: 0, background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}
-              type="button"
-            >
-              <X size={32} />
-            </button>
-            <img src={photoPreview} alt="Profile" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }} />
-          </div>
-        </div>
+        <PhotoLightbox
+          alt="Profile photo"
+          onClose={() => setShowPhotoModal(false)}
+          src={photoPreview}
+        />
       )}
       <form className={`profile-card${isEdit ? ' embedded' : ''}`} onSubmit={handleSubmit}>
       <div className="profile-head">
@@ -472,16 +567,18 @@ export function ProfileSetup({
           </label>
           <label>
             Sex
-            <select
-              onChange={(e) => setSex(e.target.value)}
-              required
-              value={sex}
-            >
-              <option value="" disabled>Select...</option>
-              <option value="Female">Female</option>
-              <option value="Male">Male</option>
-              <option value="Prefer not to say">Prefer not to say</option>
-            </select>
+            <div className="profile-sex-toggle">
+              {['Male', 'Female', 'Prefer not to say'].map((option) => (
+                <button
+                  type="button"
+                  key={option}
+                  className={`profile-sex-btn ${sex === option ? 'active' : ''}`}
+                  onClick={() => setSex(option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
           </label>
           <label className="profile-field-span">
             Address
@@ -540,61 +637,128 @@ export function ProfileSetup({
         />
       </section>
 
-      {/* Resume — upload */}
+      {/* Resume & Cover Letter — upload */}
       <section className="profile-section">
         <div className="profile-section-head">
-          <h2>Resume / CV</h2>
-          <span className="profile-optional">PDF or DOCX</span>
+          <h2>Resume & Cover Letter</h2>
         </div>
+        <div style={{ marginBottom: '24px' }}>
+          <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Resume <span className="profile-optional" style={{ fontWeight: 400 }}>PDF or DOCX</span></h4>
+          <div>
+            {resume || profile?.resume_url ? (
+              <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'default' }}>
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (resume) {
+                      window.open(URL.createObjectURL(resume), '_blank')
+                    } else {
+                      handleViewDocument(profile?.resume_url)
+                    }
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--brand-orange)', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
+                >
+                  {displayResumeName}
+                </button>
+                {resume && (
+                  <span style={{ fontSize: '12px', color: 'var(--brand-orange)', fontWeight: 500 }}>
+                    New file selected: {resume.name} — save to apply
+                  </span>
+                )}
+                </span>
+                <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {!resume && profile?.resume_url && !demo && (
+                    <button
+                      disabled={analyzing || busy}
+                      onClick={handleAnalyzeExisting}
+                      style={{ cursor: analyzing ? 'wait' : 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}
+                      title="Run the AI over the resume already on file"
+                      type="button"
+                    >
+                      {analyzing ? 'Analyzing…' : 'Analyze with AI'}
+                    </button>
+                  )}
+                  <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
+                    Change
+                    <input
+                      accept=".pdf,.doc,.docx"
+                      hidden
+                      onChange={(e) => {
+                        handlePickResume(e.target.files?.[0] ?? null)
+                        e.target.value = ''
+                      }}
+                      type="file"
+                    />
+                  </label>
+                </span>
+              </div>
+            ) : (
+              <label className="profile-upload block">
+                <input
+                  accept=".pdf,.doc,.docx"
+                  hidden
+                  onChange={(e) => {
+                    handlePickResume(e.target.files?.[0] ?? null)
+                    e.target.value = ''
+                  }}
+                  type="file"
+                />
+                {resumeRejected ? 'Upload a new resume' : 'Upload resume'}
+              </label>
+            )}
+          </div>
+          {!resume && resumeRejected && (
+            <p className="profile-resume-rejected" role="alert">
+              <strong>{resumeRejected.message}</strong>{' '}
+              The resume you submitted ({resumeRejected.fileName}) could not be
+              matched — please upload a new one.
+              {resumeRejected.suggestion && (
+                <>
+                  {' '}
+                  <em>Recommendation: {resumeRejected.suggestion}</em>
+                </>
+              )}
+            </p>
+          )}
+          <p className="profile-info" style={{ marginTop: '8px' }}>
+            Your resume is read by AI to auto-fill your
+            skills and specializations for matching.
+          </p>
+        </div>
+
         <div>
-          {resume || profile?.resume_url ? (
+          <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Cover Letter <span className="profile-optional" style={{ fontWeight: 400 }}>Optional · PDF only</span></h4>
+          {coverLetter || profile?.cover_letter_url ? (
             <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'default' }}>
               <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
               <button
                 type="button"
                 onClick={() => {
-                  if (resume) {
-                    window.open(URL.createObjectURL(resume), '_blank')
+                  if (coverLetter) {
+                    window.open(URL.createObjectURL(coverLetter), '_blank')
                   } else {
-                    handleViewDocument(profile?.resume_url)
+                    handleViewDocument(profile?.cover_letter_url)
                   }
                 }}
                 style={{ background: 'none', border: 'none', color: 'var(--brand-orange)', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
               >
-                {displayResumeName}
+                {displayCoverLetterName}
               </button>
-              {/*
-                The display name is derived from the surname, so picking a new
-                file of the same type produces an identical label and the card
-                looks unchanged. Name the pending file explicitly.
-              */}
-              {resume && (
+              {coverLetter && (
                 <span style={{ fontSize: '12px', color: 'var(--brand-orange)', fontWeight: 500 }}>
-                  New file selected: {resume.name} — save to apply
+                  New file selected: {coverLetter.name} — save to apply
                 </span>
               )}
               </span>
               <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {!resume && profile?.resume_url && !demo && (
-                  <button
-                    disabled={analyzing || busy}
-                    onClick={handleAnalyzeExisting}
-                    style={{ cursor: analyzing ? 'wait' : 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}
-                    title="Run the AI over the resume already on file"
-                    type="button"
-                  >
-                    {analyzing ? 'Analyzing…' : 'Analyze with AI'}
-                  </button>
-                )}
                 <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
                   Change
                   <input
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf"
                     hidden
                     onChange={(e) => {
-                      handlePickResume(e.target.files?.[0] ?? null)
-                      // Clearing the value lets re-selecting the SAME filename
-                      // fire change again; otherwise the picker looks dead.
+                      setCoverLetter(e.target.files?.[0] ?? null)
                       e.target.value = ''
                     }}
                     type="file"
@@ -605,35 +769,18 @@ export function ProfileSetup({
           ) : (
             <label className="profile-upload block">
               <input
-                accept=".pdf,.doc,.docx"
+                accept=".pdf"
                 hidden
                 onChange={(e) => {
-                  handlePickResume(e.target.files?.[0] ?? null)
+                  setCoverLetter(e.target.files?.[0] ?? null)
                   e.target.value = ''
                 }}
                 type="file"
               />
-              {resumeRejected ? 'Upload a new resume' : 'Upload resume'}
+              Upload cover letter
             </label>
           )}
         </div>
-        {!resume && resumeRejected && (
-          <p className="profile-resume-rejected" role="alert">
-            <strong>{resumeRejected.message}</strong>{' '}
-            The resume you submitted ({resumeRejected.fileName}) could not be
-            matched — please upload a new one.
-            {resumeRejected.suggestion && (
-              <>
-                {' '}
-                <em>Recommendation: {resumeRejected.suggestion}</em>
-              </>
-            )}
-          </p>
-        )}
-        <p className="profile-info">
-          Your resume is read by our AI (in the cloud) to auto-fill your
-          skills and specializations for matching.
-        </p>
       </section>
 
       {/* Portfolio — link OR file */}
@@ -703,6 +850,15 @@ export function ProfileSetup({
               ? 'Save changes'
               : 'Save and continue'}
       </button>
+
+      {/* Edit mode only: on a phone the sign-out moves off the bottom tab bar
+          and lands here, under Save changes. Setup mode keeps its own sign-out
+          in the page header, so adding it here would double it up. Hidden above
+          the mobile breakpoint — the sidebar still owns sign-out on desktop.
+          SignOutButton sets type="button", so it never submits the form. */}
+      {isEdit && (
+        <SignOutButton className="profile-mobile-signout">Sign out</SignOutButton>
+      )}
     </form>
     </>
   )

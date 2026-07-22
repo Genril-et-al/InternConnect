@@ -1,30 +1,48 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { AlertCircle, RefreshCw, Users } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
 import type { AdminListing, AdminListingStatus } from './adminData'
+import { Dropdown } from '../components/Dropdown'
 
 /** UC-A04 — Oversee internship listings platform-wide (flag / unflag). */
 export function AdminInternships({
   listings,
   onSetFlagged,
+  highlightedListingId,
 }: {
   listings: AdminListing[]
   onSetFlagged: (id: string, flagged: boolean) => Promise<void>
+  highlightedListingId?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | AdminListingStatus>('all')
+  const [setupFilter, setSetupFilter] = useState<'all' | 'onsite' | 'remote' | 'hybrid'>('all')
+  const [paidFilter, setPaidFilter] = useState<'all' | 'paid' | 'unpaid'>('all')
+  const [scheduleFilter, setScheduleFilter] = useState<'all' | 'part-time' | 'full-time'>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (highlightedListingId) {
+      setTimeout(() => {
+        const el = document.querySelector('.ic-row.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedListingId])
 
   const filtered = useMemo(
     () =>
       listings.filter(
         (l) =>
           (filter === 'all' || l.status === filter) &&
+          (setupFilter === 'all' || l.setup === setupFilter) &&
+          (paidFilter === 'all' || (paidFilter === 'paid' ? l.isPaid : !l.isPaid)) &&
+          (scheduleFilter === 'all' || (scheduleFilter === 'full-time' ? l.isFullTime : !l.isFullTime)) &&
           (l.title.toLowerCase().includes(search.toLowerCase()) ||
             l.company.toLowerCase().includes(search.toLowerCase())),
       ),
-    [listings, search, filter],
+    [listings, search, filter, setupFilter, paidFilter, scheduleFilter],
   )
 
   const setFlagged = (id: string, flagged: boolean) => {
@@ -35,39 +53,71 @@ export function AdminInternships({
   }
 
   return (
-    <div className="ad-page">
-      <div className="ad-page-head">
+    <div className="ic-page">
+      <div className="ic-page-head">
         <div>
-          <h1 className="ad-title">Manage Internships</h1>
-          <p className="ad-subtitle">{listings.length} total listings</p>
+          <h1 className="ic-title">Manage Internships</h1>
+          <p className="ic-subtitle">{listings.length} total listings</p>
         </div>
       </div>
 
-      <div className="ad-toolbar">
+      <div className="ic-toolbar" style={{ flexWrap: 'wrap', gap: '8px' }}>
         <AdSearch onChange={setSearch} placeholder="Search by title or company…" value={search} />
-        <select
-          className="ad-select"
-          onChange={(e) => setFilter(e.target.value as 'all' | AdminListingStatus)}
+        <Dropdown
+          ariaLabel="Filter by moderation status"
+          onChange={(v) => setFilter(v as 'all' | AdminListingStatus)}
+          options={[
+            { value: 'all', label: 'All Moderation' },
+            { value: 'open', label: 'Open' },
+            { value: 'closed', label: 'Closed' },
+            { value: 'flagged', label: 'Flagged' },
+          ]}
           value={filter}
-        >
-          <option value="all">All</option>
-          <option value="open">Open</option>
-          <option value="closed">Closed</option>
-          <option value="flagged">Flagged</option>
-        </select>
+        />
+        <Dropdown
+          ariaLabel="Filter by work setup"
+          onChange={(v) => setSetupFilter(v as 'all' | 'onsite' | 'remote' | 'hybrid')}
+          options={[
+            { value: 'all', label: 'All Setups' },
+            { value: 'onsite', label: 'On-site' },
+            { value: 'remote', label: 'Remote' },
+            { value: 'hybrid', label: 'Hybrid' },
+          ]}
+          value={setupFilter}
+        />
+        <Dropdown
+          ariaLabel="Filter by compensation"
+          onChange={(v) => setPaidFilter(v as 'all' | 'paid' | 'unpaid')}
+          options={[
+            { value: 'all', label: 'All Compensation' },
+            { value: 'paid', label: 'Paid' },
+            { value: 'unpaid', label: 'Unpaid' },
+          ]}
+          value={paidFilter}
+        />
+        <Dropdown
+          ariaLabel="Filter by schedule"
+          onChange={(v) => setScheduleFilter(v as 'all' | 'part-time' | 'full-time')}
+          options={[
+            { value: 'all', label: 'All Schedules' },
+            { value: 'part-time', label: 'Part-time' },
+            { value: 'full-time', label: 'Full-time' },
+          ]}
+          value={scheduleFilter}
+        />
       </div>
 
-      {actionError && <div className="ad-card ad-empty">{actionError}</div>}
+      {actionError && <div className="ic-card ic-empty">{actionError}</div>}
 
-      <div className="ad-rows">
+      <div className="ic-rows">
         {filtered.length === 0 ? (
-          <div className="ad-card ad-empty">No listings found</div>
+          <div className="ic-card ic-empty">No listings found</div>
         ) : (
           filtered.map((l) => {
             const isExpanded = expandedId === l.id
             return (
               <div
-                className={`ad-row ${isExpanded ? 'expanded' : ''}`}
+                className={`ic-row ${isExpanded ? 'expanded' : ''} ${l.id === highlightedListingId ? 'highlighted' : ''}`}
                 key={l.id}
                 onClick={() => setExpandedId(isExpanded ? null : l.id)}
                 style={{
@@ -77,9 +127,9 @@ export function AdminInternships({
                   cursor: 'pointer',
                 }}
               >
-                <div className="ad-row-header">
+                <div className="ic-row-header">
                   <div>
-                    <div className="ad-row-title">
+                    <div className="ic-row-title">
                       <p>{l.title}</p>
                       <AdBadge
                         text={l.status.charAt(0).toUpperCase() + l.status.slice(1)}
@@ -92,7 +142,7 @@ export function AdminInternships({
                         }
                       />
                     </div>
-                    <p className="ad-muted">
+                    <p className="ic-muted">
                       {l.company} · {l.applicants} applicants · Posted {l.posted} · Deadline{' '}
                       {l.deadline}
                     </p>
@@ -100,7 +150,7 @@ export function AdminInternships({
                   <div onClick={(e) => e.stopPropagation()}>
                     {l.status === 'open' && (
                       <button
-                        className="ad-secondary"
+                        className="ic-secondary"
                         onClick={() => setFlagged(l.id, true)}
                         type="button"
                       >
@@ -109,7 +159,7 @@ export function AdminInternships({
                     )}
                     {l.status === 'flagged' && (
                       <button
-                        className="ad-secondary"
+                        className="ic-secondary"
                         onClick={() => setFlagged(l.id, false)}
                         type="button"
                       >
@@ -120,21 +170,21 @@ export function AdminInternships({
                 </div>
 
                 {isExpanded && (
-                  <div className="ad-row-details" onClick={(e) => e.stopPropagation()}>
-                    <div className="ad-details-content">
-                      <div className="ad-details-section">
-                        <h4 className="ad-details-heading">About Internship</h4>
-                        <p className="ad-details-description">
+                  <div className="ic-row-details" onClick={(e) => e.stopPropagation()}>
+                    <div className="ic-details-content">
+                      <div className="ic-details-section">
+                        <h4 className="ic-details-heading">About Internship</h4>
+                        <p className="ic-details-description">
                           {l.description || 'No internship description available.'}
                         </p>
                       </div>
-                      <div className="ad-details-stat-card">
-                        <div className="ad-stat-icon-wrapper">
+                      <div className="ic-details-stat-card">
+                        <div className="ic-stat-icon-wrapper">
                           <Users size={18} />
                         </div>
                         <div>
-                          <div className="ad-stat-card-value">{l.applicants}</div>
-                          <div className="ad-stat-card-label">Applicants</div>
+                          <div className="ic-stat-card-value">{l.applicants}</div>
+                          <div className="ic-stat-card-label">Applicants</div>
                         </div>
                       </div>
                     </div>

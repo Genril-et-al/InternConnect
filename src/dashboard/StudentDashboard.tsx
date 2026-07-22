@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   AlertCircle,
   CheckCircle2,
@@ -11,6 +12,7 @@ import { useAuth } from '../auth/context'
 import type { Application, Internship } from '../lib/mockData'
 import { NotificationBell } from '../components/NotificationBell'
 import { useNotifications } from '../components/useNotifications'
+import { useProactiveNotifications } from '../components/useProactiveNotifications'
 import './dashboard.css'
 
 /**
@@ -26,6 +28,7 @@ export function StudentDashboard({
   onOpenProgress,
   onFilterApplications,
   onOpenInternship,
+  onHighlightApplication,
 }: {
   internships: Internship[]
   applications: Application[]
@@ -33,37 +36,119 @@ export function StudentDashboard({
   onOpenProgress?: (app: Application) => void
   onFilterApplications?: (filter: string) => void
   onOpenInternship?: (id: string) => void
+  onHighlightApplication?: (id: string) => void
 }) {
   const { profile } = useAuth()
 
   const accepted = applications.filter((a) => a.status === 'Accepted').length
 
-  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications((hint) => {
-    if (hint === 'Pending') onFilterApplications?.('Pending')
-    else onNavigate(hint)
+  const {
+    notifications: dbNotifications,
+    unreadCount: dbUnreadCount,
+    hasMore,
+    canCollapse,
+    loadingMore,
+    loadMore,
+    collapse,
+    handleMarkRead: handleDbMarkRead,
+    handleMarkAllRead: handleDbMarkAllRead,
+  } = useNotifications((hint, notification) => {
+    if (hint === 'Pending') {
+      onFilterApplications?.('Pending')
+    } else {
+      onNavigate(hint)
+    }
+
+    if (hint === 'Applications' && notification) {
+      // Find which application this notification refers to by checking if the role is in the message
+      const matchedApp = applications.find(a => notification.message.includes(a.role))
+      if (matchedApp) {
+        onHighlightApplication?.(matchedApp.id)
+      }
+    }
   })
+
+  const { proactiveNotifications, markProactiveRead, markAllProactiveRead } = useProactiveNotifications(
+    internships,
+    profile?.id,
+  )
+
+  const combinedNotifications = [
+    ...proactiveNotifications.map(n => ({
+      ...n,
+      onClick: () => {
+        markProactiveRead(n.id)
+        onNavigate('Browse Internships')
+      }
+    })),
+    ...dbNotifications
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const unreadCount = dbUnreadCount + proactiveNotifications.filter(n => !n.read).length
+
+  const handleMarkRead = (id: string) => {
+    if (id.startsWith('proactive-')) {
+      markProactiveRead(id)
+    } else {
+      handleDbMarkRead(id)
+    }
+  }
+
+  const handleMarkAllRead = () => {
+    markAllProactiveRead()
+    handleDbMarkAllRead()
+  }
+
+  // Handle combined pagination
+  const [displayLimit, setDisplayLimit] = useState(10)
+
+  const handleLoadMore = () => {
+    if (displayLimit < combinedNotifications.length) {
+      setDisplayLimit(displayLimit + 10)
+    } else {
+      loadMore()
+      setDisplayLimit(displayLimit + 10)
+    }
+  }
+
+  const handleCollapse = () => {
+    setDisplayLimit(10)
+    collapse()
+  }
+
+  const visibleNotifications = combinedNotifications.slice(0, displayLimit)
+  const combinedHasMore = hasMore || displayLimit < combinedNotifications.length
+  const combinedCanCollapse = displayLimit > 10 || canCollapse
   const rejected = applications.filter((a) => a.status === 'Rejected').length
   const pending = applications.length - accepted - rejected
 
   const firstName = profile?.first_name?.trim() || 'there'
 
   // Profile completion — computed from the real profile record.
+  //
+  // `counts` is what the percentage is scored against; every item still shows in
+  // the checklist. Portfolio is opt-in — plenty of students have nothing to put
+  // there, and scoring it meant those profiles were permanently stuck at 75%
+  // with no action that would clear it.
   const checklist = [
-    { label: 'Formal Photo', done: Boolean(profile?.photo_url) },
-    { label: 'Resume', done: Boolean(profile?.resume_url) },
+    { label: 'Formal Photo', done: Boolean(profile?.photo_url), counts: true },
+    { label: 'Resume', done: Boolean(profile?.resume_url), counts: true },
     {
       label: 'Portfolio',
       done: Boolean(profile?.portfolio_link || profile?.portfolio_file_url),
+      counts: false,
     },
     {
       label: 'Personal info',
       done: Boolean(
         profile?.age && profile?.gender && profile?.address && profile?.contact_number,
       ),
+      counts: true,
     },
   ]
-  const doneCount = checklist.filter((c) => c.done).length
-  const completionPct = Math.round((doneCount / checklist.length) * 100)
+  const scored = checklist.filter((c) => c.counts)
+  const doneCount = scored.filter((c) => c.done).length
+  const completionPct = Math.round((doneCount / scored.length) * 100)
 
   return (
     <div className="sd-root">
@@ -77,12 +162,18 @@ export function StudentDashboard({
               : 'All applications resolved.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="topbar-actions">
           <button className="sd-primary" onClick={() => onNavigate('Browse Internships')} type="button">
             <Search size={14} /> Browse Internships
           </button>
           <NotificationBell
-            notifications={notifications}
+            notifications={visibleNotifications}
+            unreadCount={unreadCount}
+            hasMore={combinedHasMore}
+            canCollapse={combinedCanCollapse}
+            loadingMore={loadingMore}
+            onLoadMore={handleLoadMore}
+            onCollapse={handleCollapse}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />
@@ -137,7 +228,13 @@ export function StudentDashboard({
             <p className="sd-muted sd-empty">No internships posted yet.</p>
           )}
           {internships.slice(0, 3).map((job) => (
-            <div className="sd-list-row" key={job.id}>
+            <div 
+              className="sd-list-row clickable" 
+              key={job.id}
+              onClick={() => onOpenInternship?.(job.id)}
+              role="button"
+              tabIndex={0}
+            >
               {job.companyLogo ? (
                 <img src={job.companyLogo} alt={job.company} className="sd-mark" style={{ objectFit: 'contain' }} />
               ) : (

@@ -13,8 +13,9 @@ import {
   reviewSubmission,
   setListingStatus,
   updateApplicationStatus,
+  scheduleInterview,
 } from './companyQueries'
-import type { NewListingInput } from './companyQueries'
+import type { InterviewDetails, NewListingInput } from './companyQueries'
 import type { ApplicantStatus } from './companyData'
 import './company.css'
 
@@ -36,6 +37,9 @@ export function CompanyPortal({
   const [applicants, setApplicants] = useState<CompanyApplicant[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  
+  const [highlightedListingId, setHighlightedListingId] = useState<string | null>(null)
+  const [highlightedApplicantId, setHighlightedApplicantId] = useState<string | null>(null)
 
   const refresh = useCallback(async (id: string) => {
     const [l, a] = await Promise.all([fetchCompanyListings(id), fetchApplicants(id)])
@@ -94,6 +98,11 @@ export function CompanyPortal({
       withRefresh(() => updateApplicationStatus(id, status, feedback)),
     [withRefresh],
   )
+  const handleScheduleInterview = useCallback(
+    (id: string, details: InterviewDetails) =>
+      withRefresh(() => scheduleInterview(id, details)),
+    [withRefresh],
+  )
   const handleReviewSubmission = useCallback(
     (submissionId: string, applicationId: string, approve: boolean, feedback?: string) =>
       withRefresh(() => reviewSubmission(submissionId, applicationId, approve, feedback)),
@@ -107,33 +116,54 @@ export function CompanyPortal({
     return <div className="cp-root"><div className="cp-card cp-empty">{loadError}</div></div>
   }
 
-  if (activeView === 'Listings') {
+  // Picked into a variable rather than returned directly so every view shares
+  // the one keyed .page-enter wrapper below. Keying the wrapper instead of
+  // this component matters: CompanyPortal owns the fetched listings and
+  // applicants, and remounting it on each nav would refetch them.
+  function body() {
+    if (activeView === 'Listings') {
+      return (
+        <CompanyListings
+          applicants={applicants}
+          listings={listings}
+          verification={verification}
+          onCreate={handleCreate}
+          onSetStatus={handleSetStatus}
+          onDelete={handleDelete}
+          highlightedListingId={highlightedListingId}
+        />
+      )
+    }
+    if (activeView === 'Applicants') {
+      return (
+        <CompanyApplicants
+          applicants={applicants}
+          listings={listings}
+          onSetStatus={handleApplicantStatus}
+          onScheduleInterview={handleScheduleInterview}
+          onReviewSubmission={handleReviewSubmission}
+          highlightedApplicantId={highlightedApplicantId}
+        />
+      )
+    }
+    if (activeView === 'Profile') {
+      return <CompanyProfileView />
+    }
+
     return (
-      <CompanyListings
+      <CompanyDashboard
         applicants={applicants}
         listings={listings}
-        verification={verification}
-        onCreate={handleCreate}
-        onSetStatus={handleSetStatus}
-        onDelete={handleDelete}
+        onNavigate={onNavigate}
+        onHighlightListing={(id) => { setHighlightedListingId(id); if (id) setTimeout(() => setHighlightedListingId(null), 3000); }}
+        onHighlightApplicant={(id) => { setHighlightedApplicantId(id); if (id) setTimeout(() => setHighlightedApplicantId(null), 3000); }}
       />
     )
-  }
-  if (activeView === 'Applicants') {
-    return (
-      <CompanyApplicants
-        applicants={applicants}
-        listings={listings}
-        onSetStatus={handleApplicantStatus}
-        onReviewSubmission={handleReviewSubmission}
-      />
-    )
-  }
-  if (activeView === 'Profile') {
-    return <CompanyProfileView />
   }
 
   return (
-    <CompanyDashboard applicants={applicants} listings={listings} onNavigate={onNavigate} />
+    <div className="page-enter" key={activeView}>
+      {body()}
+    </div>
   )
 }

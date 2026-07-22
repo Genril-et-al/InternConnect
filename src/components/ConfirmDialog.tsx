@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 
+import { useScrollLock } from '../lib/useScrollLock'
+
 type ConfirmDialogProps = {
   open: boolean
   title: string
@@ -28,6 +30,10 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null)
+
+  // Renders null while closed, so the lock has to follow `open` rather than
+  // the component's lifetime.
+  useScrollLock(open)
 
   useEffect(() => {
     if (!open) return

@@ -29,7 +29,7 @@ const APPLICANT_STATUS_FROM_DB: Record<string, ApplicantStatus> = {
   pending: 'Pending',
   under_review: 'Reviewed',
   shortlisted: 'Reviewed',
-  interview_scheduled: 'Reviewed',
+  interview_scheduled: 'Interview Scheduled',
   accepted: 'Accepted',
   rejected: 'Rejected',
 }
@@ -37,6 +37,7 @@ const APPLICANT_STATUS_FROM_DB: Record<string, ApplicantStatus> = {
 const APPLICANT_STATUS_TO_DB: Record<ApplicantStatus, string> = {
   Pending: 'pending',
   Reviewed: 'under_review',
+  'Interview Scheduled': 'interview_scheduled',
   Accepted: 'accepted',
   Rejected: 'rejected',
 }
@@ -141,11 +142,21 @@ export async function setListingStatus(
   listingId: string,
   status: CompanyListing['status'],
 ): Promise<void> {
+  const dbStatus = LISTING_STATUS_TO_DB[status]
   const { error } = await supabase
     .from('listings')
-    .update({ status: LISTING_STATUS_TO_DB[status] })
+    .update({ status: dbStatus })
     .eq('id', listingId)
   if (error) throw new Error(error.message)
+
+  if (dbStatus === 'closed') {
+    const { error: appError } = await supabase
+      .from('applications')
+      .update({ status: 'expired' })
+      .eq('listing_id', listingId)
+      .in('status', ['pending', 'under_review', 'shortlisted', 'interview_scheduled'])
+    if (appError) throw new Error(appError.message)
+  }
 }
 
 export async function deleteListing(listingId: string): Promise<void> {
@@ -160,6 +171,7 @@ type ApplicantProfile = {
   skills: string[]
   specializations: string[]
   resume_url: string | null
+  cover_letter_url: string | null
   portfolio_link: string | null
   portfolio_file_url: string | null
 }
@@ -169,8 +181,8 @@ type ApplicantRow = {
   listing_id: string
   student_id: string
   status: string
-  cover_letter: string | null
   feedback: string | null
+  next_step: string | null
   created_at: string
   listings: {
     title: string
@@ -190,7 +202,7 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
   const { data, error } = await supabase
     .from('applications')
     .select(
-      'id, listing_id, student_id, status, cover_letter, feedback, created_at, ' +
+      'id, listing_id, student_id, status, feedback, next_step, created_at, ' +
         'listings!inner(title, skills, company_id, listing_requirements(id, name)), ' +
         'requirement_submissions(id, requirement_id, status, file_path, text_value)',
     )
@@ -208,7 +220,7 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
   if (studentIds.length > 0) {
     const { data: profiles, error: profilesError } = await supabase
       .from('applicant_profiles')
-      .select('id, full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url')
+      .select('id, full_name, email, skills, specializations, resume_url, cover_letter_url, portfolio_link, portfolio_file_url')
       .in('id', studentIds)
     if (profilesError) throw new Error(profilesError.message)
     for (const p of (profiles ?? []) as ApplicantProfile[]) profileById.set(p.id, p)
@@ -258,8 +270,10 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
       resume: profile?.resume_url ?? '',
       portfolioLink: profile?.portfolio_link ?? undefined,
       portfolioFile: profile?.portfolio_file_url ?? undefined,
-      coverLetter: r.cover_letter ?? '',
+      // Cover letters are files on the student's profile now, not typed text.
+      coverLetterFile: profile?.cover_letter_url ?? undefined,
       feedback: r.feedback ?? undefined,
+      nextStep: r.next_step ?? undefined,
       submittedRequirements: submitted,
     }
   })
@@ -271,13 +285,40 @@ export async function updateApplicationStatus(
   status: ApplicantStatus,
   feedback?: string,
 ): Promise<void> {
-  const { error } = await supabase
-    .from('applications')
-    .update({
-      status: APPLICANT_STATUS_TO_DB[status],
-      feedback: feedback ?? null,
-    })
-    .eq('id', applicationId)
+  // feedback is left off entirely when not supplied, rather than written as
+  // null — an accept/reject with no note must not wipe an existing one.
+  const payload: { status: string; feedback?: string } = {
+    status: APPLICANT_STATUS_TO_DB[status],
+  }
+  if (feedback !== undefined) payload.feedback = feedback
+
+
+  const { error } = await supabase.from('applications').update(payload).eq('id', applicationId)
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * What the company fills in when scheduling an interview. Stored as JSON on
+ * the application's next_step, so the shape is the contract with the student
+ * side that renders it.
+ */
+export type InterviewDetails = {
+  date: string
+  time: string
+  mode: 'online' | 'in-person'
+  /** A meeting URL when online, a street address when in-person. */
+  locationOrLink: string
+}
+
+export async function scheduleInterview(
+  applicationId: string,
+  interviewDetails: InterviewDetails,
+): Promise<void> {
+  const payload = {
+    status: 'interview_scheduled',
+    next_step: JSON.stringify(interviewDetails),
+  }
+  const { error } = await supabase.from('applications').update(payload).eq('id', applicationId)
   if (error) throw new Error(error.message)
 }
 

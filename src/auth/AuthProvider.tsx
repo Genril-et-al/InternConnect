@@ -7,6 +7,12 @@ import { fetchProfile, logout as authLogout } from '../lib/auth'
 import { AuthContext } from './context'
 import type { AuthState } from './context'
 
+// Kept in step with .signout-veil in auth.css — the veil's fade-in has to have
+// finished before the session is cleared, and it must stay mounted for the
+// whole of its fade-out.
+const VEIL_IN_MS = 400
+const VEIL_OUT_MS = 420
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -15,6 +21,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [demoProfile, setDemoProfile] = useState<Profile | null>(null)
   // Set once a recovery code is verified (see beginRecovery below).
   const [recovery, setRecovery] = useState(false)
+  // Sign-out veil: 'out' covers the workspace while the session is torn down,
+  // 'fading' holds it over the freshly mounted login screen for one fade so the
+  // two never swap in a single frame. See signOut below.
+  const [signOutPhase, setSignOutPhase] = useState<'idle' | 'out' | 'fading'>('idle')
 
   async function loadProfile(userId: string | undefined) {
     if (!userId) {
@@ -78,21 +88,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       beginRecovery: () => setRecovery(true),
       endRecovery: () => setRecovery(false),
       refreshProfile: () => loadProfile(session?.user.id),
+      signingOut: signOutPhase !== 'idle',
       signOut: async () => {
-        if (demoProfile) {
-          setDemoProfile(null)
-          return
+        if (signOutPhase !== 'idle') return
+        setSignOutPhase('out')
+        // The veil needs a moment to cover the workspace before the session
+        // disappears underneath it — without the floor, a fast sign-out swaps
+        // the workspace for the login screen while the veil is still ramping
+        // in, which is the jump this whole thing exists to remove. Demo mode
+        // is synchronous and would otherwise flash the veil for one frame.
+        const covered = new Promise((resolve) => setTimeout(resolve, VEIL_IN_MS))
+        try {
+          if (demoProfile) {
+            await covered
+            setDemoProfile(null)
+          } else {
+            await Promise.all([authLogout(), covered])
+            setSession(null)
+            setProfile(null)
+            setRecovery(false)
+          }
+        } catch (err) {
+          // Sign-out failed — drop the veil and leave the user where they were
+          // rather than stranding them behind it.
+          setSignOutPhase('idle')
+          throw err
         }
-        await authLogout()
-        setSession(null)
-        setProfile(null)
-        setRecovery(false)
+        // The login screen mounts on this render; hold the veil over it for one
+        // fade so it dissolves into the new page instead of being cut away.
+        setSignOutPhase('fading')
+        setTimeout(() => setSignOutPhase('idle'), VEIL_OUT_MS)
       },
       enterDemo: (p: Profile) => setDemoProfile(p),
       updateProfileLocal: (patch: Partial<Profile>) =>
         setDemoProfile((prev) => (prev ? { ...prev, ...patch } : prev)),
     }
-  }, [session, profile, loading, demoProfile, recovery])
+  }, [session, profile, loading, demoProfile, recovery, signOutPhase])
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {/* Rendered here rather than in App so it covers every shell that offers
+          a sign-out — student, company, admin, and profile setup — without each
+          one having to thread the state through its own early returns. */}
+      {signOutPhase !== 'idle' && (
+        <div
+          aria-live="polite"
+          className={`auth-loading signout-veil${signOutPhase === 'fading' ? ' leaving' : ''}`}
+          role="status"
+        >
+          <span className="ic-spinner" aria-hidden="true" />
+          <p>Signing you out…</p>
+        </div>
+      )}
+    </AuthContext.Provider>
+  )
 }

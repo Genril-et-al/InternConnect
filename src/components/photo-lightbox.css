@@ -1,0 +1,44 @@
+/* Photo preview. An ordinary modal — .modal-overlay supplies the backdrop and
+   fade, .modal-panel the card, its rise, radius, shadow and padding. Only the
+   parts specific to showing a photo live here. */
+
+.photo-lightbox {
+  /* Above .signout-veil (2000), so a preview left open while the user signs
+     out is covered by the veil rather than punching through it. */
+  z-index: 1500;
+}
+
+/* Narrower than the 560px default: a photo needs less width than a form, and
+   the panel reads better close to the picture than floating around it. */
+.modal-panel.photo-lightbox-panel {
+  gap: 12px;
+  max-width: 480px;
+}
+
+/* Top-left, in the panel's flow, like the close button on ProgressModal.
+   Without align-self the column's default stretch would pull it full width. */
+.photo-lightbox-close {
+  align-self: flex-start;
+}
+
+/* A fixed stage rather than sizing the image itself. object-fit then scales any
+   photo to fit it — a small avatar UP as well as a large one down, neither
+   distorted — which max-width/max-height alone never did, since they only ever
+   clamp. Whatever margin the aspect ratio leaves is white against the white
+   panel, so it reads as a photo in a frame rather than as a letterbox. */
+.photo-lightbox-stage {
+  align-items: center;
+  display: flex;
+  /* svh, not vh: vh resolves against the largest viewport, so a panel sized in
+     vh is taller than the screen while mobile browser chrome is showing. */
+  height: min(400px, 50svh);
+  justify-content: center;
+  width: 100%;
+}
+
+.photo-lightbox-image {
+  border-radius: 8px;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}

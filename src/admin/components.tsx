@@ -7,7 +7,7 @@ export function AdBadge({
   text: string
   variant: 'success' | 'pending' | 'rejected' | 'neutral'
 }) {
-  return <span className={`ad-badge ${variant}`}>{text}</span>
+  return <span className={`ic-badge ${variant}`}>{text}</span>
 }
 
 export function AdSearch({
@@ -20,7 +20,7 @@ export function AdSearch({
   placeholder?: string
 }) {
   return (
-    <div className="ad-search">
+    <div className="ic-search">
       <Search size={14} />
       <input
         onChange={(e) => onChange(e.target.value)}

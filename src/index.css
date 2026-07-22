@@ -21,23 +21,56 @@
   --text-muted: #9a7a6e;
   --text-strong: #1c0a04;
 
+  /* Second names for the tokens above, and two shadows.
+     All of these were already referenced across the app — 37 call sites in
+     App.css, App.tsx, dashboard.css, AdminStudents, CompanyApplicants and
+     CompanyListings — but none was ever defined. An undefined custom property
+     is invalid at computed-value time, so every one of those rules quietly
+     rendered nothing: the backgrounds fell back to transparent and the muted
+     text inherited its parent's colour, which is what made the company listing
+     preview read as one flat opaque slab.
+
+     Defining them is the small fix; renaming 34 sites is the tidy one. These
+     are aliases rather than new colours precisely so the tidy version stays
+     available later — nothing here introduces a value the palette didn't
+     already have. (--border-light is the same bug and is deliberately NOT
+     aliased here: App.css:1942 documents the decision to spell it --border at
+     the call sites instead.) */
+  --bg: #faf9f6;                      /* the page cream, as on body */
+  --bg-subtle: var(--surface-strong); /* input and row fills */
+  --brand-sand: var(--accent-soft);   /* skill chips */
+  --text-light: var(--text-muted);
+  --text-main: var(--text);
+
+  /* Darkened --brand-orange, for bold text that has to hold up on white where
+     #e76814 is too light to read (4.6:1 against white, vs 3.1:1). */
+  --brand-orange-dark: #c2560f;
+
+  --shadow-sm: 0 1px 3px rgba(28, 10, 4, 0.08);
+  --shadow-md: 0 8px 24px rgba(28, 10, 4, 0.12);
+
   /* Motion tokens — one easing curve + a small duration scale keep every
      transition/animation in the app feeling like it comes from one place.
      --ease-out is a soft "settle" curve for enter/hover/expand motion. */
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.33, 0.08, 0.24, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-1: 140ms;
-  --dur-2: 220ms;
-  --dur-3: 320ms;
+  --dur-1: 260ms;
+  --dur-2: 420ms;
+  --dur-3: 600ms;
 
   /* Background watermark — the brand mark ghosted behind page content in both
      shells. It is NOT drawn with opacity on a pseudo-element: that needs
      `isolation` on the container, which would trap the z-index:1000
      .modal-overlay in a new stacking context and paint it under the sidebar.
      Instead the logo is a background layer with an almost-opaque wash of the
-     page colour painted over it — the same trick .workspace already uses for
-     hero.png. Lower the wash alpha to make the mark stronger. */
+     page colour painted over it. Lower the wash alpha to make the mark
+     stronger. */
   --wm-size: min(620px, 46vw);
+
+  /* Scrollbar thumb — the page text colour at low alpha, so the bar reads as
+     part of the page rather than as OS chrome sitting on top of it. */
+  --scrollbar-thumb: rgba(113, 66, 54, 0.32);
+  --scrollbar-thumb-hover: rgba(113, 66, 54, 0.55);
 
   --font-display: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-family: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system,
@@ -62,6 +95,58 @@
    the red brand panel visibly jumps narrower as you move between steps. */
 html {
   scrollbar-gutter: stable;
+}
+
+/* Scrollbars. Without these, every scrollable surface — the page, modal bodies,
+   dropdown menus, the admin sidebar and its tables — falls back to whatever the
+   OS draws, which on Windows is a wide grey bar with stepper arrows that looks
+   nothing like the rest of the app.
+
+   The two syntaxes below are deliberately mutually exclusive. Blink ignores the
+   ::-webkit-scrollbar pseudo-elements entirely on any element that also sets
+   scrollbar-width or scrollbar-color, so declaring both would leave the webkit
+   block dead wherever the standard properties are supported — and subtly
+   different where they are not. @supports picks exactly one path. */
+@supports (scrollbar-width: thin) {
+  * {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+@supports not (scrollbar-width: thin) {
+  ::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* The transparent border plus padding-box clipping insets the thumb from the
+     track edges, which is what gives it the floating pill shape. */
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    background-clip: padding-box;
+  }
+
+  /* The stepper arrows at each end of the track are the most obviously
+     OS-flavoured part of the native bar. */
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 body {
@@ -90,19 +175,80 @@ canvas {
   max-width: 100%;
 }
 
+/* Long text is split into two jobs, because one rule cannot do both well.
+
+   1. Containment. `overflow-wrap: break-word` lets a word that genuinely does
+      not fit break rather than push the layout sideways. It only fires as a
+      last resort, so ordinary prose is untouched.
+
+      `a`/`td`/`th`/`li` get `anywhere` instead: these are where the unbroken
+      tokens live (email addresses, URLs, uploaded filenames, ids). The
+      difference between the two is not when they break — both break only when
+      the word overflows — but that `anywhere` also shrinks the element's
+      min-content width, which is what stops such a token from widening a grid
+      track or a flex item in the first place. It replaces the non-standard
+      `word-break: break-word` that used to be here, which meant the same thing
+      but did nothing at all in Firefox.
+
+      `span` is deliberately NOT in that list, even though it holds plenty of
+      long text. It is also what wraps every short atomic value in the app —
+      stat numbers, badges, percentages — and there the min-content collapse
+      backfires: a flex sibling squeezes the span to a character or two and
+      "100%" breaks across two lines. Atomic values are covered by the nowrap
+      rule below; anything in a span that genuinely needs to break is inside a
+      block that already breaks.
+
+   2. Where the break lands. Without this, a heading narrowed to a phone
+      routinely leaves one orphaned word on its own line, and a paragraph ends
+      on a single short word — the thing that reads as "awkward" long before
+      any actual overflow does. `balance` evens the lines of a short heading;
+      `pretty` only fixes up the last line or two, which is the right trade for
+      body copy of unknown length. */
 h1,
 h2,
 h3,
 p,
-span,
-a,
 strong,
-label,
+label {
+  overflow-wrap: break-word;
+}
+
+a,
 li,
 td,
 th {
-  overflow-wrap: break-word;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
+/* Atomic values — a stat number, a percentage, a match score. These are one
+   token that happens to contain a digit/symbol boundary a line breaker is
+   happy to split at, so a flex row that runs short will render "100" over "%".
+   They are all a handful of characters wide; refusing to wrap them costs
+   nothing and `flex-shrink: 0` stops a long-labelled sibling from squeezing
+   them below their own width in the first place. */
+.sd-big-number,
+.sd-stat-value,
+.ic-stat-value,
+.ic-stat-card-value,
+.ic-quick-value,
+.cp-stat-value,
+.progress-pct,
+.metric strong {
+  flex-shrink: 0;
+  overflow-wrap: normal;
+  white-space: nowrap;
 }
 
 a {
@@ -164,6 +310,101 @@ a {
   margin-top: 8px;
   min-height: 44px;
   padding: 0 22px;
+}
+
+/* Page-to-page transition. There is no router — views are swapped by an
+   `activeView` / `active` state check, so the outgoing view is gone from the
+   DOM in the same frame the incoming one appears. That means no exit
+   animation is possible without keeping both mounted; the incoming view
+   animating itself in is what smooths the switch. The wrapper carries a
+   `key` of the active view (App.tsx, AdminApp.tsx) so React remounts it on
+   every switch and the animation re-runs.
+
+   `backwards`, NOT `both`. A forwards fill holds the `to` keyframe, and
+   `transform: none` in a keyframe computes to the identity *matrix*, not the
+   keyword — `getComputedStyle` reads back `matrix(1, 0, 0, 1, 0, 0)` forever
+   after. A transform of any value, identity included, makes the element the
+   containing block for `position: fixed` descendants, so every modal opened
+   inside a view was sized and centred against this wrapper instead of the
+   viewport. The wrapper's box is zero-height here (its only in-flow content is
+   the view, and an overlay is out of flow), which is why the overlay landed
+   halfway down the scrolled page rather than over it.
+
+   Dropping the forwards fill costs nothing: the end state is identical to the
+   element's natural state. `backwards` still covers the real need, which is
+   holding the `from` state during the frame before the animation starts. */
+.page-enter {
+  animation: page-enter var(--dur-3) var(--ease-out) backwards;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Swapping a view for a sibling *within* the same activeView — the internship
+   list for its detail page and back again. .page-enter cannot cover this: its
+   key is the activeView, which does not change here, so the wrapper never
+   remounts and the swap landed with no animation at all while every sidebar
+   navigation had one.
+
+   These roots are different element types at the same position, so React
+   unmounts one and mounts the other on its own — no key is needed, mounting is
+   what runs the animation.
+
+   Deliberately lighter than .page-enter, and not simply that class reused:
+   this element is nested INSIDE the .page-enter wrapper, so on entering the
+   section from the sidebar both animations run at once. Two 10px rises would
+   compound into a 20px slide and two opacity ramps would multiply. A fade with
+   a 4px rise disappears into the outer motion when they coincide, and still
+   reads as movement on its own when only this one plays.
+
+   `backwards` for the same reason as .page-enter above — a forwards fill would
+   leave an identity transform on the wrapper and trap every fixed overlay
+   rendered inside it. */
+.view-swap {
+  animation: view-swap var(--dur-2) var(--ease-out) backwards;
+}
+
+@keyframes view-swap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Dropdowns and popovers. Scaled up from the corner nearest whatever opened
+   them so the motion reads as the panel growing out of its trigger — override
+   `transform-origin` per menu when the trigger is not at the top right.
+   Shorter than .page-enter: a menu is a small surface reacting to a direct
+   click, so it should settle well before the pointer moves to pick an item. */
+.menu-pop {
+  animation: menu-pop var(--dur-2) var(--ease-out) both;
+  transform-origin: top right;
+}
+
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Respect users who ask for less motion: neutralise transitions/animations

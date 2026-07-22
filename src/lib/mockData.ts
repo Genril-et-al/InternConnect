@@ -9,8 +9,12 @@ export type ApplicationStatus =
   | 'Under review'
   | 'Shortlisted'
   | 'Interview scheduled'
+  | 'Offered'
   | 'Accepted'
   | 'Rejected'
+  | 'Discarded'
+  | 'Withdrawn'
+  | 'Expired'
 
 export type Internship = {
   id: string
@@ -53,7 +57,6 @@ export type Application = {
   dateApplied: string
   status: ApplicationStatus
   nextStep: string
-  coverLetter?: string
   requirements?: PreEmploymentRequirement[]
   approvedRequirements?: number
 }

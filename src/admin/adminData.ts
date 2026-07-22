@@ -22,6 +22,7 @@ export type AdminStudent = {
   program?: string
   year?: string
   phone?: string
+  skills?: string[]
   // Recorded when an admin deactivates the account; cleared on reactivation.
   deactivationReason?: string
   deactivatedAt?: string
@@ -38,6 +39,8 @@ export type AdminCompany = {
   docs: number
   submitted: string
   listings: number
+  location?: string
+  tier?: string
 }
 
 export type AdminListing = {
@@ -50,6 +53,9 @@ export type AdminListing = {
   applicants: number
   posted: string
   deadline: string
+  setup?: 'onsite' | 'remote' | 'hybrid'
+  isPaid?: boolean
+  isFullTime?: boolean
 }
 
 export type AdminAppStats = {
@@ -60,6 +66,8 @@ export type AdminAppStats = {
   accepted: number
   pending: number
   rejected: number
+  placementRate: number
+  avgProcessingTimeDays: number
 }
 
 export const EMPTY_APP_STATS: AdminAppStats = {
@@ -69,4 +77,6 @@ export const EMPTY_APP_STATS: AdminAppStats = {
   accepted: 0,
   pending: 0,
   rejected: 0,
+  placementRate: 0,
+  avgProcessingTimeDays: 0,
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  ArrowLeft,
   Briefcase,
   Bookmark,
   CheckCircle2,
@@ -7,9 +8,13 @@ import {
   Menu,
   FileText,
   LayoutDashboard,
+  Link2,
   LogOut,
   Search,
+  Upload,
   Users,
+  X,
+  XCircle,
 } from 'lucide-react'
 import './App.css'
 import { useAuth } from './auth/context'
@@ -19,7 +24,7 @@ import { ProfileSetup } from './profile/ProfileSetup'
 import { StudentDashboard } from './dashboard/StudentDashboard'
 import { AdminApp } from './admin/AdminApp'
 import { CompanyPortal } from './company/CompanyPortal'
-import type { Internship, Application } from './lib/mockData'
+import type { Internship, Application, ApplicationStatus } from './lib/mockData'
 import {
   applyToListing,
   fetchBookmarks,
@@ -27,14 +32,20 @@ import {
   fetchOpenListings,
   matchPool,
   setBookmarked,
+  acceptOffer,
+  rejectOffer,
+  withdrawAcceptance,
   submitRequirementFile,
   submitRequirementText,
 } from './lib/listingsApi'
 import type { PreEmploymentRequirement } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
+import { useScrollLock } from './lib/useScrollLock'
 import { SignOutButton } from './components/SignOutButton'
 import { Avatar } from './components/Avatar'
+import { Dropdown } from './components/Dropdown'
 import { signedDocumentUrl } from './lib/profile'
+import { requestLeave } from './lib/unsavedGuard'
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 // Profile isn't a nav item — users open their own profile from the account
@@ -55,6 +66,27 @@ function App() {
   const { session, profile, loading, recovery, signOut } = useAuth()
   const [activeView, setActiveView] = useState('Dashboard')
   const [collapsed, toggleCollapsed] = useSidebarCollapsed()
+
+  // App stays mounted across sign-out — the login screen is a branch of this
+  // render, not a separate tree — so activeView would otherwise survive into the
+  // next session and drop whoever signs in next wherever the last user left off
+  // (usually Profile, opened from the account card). Reset on every change of
+  // user. Done during render rather than in an effect so the first painted frame
+  // is already the Dashboard, with no flash of the stale view.
+  const userId = session?.user.id ?? null
+  const [lastUserId, setLastUserId] = useState(userId)
+  if (userId !== lastUserId) {
+    setLastUserId(userId)
+    setActiveView('Dashboard')
+  }
+
+  // Every view switch goes through here so a form holding unsaved work (the
+  // profile editor) can confirm before it's discarded. When nothing is
+  // unsaved the switch happens immediately.
+  function requestView(view: string) {
+    if (view === activeView) return
+    requestLeave(() => setActiveView(view))
+  }
 
   // Auth gate — resolve the session before deciding what to render.
   if (loading) {
@@ -121,16 +153,16 @@ function App() {
 
   return (
     <main className={`app-shell${collapsed ? ' sb-collapsed' : ''}`}>
-      <aside className="ad-sidebar" aria-label="Main navigation">
-        <div className="ad-brand">
-          <img className="ad-logo" src="/logo.png" alt="InternConnect" />
-          <div className="ad-brand-text">
-            <div className="ad-brand-name">InternConnect</div>
-            <div className="ad-brand-sub">{portalLabel}</div>
+      <aside className="ic-sidebar" aria-label="Main navigation">
+        <div className="ic-brand">
+          <img className="ic-logo" src="/logo.png" alt="InternConnect" />
+          <div className="ic-brand-text">
+            <div className="ic-brand-name">InternConnect</div>
+            <div className="ic-brand-sub">{portalLabel}</div>
           </div>
           <button
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="ad-collapse"
+            className="ic-collapse"
             onClick={toggleCollapsed}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             type="button"
@@ -139,45 +171,45 @@ function App() {
           </button>
         </div>
 
-        <nav className="ad-nav">
+        <nav className="ic-nav">
           {navItems.map((item) => {
             const Icon = item.icon
             return (
               <button
                 className={activeView === item.label ? 'active' : ''}
                 key={item.label}
-                onClick={() => setActiveView(item.label)}
+                onClick={() => requestView(item.label)}
                 title={item.label}
                 type="button"
               >
-                <Icon size={16} /> <span className="ad-nav-label">{item.label}</span>
+                <Icon size={16} /> <span className="ic-nav-label">{item.label}</span>
               </button>
             )
           })}
         </nav>
 
-        <div className="ad-user">
+        <div className="ic-user">
           <button
-            className={`ad-user-trigger${activeView === 'Profile' ? ' active' : ''}`}
-            onClick={() => setActiveView('Profile')}
+            className={`ic-user-trigger${activeView === 'Profile' ? ' active' : ''}`}
+            onClick={() => requestView('Profile')}
             title="View your profile"
             type="button"
           >
-            <Avatar className="ad-user-avatar" name={displayName} photoUrl={profile.photo_url} />
-            <div className="ad-user-main">
-              <p className="ad-user-name">{displayName}</p>
-              <p className="ad-user-role">{roleLabel}</p>
+            <Avatar className="ic-user-avatar" name={displayName} photoUrl={profile.photo_url} />
+            <div className="ic-user-main">
+              <p className="ic-user-name">{displayName}</p>
+              <p className="ic-user-role">{roleLabel}</p>
             </div>
           </button>
-          <SignOutButton ariaLabel="Sign out" className="ad-signout">
+          <SignOutButton ariaLabel="Sign out" className="ic-signout">
             <LogOut size={15} />
           </SignOutButton>
         </div>
       </aside>
 
       <section className="workspace">
-        {role === 'student' && <StudentPortal activeView={activeView} onNavigate={setActiveView} />}
-        {role === 'company' && <CompanyPortal activeView={activeView} onNavigate={setActiveView} />}
+        {role === 'student' && <StudentPortal activeView={activeView} onNavigate={requestView} />}
+        {role === 'company' && <CompanyPortal activeView={activeView} onNavigate={requestView} />}
       </section>
     </main>
   )
@@ -194,6 +226,7 @@ function StudentPortal({
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null)
   const [applicationFilter, setApplicationFilter] = useState('All')
   const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null)
+  const [highlightedAppId, setHighlightedAppId] = useState<string | null>(null)
 
   // Live data — listings, my applications, my bookmarks (UC-S03..S05).
   const [internships, setInternships] = useState<Internship[]>([])
@@ -203,30 +236,47 @@ function StudentPortal({
   const [loadError, setLoadError] = useState<string | null>(null)
 
   const userId = profile?.id
-  const skills = profile?.skills
-  const specializations = profile?.specializations
+  // Compared by value, not reference: every refreshProfile() hands back a new
+  // profile object with new (but usually identical) arrays, and keying the
+  // refresh on those references made the whole portal flip back to its loading
+  // state — unmounting whatever view the student was working in.
+  const matchKey = JSON.stringify([profile?.skills ?? [], profile?.specializations ?? []])
 
-  const refresh = useCallback(async () => {
-    if (!userId) return
-    const [l, a, b] = await Promise.all([
-      // Match against the full profile pool: resume-extracted skills plus any
-      // manually added skills and specializations.
-      fetchOpenListings(matchPool(skills, specializations)),
-      fetchMyApplications(userId),
-      fetchBookmarks(userId),
-    ])
-    setInternships(l)
-    setApplications(a)
-    setBookmarkedIds(b)
-  }, [userId, skills, specializations])
+  const refresh = useCallback(
+    async (onPartialListings?: (listings: Internship[]) => void) => {
+      if (!userId) return
+      const [skills, specializations] = JSON.parse(matchKey) as [string[], string[]]
+      const [l, a, b] = await Promise.all([
+        // Match against the full profile pool: resume-extracted skills plus any
+        // manually added skills and specializations.
+        fetchOpenListings(matchPool(skills, specializations), onPartialListings),
+        fetchMyApplications(userId),
+        fetchBookmarks(userId),
+      ])
+      setInternships(l)
+      setApplications(a)
+      setBookmarkedIds(b)
+    },
+    [userId, matchKey],
+  )
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      setLoading(true)
+      // `loading` starts true and is cleared in the finally below, so only the
+      // first load shows the spinner. Later refetches (a profile save, an
+      // apply) swap the data in underneath whatever view is open rather than
+      // unmounting it.
       setLoadError(null)
       try {
-        await refresh()
+        // Listings arrive in chunks. Show the board as soon as the first one
+        // lands instead of holding the spinner until every listing is in —
+        // the remaining chunks re-rank underneath the student.
+        await refresh((partial) => {
+          if (cancelled) return
+          setInternships(partial)
+          setLoading(false)
+        })
       } catch (err) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load internships.')
       } finally {
@@ -268,9 +318,9 @@ function StudentPortal({
   const openProgress = (app: Application) => setSelectedAppId(app.id)
 
   const handleApply = useCallback(
-    async (listingId: string, coverLetter: string) => {
+    async (listingId: string) => {
       if (!userId) throw new Error('Not signed in.')
-      await applyToListing(userId, listingId, coverLetter)
+      await applyToListing(userId, listingId)
       await refresh()
     },
     [userId, refresh],
@@ -295,39 +345,48 @@ function StudentPortal({
 
   return (
     <>
-      {activeView === 'Browse Internships' && (
-        <BrowseInternships
-          internships={internships}
-          appliedIds={new Set(applications.map((a) => a.internshipId))}
-          bookmarkedIds={bookmarkedIds}
-          onToggleBookmark={handleToggleBookmark}
-          onApply={handleApply}
-          selectedInternship={selectedInternship}
-          onSelectInternship={setSelectedInternship}
-        />
-      )}
-      {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} />}
-      {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => handleNavigate('Dashboard')} />}
-      {activeView === 'Dashboard' && (
-        <StudentDashboard
-          internships={internships}
-          applications={applications}
-          onNavigate={handleNavigate}
-          onOpenProgress={openProgress} 
-          onFilterApplications={(filter) => {
-            setApplicationFilter(filter)
-            onNavigate('Applications') // Use raw onNavigate so we don't reset
-          }}
-          onOpenInternship={(id) => {
-            const internship = internships.find(i => i.id === id)
-            if (internship) {
-              setSelectedInternship(internship)
-              onNavigate('Browse Internships')
-            }
-          }}
-        />
-      )}
-      
+      {/* Keyed on the view so each switch remounts this wrapper and replays
+          the enter animation. The progress modal stays outside it — it is an
+          overlay, not part of the page being navigated to. */}
+      <div className="page-enter" key={activeView}>
+        {activeView === 'Browse Internships' && (
+          <BrowseInternships
+            internships={internships}
+            appliedIds={new Set(applications.map((a) => a.internshipId))}
+            bookmarkedIds={bookmarkedIds}
+            onToggleBookmark={handleToggleBookmark}
+            onApply={handleApply}
+            selectedInternship={selectedInternship}
+            onSelectInternship={setSelectedInternship}
+          />
+        )}
+        {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} highlightedAppId={highlightedAppId} />}
+        {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => handleNavigate('Dashboard')} />}
+        {activeView === 'Dashboard' && (
+          <StudentDashboard
+            internships={internships}
+            applications={applications}
+            onNavigate={handleNavigate}
+            onOpenProgress={openProgress}
+            onFilterApplications={(filter) => {
+              setApplicationFilter(filter)
+              onNavigate('Applications') // Use raw onNavigate so we don't reset
+            }}
+            onOpenInternship={(id) => {
+              const internship = internships.find(i => i.id === id)
+              if (internship) {
+                setSelectedInternship(internship)
+                onNavigate('Browse Internships')
+              }
+            }}
+            onHighlightApplication={(id) => {
+              setHighlightedAppId(id)
+              if (id) setTimeout(() => setHighlightedAppId(null), 3000)
+            }}
+          />
+        )}
+      </div>
+
       {selectedApp && (
         <ProgressModal
           application={selectedApp}
@@ -367,11 +426,12 @@ function BrowseInternships({
   appliedIds: Set<string>
   bookmarkedIds: Set<string>
   onToggleBookmark: (listingId: string) => void
-  onApply: (listingId: string, coverLetter: string) => Promise<void>
+  onApply: (listingId: string) => Promise<void>
   selectedInternship: Internship | null
   onSelectInternship: (internship: Internship | null) => void
 }) {
   const [query, setQuery] = useState('')
+  const [searchField, setSearchField] = useState('All')
   const [matchFilter, setMatchFilter] = useState('All')
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
@@ -380,10 +440,14 @@ function BrowseInternships({
     const pillMin = matchThresholds[matchFilter] ?? 0
 
     return internships.filter((internship) => {
-      const matchesQuery = [internship.title, internship.company, internship.industry, ...internship.skills, internship.location]
-        .join(' ')
-        .toLowerCase()
-        .includes(query.toLowerCase())
+      let textToSearch: string;
+      if (searchField === 'Title') textToSearch = internship.title
+      else if (searchField === 'Company') textToSearch = internship.company
+      else if (searchField === 'Location') textToSearch = internship.location
+      else if (searchField === 'Skill') textToSearch = internship.skills.join(' ')
+      else textToSearch = [internship.title, internship.company, internship.industry, ...internship.skills, internship.location].join(' ')
+
+      const matchesQuery = textToSearch.toLowerCase().includes(query.toLowerCase())
       // An unscored listing can only satisfy the "All" pill.
       const matchesScore = internship.match === null 
         ? pillMin === 0 
@@ -391,7 +455,7 @@ function BrowseInternships({
       const matchesBookmarks = !showBookmarksOnly || bookmarkedIds.has(internship.id)
       return matchesQuery && matchesScore && matchesBookmarks
     })
-  }, [internships, query, matchFilter, showBookmarksOnly, bookmarkedIds])
+  }, [internships, query, searchField, matchFilter, showBookmarksOnly, bookmarkedIds])
 
   // Nothing could be scored — the profile carries no skills the AI or the
   // student has supplied.
@@ -402,20 +466,14 @@ function BrowseInternships({
     onToggleBookmark(id)
   }
 
-  // Detail view — full internship page
-  if (selectedInternship && !showApplyModal) {
-    return (
-      <InternshipDetailView
-        internship={selectedInternship}
-        alreadyApplied={appliedIds.has(selectedInternship.id)}
-        onBack={() => onSelectInternship(null)}
-        onApply={() => setShowApplyModal(true)}
-      />
-    )
-  }
-
-  // Apply modal overlay
-  if (selectedInternship && showApplyModal) {
+  // Detail view — full internship page, with the apply modal layered over it.
+  //
+  // One branch rather than two. Splitting on showApplyModal meant the return
+  // value changed shape — a bare element without the modal, a fragment with it
+  // — which remounts InternshipDetailView on every open and close. That was
+  // invisible until .view-swap gave it a mount animation; now it would replay
+  // the whole enter transition behind the modal each time.
+  if (selectedInternship) {
     return (
       <>
         <InternshipDetailView
@@ -424,17 +482,19 @@ function BrowseInternships({
           onBack={() => onSelectInternship(null)}
           onApply={() => setShowApplyModal(true)}
         />
-        <ApplyModal
-          internship={selectedInternship}
-          onSubmit={(coverLetter) => onApply(selectedInternship.id, coverLetter)}
-          onClose={() => setShowApplyModal(false)}
-        />
+        {showApplyModal && (
+          <ApplyModal
+            internship={selectedInternship}
+            onSubmit={() => onApply(selectedInternship.id)}
+            onClose={() => setShowApplyModal(false)}
+          />
+        )}
       </>
     )
   }
 
   return (
-    <div className="browse-root">
+    <div className="browse-root view-swap">
       {/* Heading */}
       <div className="browse-heading">
         <h2 className="browse-title">Browse Internships</h2>
@@ -461,8 +521,17 @@ function BrowseInternships({
             aria-label="Search internships"
             className="browse-search-input"
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by title, company, skill, or location..."
+            placeholder={searchField === 'All' ? "Search by title, company, skill, or location..." : `Search by ${searchField.toLowerCase()}...`}
             value={query}
+          />
+          <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />
+          <Dropdown
+            align="right"
+            ariaLabel="Search field"
+            onChange={setSearchField}
+            options={['All', 'Location', 'Title', 'Company', 'Skill']}
+            value={searchField}
+            variant="bare"
           />
         </div>
         <button
@@ -518,13 +587,49 @@ function BrowseInternships({
   )
 }
 
-function ApplicationStrip({ application, onClick }: { application: Application; onClick: () => void }) {
-  let statusClass = 'pending'
-  if (application.status === 'Accepted') statusClass = 'success'
-  if (application.status === 'Rejected') statusClass = 'error'
+/**
+ * Statuses that get their own tab on My Applications. Typed as
+ * ApplicationStatus so a renamed status breaks the build rather than leaving a
+ * tab that silently matches nothing -- the filter compares the label against
+ * application.status directly.
+ */
+const FILTER_TABS = ['Pending', 'Accepted', 'Closed']
+const TERMINAL_STATUSES: ApplicationStatus[] = ['Rejected', 'Withdrawn', 'Discarded', 'Expired']
+
+/** Accepted sorts to the top of My Applications; all other statuses hold their order. */
+const statusRank = (status: ApplicationStatus): number => (status === 'Accepted' ? 0 : 1)
+
+/**
+ * Badge colour per status. Keyed by ApplicationStatus rather than matched with
+ * an if-chain so that adding a status to the union fails the build here instead
+ * of silently falling through to the neutral badge -- which is exactly what
+ * happened to 'Withdrawn', styled as if it were still live.
+ */
+/* The variants are .status.success / .warning / .error in App.css — those three
+   and no others. This map used to send Pending and Shortlisted to a `pending`
+   variant that was never written, which left both falling through to bare
+   .status: the grey pill. ProgressModal has always drawn Pending as `warning`
+   (see the badge beside the header card), so the same application read amber in
+   the modal and grey in the strip behind it. Amber in both now — every state
+   that is still in flight is warning, and only the terminal ones are coloured. */
+const STATUS_BADGE: Record<ApplicationStatus, string> = {
+  Pending: 'warning',
+  'Under review': 'warning',
+  Shortlisted: 'warning',
+  'Interview scheduled': 'warning',
+  Offered: 'success',
+  Accepted: 'success',
+  Rejected: 'error',
+  Discarded: 'error',
+  Withdrawn: 'error',
+  Expired: 'error',
+}
+
+function ApplicationStrip({ application, onClick, isHighlighted, isShaded }: { application: Application; onClick: () => void; isHighlighted?: boolean; isShaded?: boolean }) {
+  const statusClass = STATUS_BADGE[application.status] ?? 'warning'
 
   return (
-    <article className="application-strip" role="button" tabIndex={0} onClick={onClick}>
+    <article className={`application-strip ${isHighlighted ? 'highlighted' : ''} ${isShaded ? 'shaded' : ''}`} role="button" tabIndex={0} onClick={isShaded ? undefined : onClick}>
       {application.companyLogo ? (
         <img src={application.companyLogo} alt={application.company} className="strip-avatar" style={{ objectFit: 'contain' }} />
       ) : (
@@ -535,16 +640,9 @@ function ApplicationStrip({ application, onClick }: { application: Application; 
         <p className="strip-subtitle">
           {application.company} · Applied {application.dateApplied}
         </p>
-        <p className="strip-summary">I am passionate about {application.role.toLowerCase()} and eager to contribute to {application.company}.</p>
       </div>
       <div className="strip-right">
         <span className={`status ${statusClass}`}>{application.status}</span>
-        {application.status === 'Pending' && (
-          <button className="strip-edit-btn" type="button" aria-label="Edit" onClick={(e) => { e.stopPropagation() }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-            Edit
-          </button>
-        )}
       </div>
     </article>
   )
@@ -563,13 +661,70 @@ function ProgressModal({
   onSubmitted?: () => void
   onClose: () => void
 }) {
+  useScrollLock()
+
   const internship = useMemo(() => internships.find(i => i.id === application.internshipId), [internships, application.internshipId])
-  
+
+  // In-app confirmation for offer/acceptance actions (replaces window.confirm).
+  const [confirmAction, setConfirmAction] = useState<'accept' | 'decline' | 'withdraw' | null>(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
+
+  const confirmCopy = {
+    accept: {
+      title: 'Accept Offer',
+      message: 'Are you sure you want to accept this offer? All other pending applications and offers will be discarded.',
+      cta: 'Accept Offer',
+      danger: false,
+    },
+    decline: {
+      title: 'Decline Offer',
+      message: 'Are you sure you want to decline this offer?',
+      cta: 'Decline Offer',
+      danger: true,
+    },
+    withdraw: {
+      title: 'Withdraw Acceptance',
+      message: 'Are you sure you want to withdraw your acceptance? This will cancel your internship and restore any discarded applications.',
+      cta: 'Withdraw',
+      danger: true,
+    },
+  } as const
+
+  async function runConfirmedAction() {
+    if (!confirmAction || confirmBusy) return
+    setConfirmBusy(true)
+    setConfirmError(null)
+    try {
+      if (confirmAction === 'accept') {
+        if (!userId) return
+        await acceptOffer(userId, application.id)
+      } else if (confirmAction === 'decline') {
+        await rejectOffer(application.id)
+      } else {
+        if (!userId) return
+        await withdrawAcceptance(userId, application.id)
+      }
+      setConfirmAction(null)
+      onSubmitted?.()
+    } catch (e) {
+      setConfirmError(e instanceof Error ? e.message : 'An error occurred')
+    } finally {
+      setConfirmBusy(false)
+    }
+  }
+
+  const rejectedAtInterview = application.status === 'Rejected' && !!application.nextStep
   const steps = [
     { label: 'Application Submitted', active: true, done: true },
-    { label: 'Under Review', active: application.status !== 'Pending', done: application.status !== 'Pending' },
-    { label: 'Interview', active: ['Interview scheduled', 'Accepted'].includes(application.status), done: ['Interview scheduled', 'Accepted'].includes(application.status) },
-    { label: 'Offer Accepted', active: application.status === 'Accepted', done: application.status === 'Accepted' },
+    { label: 'Under Review', active: application.status !== 'Pending', done: application.status !== 'Pending', status: (application.status === 'Rejected' && !application.nextStep) ? 'error' : '' },
+    { 
+      label: 'Interview', 
+      active: ['Interview scheduled', 'Offered', 'Accepted'].includes(application.status) || rejectedAtInterview, 
+      done: ['Interview scheduled', 'Offered', 'Accepted'].includes(application.status) || rejectedAtInterview,
+      status: application.status === 'Interview scheduled' ? 'warning' : (rejectedAtInterview ? 'error' : '') 
+    },
+    { label: 'Offer Extended', active: ['Offered', 'Accepted'].includes(application.status), done: ['Offered', 'Accepted'].includes(application.status), status: application.status === 'Offered' ? 'warning' : '' },
     { label: 'Pre-Employment Requirements', active: application.status === 'Accepted' && (application.approvedRequirements || 0) < (application.requirements?.length || 0), done: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length },
     { label: 'Ready to Start', active: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length, done: false },
     { label: 'Internship Started', active: false, done: false },
@@ -578,7 +733,7 @@ function ProgressModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel progress-modal" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} type="button">×</button>
+        <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         
         {internship && (
           <div className="progress-header-card">
@@ -594,7 +749,13 @@ function ProgressModal({
             {application.status === 'Accepted' && (
               <span className="status success">
                 <CheckCircle2 size={14} style={{ marginRight: 4 }} />
-                Offer Accepted
+                Application Accepted
+              </span>
+            )}
+            {application.status === 'Offered' && (
+              <span className="status success">
+                <CheckCircle2 size={14} style={{ marginRight: 4 }} />
+                Offer Extended
               </span>
             )}
             {application.status === 'Pending' && (
@@ -602,9 +763,24 @@ function ProgressModal({
                 Pending
               </span>
             )}
+            {application.status === 'Interview scheduled' && (
+              <span className="status warning">
+                Interview Scheduled
+              </span>
+            )}
             {application.status === 'Rejected' && (
               <span className="status error">
                 Rejected
+              </span>
+            )}
+            {application.status === 'Discarded' && (
+              <span className="status error">
+                Discarded
+              </span>
+            )}
+            {application.status === 'Withdrawn' && (
+              <span className="status error">
+                Withdrawn
               </span>
             )}
           </div>
@@ -614,15 +790,62 @@ function ProgressModal({
           <h3>Your Progress</h3>
           <div className="progress-stepper">
             {steps.map((step, index) => (
-              <div className={`stepper-item ${step.done ? 'done' : ''} ${step.active && !step.done ? 'active' : ''} ${!step.active && !step.done ? 'inactive' : ''}`} key={step.label}>
+              <div className={`stepper-item ${step.done && !step.status ? 'done' : ''} ${step.active && !step.done && !step.status ? 'active' : ''} ${!step.active && !step.done ? 'inactive' : ''} ${step.status || ''}`} key={step.label}>
                 <div className="stepper-circle">
-                  {step.done ? <CheckCircle2 size={16} /> : step.active ? <div className="dot" /> : <span>{index + 1}</span>}
+                  {step.status === 'error' ? <XCircle size={16} /> : (step.done || step.status === 'warning') ? <CheckCircle2 size={16} /> : step.active ? <div className="dot" /> : <span>{index + 1}</span>}
                 </div>
                 <span className="stepper-label">{step.label}</span>
               </div>
             ))}
           </div>
         </div>
+
+        {application.status === 'Interview scheduled' && application.nextStep && (
+          <div className="progress-reqs-card">
+            <h3 style={{ margin: '0 0 16px 0', color: 'var(--brand-brown)' }}>Interview Details</h3>
+            <div style={{ fontSize: '14px', color: 'var(--text)' }}>
+              {(() => {
+                try {
+                  const details = JSON.parse(application.nextStep)
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                      <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date}</span>
+                      <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time}</span>
+                      <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
+                      <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                    </div>
+                  )
+                } catch {
+                  return <p>{application.nextStep}</p>
+                }
+              })()}
+            </div>
+          </div>
+        )}
+
+        {application.status === 'Offered' && (
+          <div className="progress-reqs-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '24px' }}>
+            <h3 style={{ margin: 0, color: 'var(--brand-brown)', textAlign: 'center' }}>Congratulations! You have an offer.</h3>
+            <p style={{ margin: 0, color: 'var(--text)', textAlign: 'center', fontSize: '14px' }}>
+              The company has extended an internship offer to you. Please accept or decline the offer below.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+              <button 
+                className="sd-primary"
+                onClick={() => setConfirmAction('accept')}
+              >
+                Accept Offer
+              </button>
+              <button 
+                className="sd-btn-secondary"
+                style={{ color: 'var(--brand-crimson)', borderColor: 'var(--brand-crimson)' }}
+                onClick={() => setConfirmAction('decline')}
+              >
+                Decline Offer
+              </button>
+            </div>
+          </div>
+        )}
 
         {application.status === 'Accepted' && application.requirements && (
           <div className="progress-reqs-card">
@@ -649,6 +872,47 @@ function ProgressModal({
                   userId={userId}
                 />
               ))}
+            </div>
+            
+            <div style={{ marginTop: '24px', textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+              <button 
+                className="sd-btn-secondary"
+                style={{ color: 'var(--brand-crimson)', borderColor: 'var(--brand-crimson)' }}
+                onClick={() => setConfirmAction('withdraw')}
+              >
+                Withdraw Acceptance
+              </button>
+            </div>
+          </div>
+        )}
+
+        {confirmAction && (
+          <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget && !confirmBusy) { setConfirmAction(null); setConfirmError(null) } }}>
+            <div className="modal-panel" style={{ width: '400px' }}>
+              <h3 style={{ margin: '0 0 12px', color: 'var(--brand-brown)' }}>{confirmCopy[confirmAction].title}</h3>
+              <p style={{ margin: '0 0 20px', fontSize: '14px', color: 'var(--text)' }}>{confirmCopy[confirmAction].message}</p>
+              {confirmError && (
+                <p style={{ margin: '0 0 16px', color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{confirmError}</p>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  className="sd-btn-secondary"
+                  disabled={confirmBusy}
+                  onClick={() => { setConfirmAction(null); setConfirmError(null) }}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className={confirmCopy[confirmAction].danger ? 'sd-btn-secondary' : 'sd-primary'}
+                  disabled={confirmBusy}
+                  onClick={runConfirmedAction}
+                  style={confirmCopy[confirmAction].danger ? { color: 'var(--brand-crimson)', borderColor: 'var(--brand-crimson)' } : undefined}
+                  type="button"
+                >
+                  {confirmBusy ? 'Working…' : confirmCopy[confirmAction].cta}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -756,8 +1020,10 @@ function RequirementSubmitRow({
                     if (!requirement.submittedFilePath) return
                     try {
                       setBusy(true)
-                      const url = await signedDocumentUrl(requirement.submittedFilePath, requirement.name)
-                      window.open(url, '_blank')
+                      // No download name: "View submitted document" should render
+                      // the file, not save it.
+                      const url = await signedDocumentUrl(requirement.submittedFilePath)
+                      window.open(url, '_blank', 'noopener,noreferrer')
                     } catch {
                       setError('Failed to load document')
                     } finally {
@@ -799,12 +1065,32 @@ function RequirementSubmitRow({
       {isEditing && (
         <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {requirement.type === 'file' ? (
-            <input
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              style={{ fontSize: '12px' }}
-              type="file"
-            />
+            <label className={`upload-zone ${file ? 'has-file' : ''}`}>
+              <input
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                type="file"
+              />
+              {file ? (
+                <div className="upload-file-info">
+                  <span className="upload-file-icon">📄</span>
+                  <div>
+                    <p className="upload-file-name">{file.name}</p>
+                    <p className="muted">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="upload-placeholder">
+                  <div className="upload-icon">
+                    <Upload size={18} />
+                  </div>
+                  <p>
+                    <strong>Click to browse</strong> or drag file here
+                  </p>
+                  <p className="muted">Supported: PDF, DOCX, JPG, PNG</p>
+                </div>
+              )}
+            </label>
           ) : (
             <textarea
               onChange={(e) => setText(e.target.value)}
@@ -852,25 +1138,63 @@ function StudentApplications({
   applications,
   onOpenProgress,
   filter,
-  onFilterChange
+  onFilterChange,
+  highlightedAppId
 }: {
   applications: Application[]
   onOpenProgress: (app: Application) => void
   filter: string
   onFilterChange: (filter: string) => void
+  highlightedAppId?: string | null
 }) {
-  const visible = applications.filter((application) => filter === 'All' || application.status === filter)
+  const [searchQuery, setSearchQuery] = useState('')
+  const hasAccepted = applications.some(a => a.status === 'Accepted')
 
-  const pendingCount = applications.filter((a) => a.status === 'Pending').length
-  const acceptedCount = applications.filter((a) => a.status === 'Accepted').length
-  const rejectedCount = applications.filter((a) => a.status === 'Rejected').length
+  useEffect(() => {
+    if (highlightedAppId) {
+      // Small delay to ensure render is complete
+      setTimeout(() => {
+        const el = document.querySelector('.application-strip.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedAppId])
+
+  const visible = applications.filter((application) => {
+    const matchesFilter =
+      filter === 'All' ||
+      (filter === 'Closed'
+        ? TERMINAL_STATUSES.includes(application.status)
+        : application.status === filter)
+
+    const matchesSearch = [application.company, application.role]
+      .join(' ')
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+    return matchesFilter && matchesSearch
+    // Accepted first; everything else keeps the newest-first order the API
+    // returned. .filter() above already returned a fresh array, so this sorts a
+    // copy rather than mutating the applications prop, and Array#sort is stable,
+    // so the within-group ordering survives.
+  }).sort((a, b) => statusRank(a.status) - statusRank(b.status))
+
+  // One pass instead of a .filter() per tab, so a tab can't end up counting a
+  // status string that no longer exists in the union.
+  const counts = applications.reduce<Partial<Record<ApplicationStatus, number>>>((acc, a) => {
+    acc[a.status] = (acc[a.status] ?? 0) + 1
+    return acc
+  }, {})
   const total = applications.length
 
-  const filters = [
+  const filters: { label: string; count: number }[] = [
     { label: 'All', count: total },
-    { label: 'Pending', count: pendingCount },
-    { label: 'Accepted', count: acceptedCount },
-    { label: 'Rejected', count: rejectedCount }
+    ...FILTER_TABS.map((tab) => ({
+      label: tab,
+      count:
+        tab === 'Closed'
+          ? TERMINAL_STATUSES.reduce((sum, status) => sum + (counts[status] ?? 0), 0)
+          : counts[tab as ApplicationStatus] ?? 0,
+    })),
   ]
 
   return (
@@ -880,7 +1204,21 @@ function StudentApplications({
         <p className="applications-subtitle">{total} total applications</p>
       </div>
 
-      <div className="applications-filters">
+      <div className="browse-search-field">
+        <span className="browse-search-icon">
+          <Search size={16} />
+        </span>
+        <input
+          aria-label="Search applications"
+          className="browse-search-input"
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by role or company..."
+          value={searchQuery}
+        />
+      </div>
+
+      <div className="applications-filters" style={{ alignItems: 'center' }}>
+        <span className="browse-pills-label" style={{ marginRight: 4 }}>Filter by status:</span>
         {filters.map(f => (
           <button
             key={f.label}
@@ -895,7 +1233,13 @@ function StudentApplications({
 
       <div className="application-strips">
         {visible.map(app => (
-          <ApplicationStrip key={app.id} application={app} onClick={() => onOpenProgress(app)} />
+          <ApplicationStrip 
+            key={app.id} 
+            application={app} 
+            onClick={() => onOpenProgress(app)}
+            isHighlighted={app.id === highlightedAppId}
+            isShaded={hasAccepted && app.status !== 'Accepted'}
+          />
         ))}
       </div>
     </div>
@@ -990,9 +1334,9 @@ function InternshipDetailView({
   onApply: () => void
 }) {
   return (
-    <div className="detail-view">
+    <div className="detail-view view-swap">
       <button className="detail-back" onClick={onBack} type="button">
-        ← Back to listings
+        <ArrowLeft size={14} /> Back to listings
       </button>
 
       <div className="detail-header">
@@ -1062,28 +1406,99 @@ function InternshipDetailView({
   )
 }
 
+/** Last path segment of a stored document path, for display. */
+function documentFileName(path?: string | null): string {
+  if (!path) return ''
+  return decodeURIComponent(path.split('/').pop() ?? path)
+}
+
+/**
+ * One profile document listed in the apply modal, with a view action.
+ * `external` marks the portfolio link, which leaves the app rather than opening
+ * the in-app preview -- so it gets a link icon and an "Open" label instead.
+ */
+function ApplyDocumentRow({
+  label,
+  name,
+  onView,
+  busy,
+  required,
+  external,
+}: {
+  label: string
+  name: string
+  onView: () => void
+  busy?: boolean
+  required?: boolean
+  external?: boolean
+}) {
+  return (
+    <div className="apply-doc">
+      <span className="apply-doc-icon">
+        {external ? <Link2 size={18} /> : <FileText size={18} />}
+      </span>
+      <div className="apply-doc-main">
+        <p className="apply-doc-label">
+          {label} {required && <span className="required">*</span>}
+        </p>
+        <p className="apply-doc-name">{name}</p>
+      </div>
+      <button className="apply-doc-view" disabled={busy} onClick={onView} type="button">
+        {busy ? 'Opening…' : external ? 'Open' : 'View'}
+      </button>
+    </div>
+  )
+}
+
 function ApplyModal({
   internship,
   onSubmit,
   onClose,
 }: {
   internship: Internship
-  onSubmit: (coverLetter: string) => Promise<void>
+  onSubmit: () => Promise<void>
   onClose: () => void
 }) {
-  const { profile } = useAuth()
-  const [coverLetter, setCoverLetter] = useState('')
+  useScrollLock()
+
+  const { profile, demo } = useAuth()
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [openingDoc, setOpeningDoc] = useState(false)
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null)
 
   const hasResume = Boolean(profile?.resume_url)
+
+  /**
+   * Preview a stored profile document in-app. The student is only confirming
+   * what gets sent -- they already have these files -- so this renders in an
+   * overlay rather than handing off to the browser. No download name is passed:
+   * that sets Content-Disposition: attachment and saves the file instead.
+   */
+  const viewDocument = async (path: string | null | undefined, name: string) => {
+    if (!path) return
+    if (demo) {
+      setSubmitError('In demo mode, files are not uploaded to the server, so they cannot be viewed.')
+      return
+    }
+    setOpeningDoc(true)
+    setSubmitError(null)
+    try {
+      const url = await signedDocumentUrl(path)
+      setPreview({ url, name })
+    } catch {
+      setSubmitError('Failed to load the document.')
+    } finally {
+      setOpeningDoc(false)
+    }
+  }
 
   const handleSubmit = async () => {
     setSubmitting(true)
     setSubmitError(null)
     try {
-      await onSubmit(coverLetter)
+      await onSubmit()
       setSubmitted(true)
       setTimeout(() => {
         onClose()
@@ -1108,7 +1523,7 @@ function ApplyModal({
           <>
             <div className="modal-header">
               <h3>Apply for Internship</h3>
-              <button className="modal-close" onClick={onClose} type="button">✕</button>
+              <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
             </div>
 
             {/* Internship preview */}
@@ -1133,41 +1548,59 @@ function ApplyModal({
               </div>
             </div>
 
-            {/* Resume from profile + cover letter */}
+            {/* Documents pulled straight from the student's profile — nothing is
+                typed or uploaded here, so they can see exactly what gets sent. */}
             <div className="modal-uploads">
               <div className="modal-upload-field">
-                <label>
-                  Resume <span className="required">*</span>
-                </label>
-                {hasResume ? (
-                  <div className="upload-zone has-file">
-                    <div className="upload-file-info">
-                      <span className="upload-file-icon">📄</span>
-                      <div>
-                        <p className="upload-file-name">Your profile resume will be shared</p>
-                        <p className="muted">Update it anytime from your profile.</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="muted">
-                    No resume on your profile yet — upload one from your profile before applying.
-                  </p>
-                )}
-              </div>
+                <label>What {internship.company} will receive</label>
 
-              <div className="modal-upload-field">
-                <label htmlFor="cover-letter-text">
-                  Cover Letter <span className="optional">(optional)</span>
-                </label>
-                <textarea
-                  id="cover-letter-text"
-                  onChange={(e) => setCoverLetter(e.target.value)}
-                  placeholder={`Tell ${internship.company} why you're a great fit…`}
-                  rows={5}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', resize: 'vertical', color: 'var(--text)' }}
-                  value={coverLetter}
-                />
+                <div className="apply-doc-list">
+                  {hasResume ? (
+                    <ApplyDocumentRow
+                      busy={openingDoc}
+                      label="Resume"
+                      name={documentFileName(profile?.resume_url)}
+                      onView={() => viewDocument(profile?.resume_url, 'Resume')}
+                      required
+                    />
+                  ) : (
+                    <p className="muted">
+                      No resume on your profile yet — upload one from your profile before applying.
+                    </p>
+                  )}
+
+                  {profile?.cover_letter_url && (
+                    <ApplyDocumentRow
+                      busy={openingDoc}
+                      label="Cover Letter"
+                      name={documentFileName(profile.cover_letter_url)}
+                      onView={() => viewDocument(profile.cover_letter_url, 'Cover Letter')}
+                    />
+                  )}
+
+                  {profile?.portfolio_file_url && (
+                    <ApplyDocumentRow
+                      busy={openingDoc}
+                      label="Portfolio"
+                      name={documentFileName(profile.portfolio_file_url)}
+                      onView={() => viewDocument(profile.portfolio_file_url, 'Portfolio')}
+                    />
+                  )}
+
+                  {profile?.portfolio_link && (
+                    <ApplyDocumentRow
+                      busy={openingDoc}
+                      external
+                      label="Portfolio Link"
+                      name={profile.portfolio_link}
+                      onView={() => window.open(profile.portfolio_link!, '_blank', 'noopener,noreferrer')}
+                    />
+                  )}
+                </div>
+
+                <p className="muted" style={{ marginTop: '10px' }}>
+                  These come from your profile — update them there to change what is sent.
+                </p>
               </div>
             </div>
 
@@ -1187,6 +1620,38 @@ function ApplyModal({
           </>
         )}
       </div>
+
+      {/* Renders the document in place. Stops propagation so clicking inside the
+          preview doesn't reach the apply modal's overlay and close the form. */}
+      {preview && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPreview(null)}
+          style={{ zIndex: 9999, display: 'flex', flexDirection: 'column', padding: '40px' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ display: 'flex', flexDirection: 'column', background: 'var(--bg)', flex: 1, borderRadius: '8px', overflow: 'hidden' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg-subtle)' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>{preview.name}</h3>
+              <button
+                aria-label="Close preview"
+                onClick={() => setPreview(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-light)' }}
+                type="button"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+            <iframe
+              src={preview.url}
+              style={{ flex: 1, width: '100%', border: 'none', background: 'var(--bg-subtle)' }}
+              title={preview.name}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

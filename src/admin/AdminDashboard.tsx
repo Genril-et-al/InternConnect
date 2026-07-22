@@ -4,6 +4,8 @@ import {
   Building2,
   FileText,
   GraduationCap,
+  Percent,
+  Clock,
 } from 'lucide-react'
 import type { AdminAppStats, AdminCompany, AdminListing, AdminStudent } from './adminData'
 import { NotificationBell } from '../components/NotificationBell'
@@ -15,12 +17,16 @@ export function AdminDashboard({
   listings,
   appStats,
   onNav,
+  onHighlightCompany,
+  onHighlightListing,
 }: {
   students: AdminStudent[]
   companies: AdminCompany[]
   listings: AdminListing[]
   appStats: AdminAppStats
   onNav: (index: number) => void
+  onHighlightCompany?: (id: string) => void
+  onHighlightListing?: (id: string) => void
 }) {
   const verified = companies.filter((c) => c.verification === 'verified').length
   const pendingVerifs = companies.filter((c) => c.verification === 'pending').length
@@ -34,9 +40,29 @@ export function AdminDashboard({
   const maxApps = Math.max(1, ...MONTHLY_APPLICATIONS.map((m) => m.apps))
 
   // Admin nav hints look like 'admin:<index>' — map to the sidebar index.
-  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications((hint) => {
+  const {
+    notifications,
+    unreadCount,
+    hasMore,
+    canCollapse,
+    loadingMore,
+    loadMore,
+    collapse,
+    handleMarkRead,
+    handleMarkAllRead,
+  } = useNotifications((hint, notification) => {
     const index = Number(hint.split(':')[1])
     if (!Number.isNaN(index)) onNav(index)
+    
+    if (notification) {
+      if (index === 2) {
+        const match = companies.find(c => notification.message.includes(c.name))
+        if (match) onHighlightCompany?.(match.id)
+      } else if (index === 3) {
+        const match = listings.find(l => notification.message.includes(l.title))
+        if (match) onHighlightListing?.(match.id)
+      }
+    }
   })
 
   // Donut segments via conic-gradient (cumulative start/end stops).
@@ -48,69 +74,83 @@ export function AdminDashboard({
   ).join(', ')
 
   return (
-    <div className="ad-page">
-      <div className="ad-page-head">
+    <div className="ic-page">
+      <div className="ic-page-head">
         <div>
-          <h1 className="ad-title">Platform Overview</h1>
-          <p className="ad-subtitle">Welcome back, NLO Admin</p>
+          <h1 className="ic-title">Platform Overview</h1>
+          <p className="ic-subtitle">Welcome back, NLO Admin</p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <button className="ad-primary" onClick={() => onNav(4)} type="button">
+        <div className="topbar-actions">
+          <button className="ic-primary" onClick={() => onNav(4)} type="button">
             <BarChart3 size={14} /> Generate Report
           </button>
           <NotificationBell
             notifications={notifications}
+            unreadCount={unreadCount}
+            hasMore={hasMore}
+            canCollapse={canCollapse}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
+            onCollapse={collapse}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />
         </div>
       </div>
 
-      <div className="ad-stats">
+      <div className="ic-stats">
         <Stat color="var(--brand-orange)" icon={GraduationCap} label="Total Students" sub={`${students.filter((s) => s.status === 'active').length} active`} value={students.length} />
         <Stat color="var(--brand-brown)" icon={Building2} label="Verified Companies" sub={`${pendingVerifs} pending review`} value={verified} />
         <Stat color="var(--brand-dark-red)" icon={Briefcase} label="Open Listings" sub="Across all companies" value={openListings} />
         <Stat color="var(--brand-orange-soft)" icon={FileText} label="Applications" sub="This semester" value={totalApplications} />
       </div>
 
-      <div className="ad-charts">
-        <section className="ad-card">
+      <div style={{ marginTop: '24px', marginBottom: '12px' }}>
+        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--brand-brown)' }}>Advanced Performance Metrics</h3>
+      </div>
+      <div className="ic-stats" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+        <Stat color="var(--brand-orange)" icon={Percent} label="Placement Rate" sub="Successfully placed students" value={`${appStats.placementRate}%`} />
+        <Stat color="var(--brand-dark-red)" icon={Clock} label="Avg Processing Time" sub=" responsiveness indicator" value={`${appStats.avgProcessingTimeDays} days`} />
+      </div>
+
+      <div className="ic-charts">
+        <section className="ic-card">
           <h3>Monthly Applications</h3>
           {MONTHLY_APPLICATIONS.length === 0 ? (
-            <p className="ad-empty">No application data yet</p>
+            <p className="ic-empty">No application data yet</p>
           ) : (
-            <div className="ad-bars">
+            <div className="ic-bars">
               {MONTHLY_APPLICATIONS.map((m) => (
-                <div className="ad-bar-col" key={m.month}>
-                  <span className="ad-bar-value">{m.apps}</span>
+                <div className="ic-bar-col" key={m.month}>
+                  <span className="ic-bar-value">{m.apps}</span>
                   <div
-                    className="ad-bar"
+                    className="ic-bar"
                     style={{ height: `${Math.round((m.apps / maxApps) * 100)}%` }}
                   />
-                  <span className="ad-bar-label">{m.month}</span>
+                  <span className="ic-bar-label">{m.month}</span>
                 </div>
               ))}
             </div>
           )}
         </section>
 
-        <section className="ad-card">
+        <section className="ic-card">
           <h3>Application Status</h3>
           {STATUS_BREAKDOWN.length === 0 ? (
             // An empty segments string makes conic-gradient() invalid CSS, so
             // the donut would render as a blank ring rather than nothing.
-            <p className="ad-empty">No application data yet</p>
+            <p className="ic-empty">No application data yet</p>
           ) : (
-            <div className="ad-donut-wrap">
-              <div className="ad-donut" style={{ background: `conic-gradient(${segments})` }} />
-              <div className="ad-legend">
+            <div className="ic-donut-wrap">
+              <div className="ic-donut" style={{ background: `conic-gradient(${segments})` }} />
+              <div className="ic-legend">
                 {STATUS_BREAKDOWN.map((s) => (
-                  <div className="ad-legend-row" key={s.name}>
-                    <span className="ad-legend-name">
-                      <span className="ad-legend-dot" style={{ backgroundColor: s.color }} />
+                  <div className="ic-legend-row" key={s.name}>
+                    <span className="ic-legend-name">
+                      <span className="ic-legend-dot" style={{ backgroundColor: s.color }} />
                       {s.name}
                     </span>
-                    <span className="ad-legend-value">{s.value}%</span>
+                    <span className="ic-legend-value">{s.value}%</span>
                   </div>
                 ))}
               </div>
@@ -119,18 +159,18 @@ export function AdminDashboard({
         </section>
       </div>
 
-      <div className="ad-quick">
+      <div className="ic-quick">
         {[
           { label: 'Pending Verifications', value: pendingVerifs, action: 'Review', nav: 2 },
           { label: 'Flagged Listings', value: flagged, action: 'View', nav: 3 },
           { label: 'Registered Students', value: students.length, action: 'Manage', nav: 1 },
         ].map((item) => (
-          <div className="ad-quick-card" key={item.label}>
+          <div className="ic-quick-card" key={item.label}>
             <div>
-              <p className="ad-quick-label">{item.label}</p>
-              <p className="ad-quick-value">{item.value}</p>
+              <p className="ic-quick-label">{item.label}</p>
+              <p className="ic-quick-value">{item.value}</p>
             </div>
-            <button className="ad-secondary" onClick={() => onNav(item.nav)} type="button">
+            <button className="ic-secondary" onClick={() => onNav(item.nav)} type="button">
               {item.action}
             </button>
           </div>
@@ -148,24 +188,24 @@ function Stat({
   color,
 }: {
   label: string
-  value: number
+  value: number | string
   sub: string
   icon: React.ElementType
   color: string
 }) {
   return (
-    <div className="ad-stat">
-      <div className="ad-stat-top">
-        <span className="ad-stat-label">{label}</span>
+    <div className="ic-stat">
+      <div className="ic-stat-top">
+        <span className="ic-stat-label">{label}</span>
         <span
-          className="ad-stat-icon"
+          className="ic-stat-icon"
           style={{ backgroundColor: `color-mix(in srgb, ${color} 14%, transparent)` }}
         >
           <Icon size={16} style={{ color }} />
         </span>
       </div>
-      <p className="ad-stat-value">{value.toLocaleString()}</p>
-      <p className="ad-stat-sub">{sub}</p>
+      <p className="ic-stat-value">{typeof value === 'number' ? value.toLocaleString() : value}</p>
+      <p className="ic-stat-sub">{sub}</p>
     </div>
   )
 }

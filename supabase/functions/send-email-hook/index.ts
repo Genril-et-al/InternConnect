@@ -26,22 +26,25 @@
 // by Supabase's auth server (authenticated by the hook signature above), not by
 // a logged-in user:  supabase functions deploy send-email-hook --no-verify-jwt
 //
-// Timeout note: Supabase auth hooks have a hard, non-configurable 5s timeout.
-// A full Gmail SMTP session (connect → TLS → AUTH → send → close) on top of edge
-// cold start routinely blows past that, which surfaces to the user as
-// "Failed to reach hook within maximum time of 5.000000 seconds". To stay inside
-// the window we verify the signature synchronously (CPU-only, fast) and return
-// 200 immediately, then finish delivery in the background via
-// EdgeRuntime.waitUntil(). Supabase's timeout only measures time-to-response.
-// Trade-off: a delivery failure can no longer be reported back to the auth flow,
-// so it's logged here instead — watch the function logs if codes go missing.
+// Timeout note: Supabase auth hooks have a hard, non-configurable 5s timeout,
+// and a full Gmail SMTP session (connect → TLS → AUTH → send → close) uses most
+// of it. This function AWAITS the send.
+//
+// Do NOT move delivery back into EdgeRuntime.waitUntil() to buy headroom. That
+// was tried, and it silently dropped every outgoing code: the hook returned 200
+// in ~96ms and the isolate was torn down long before the ~4.9s SMTP session
+// finished. Nothing reached any inbox, and because the teardown also killed the
+// catch block, nothing appeared in the logs either — the failure was invisible
+// from both the auth flow and the dashboard. Awaiting costs latency but keeps
+// delivery failures reportable, which is the only reason this is debuggable.
+//
+// Headroom is genuinely tight (measured 4879ms against the 5s budget on a cold
+// start). The real fix is to drop SMTP for an HTTP email API (Resend/Postmark):
+// one fetch settles in ~200-400ms, which fits the budget with room to spare and
+// keeps the error reporting. Until then, expect occasional hook timeouts.
 
 import { Webhook } from 'npm:standardwebhooks@1.0.0'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
-
-// Supabase edge runtime global for keeping the isolate alive past the response
-// so background work (the SMTP send) can complete.
-declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void }
 
 const GMAIL_USER = Deno.env.get('GMAIL_USER') ?? 'internconnect000@gmail.com'
 const FROM_NAME = Deno.env.get('EMAIL_FROM_NAME') ?? 'InternConnect'
@@ -59,34 +62,51 @@ type HookPayload = {
   email_data: EmailData
 }
 
-/** Subject + intro line per auth action. Signup is the primary path (UC-S01). */
-function copyFor(action: string): { subject: string; intro: string } {
+/**
+ * Subject + body copy per auth action.
+ *
+ * Deliverability note — this copy is shaped to get past institutional filters
+ * (@cit.edu quarantines mail that reads like a generic credential phish):
+ *   - The subject leads with the code. Real transactional senders do this, and
+ *     it stops the subject from being the bare "Your verification code" string
+ *     that bulk phishing templates share.
+ *   - `what` says which action on which service produced the mail, so the body
+ *     is not just a naked number under a stock sentence. Sparse HTML with one
+ *     large number and no context is itself a strong spam signal.
+ *   - No links, no images, no tracking pixel, no "click here", no countdown
+ *     urgency. Each of those is scored against us and none are needed for OTP.
+ */
+function copyFor(action: string): { subject: (t: string) => string; intro: string; what: string } {
   switch (action) {
     case 'recovery':
       return {
-        subject: 'Reset your InternConnect password',
+        subject: (t) => `${t} is your InternConnect password reset code`,
         intro: 'Use this code to reset your password:',
+        what: 'a password reset was requested for the InternConnect account on this address',
       }
     case 'email_change':
       return {
-        subject: 'Confirm your new InternConnect email',
+        subject: (t) => `${t} is your InternConnect email confirmation code`,
         intro: 'Use this code to confirm your new email address:',
+        what: 'this address was set as the new contact email for an InternConnect account',
       }
     case 'magiclink':
     case 'login':
       return {
-        subject: 'Your InternConnect sign-in code',
+        subject: (t) => `${t} is your InternConnect sign-in code`,
         intro: 'Use this code to sign in:',
+        what: 'a sign-in to InternConnect was requested with this address',
       }
     default: // 'signup' and anything else
       return {
-        subject: 'Your InternConnect verification code',
+        subject: (t) => `${t} is your InternConnect verification code`,
         intro: 'Enter this code to verify your email and continue:',
+        what: 'this address was used to start an InternConnect account registration',
       }
   }
 }
 
-function emailHtml(intro: string, token: string): string {
+function emailHtml(intro: string, what: string, token: string, to: string): string {
   return `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1f2937">
     <h2 style="margin:0 0 8px;color:#5b3a29">InternConnect</h2>
@@ -95,9 +115,43 @@ function emailHtml(intro: string, token: string): string {
                 background:#f5f0eb;border:1px solid #e5ded5;border-radius:12px;
                 padding:18px 0;color:#3f2a1d">${token}</div>
     <p style="margin:20px 0 0;font-size:13px;color:#6b7280">
-      This code expires in 5 minutes. If you didn't request it, you can safely ignore this email.
+      The code is good for 5 minutes. Type it into the page you already have open —
+      InternConnect will never ask you to send it back by email or give it to
+      anyone over the phone.
+    </p>
+    <p style="margin:12px 0 0;font-size:13px;color:#6b7280">
+      You are getting this message because ${what} (${to}). If that wasn't you,
+      no account action has been taken and you can ignore this email.
+    </p>
+    <p style="margin:20px 0 0;padding-top:14px;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af">
+      InternConnect — internship listings and applications for Cebu Institute of
+      Technology – University students and partner companies. This is an automated
+      message sent from ${GMAIL_USER}; replies reach the InternConnect team.
     </p>
   </div>`
+}
+
+function emailText(intro: string, what: string, token: string, to: string): string {
+  // Kept substantive and close in wording to the HTML part. A near-empty
+  // text/plain alternative next to a styled HTML part is a spam heuristic.
+  return [
+    'InternConnect',
+    '',
+    intro,
+    '',
+    `    ${token}`,
+    '',
+    'The code is good for 5 minutes. Type it into the page you already have open.',
+    'InternConnect will never ask you to send this code back by email or give it',
+    'to anyone over the phone.',
+    '',
+    `You are getting this message because ${what} (${to}). If that wasn't you, no`,
+    'account action has been taken and you can ignore this email.',
+    '',
+    'InternConnect - internship listings and applications for Cebu Institute of',
+    'Technology - University students and partner companies. This is an automated',
+    `message sent from ${GMAIL_USER}; replies reach the InternConnect team.`,
+  ].join('\n')
 }
 
 async function sendEmail(
@@ -122,9 +176,21 @@ async function sendEmail(
     await client.send({
       from: `${FROM_NAME} <${GMAIL_USER}>`,
       to,
+      // A reachable Reply-To on a transactional message is a legitimacy signal;
+      // phishing runs usually have no working reply path.
+      replyTo: `${FROM_NAME} <${GMAIL_USER}>`,
       subject,
       content: text, // plain-text fallback for clients that ignore HTML
       html,
+      headers: {
+        // RFC 3834: identifies this as machine-generated so filters and
+        // out-of-office responders classify it as transactional, not bulk.
+        'Auto-Submitted': 'auto-generated',
+        'X-Auto-Response-Suppress': 'OOF, AutoReply',
+        // Unique per message so Gmail/Outlook never collapse successive codes
+        // into one thread and hide the newest one behind "show trimmed content".
+        'X-Entity-Ref-ID': crypto.randomUUID(),
+      },
     })
   } finally {
     await client.close()
@@ -172,13 +238,25 @@ Deno.serve(async (req) => {
   //    the 5s timeout. EdgeRuntime.waitUntil keeps the isolate alive until the
   //    send settles. Failures are logged (they can't be reported to the auth flow
   //    once we've already returned 200).
-  const { subject, intro } = copyFor(email_data.email_action_type)
-  const text = `${intro}\n\n${email_data.token}\n\nThis code expires in 5 minutes.`
-  EdgeRuntime.waitUntil(
-    sendEmail(user.email, subject, emailHtml(intro, email_data.token), text).catch((err) => {
-      console.error('Email delivery failed (background)', err)
-    }),
-  )
+  const { subject, intro, what } = copyFor(email_data.email_action_type)
+  const token = email_data.token
+  const to = user.email
+  // Awaited deliberately — see the timeout note at the top of this file before
+  // changing this to a background send.
+  try {
+    await sendEmail(
+      to,
+      subject(token),
+      emailHtml(intro, what, token, to),
+      emailText(intro, what, token, to),
+    )
+  } catch (err) {
+    console.error('Email delivery failed', err)
+    return new Response(
+      JSON.stringify({ error: { http_code: 500, message: `Delivery failed: ${err instanceof Error ? err.message : String(err)}` } }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
 
   // 3. 200 = success (Supabase Send Email hook contract). Returned immediately;
   //    delivery continues in the background scheduled above. GoTrue reads the

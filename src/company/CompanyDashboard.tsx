@@ -10,10 +10,14 @@ export function CompanyDashboard({
   listings,
   applicants,
   onNavigate,
+  onHighlightListing,
+  onHighlightApplicant,
 }: {
   listings: CompanyListing[]
   applicants: CompanyApplicant[]
   onNavigate: (view: string) => void
+  onHighlightListing?: (id: string) => void
+  onHighlightApplicant?: (id: string) => void
 }) {
   const active = listings.filter((l) => l.status === 'Open').length
   const pending = applicants.filter((a) => a.status === 'Pending').length
@@ -22,7 +26,28 @@ export function CompanyDashboard({
     .filter((a) => a.status === 'Pending')
     .sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
 
-  const { notifications, handleMarkRead, handleMarkAllRead } = useNotifications(onNavigate)
+  const {
+    notifications,
+    unreadCount,
+    hasMore,
+    canCollapse,
+    loadingMore,
+    loadMore,
+    collapse,
+    handleMarkRead,
+    handleMarkAllRead,
+  } = useNotifications((hint, notification) => {
+    onNavigate(hint)
+    
+    if (hint === 'Applicants' && notification) {
+      const matched = applicants.find(a => notification.message.includes(a.role))
+      if (matched) onHighlightApplicant?.(matched.id)
+    }
+    if (hint === 'Listings' && notification) {
+      const matched = listings.find(l => notification.message.includes(l.title))
+      if (matched) onHighlightListing?.(matched.id)
+    }
+  })
 
   return (
     <div className="cp-root">
@@ -35,12 +60,18 @@ export function CompanyDashboard({
               : 'No applications waiting for review.'}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="topbar-actions">
           <button className="cp-primary" onClick={() => onNavigate('Applicants')} type="button">
             <Users size={14} /> Review Applications
           </button>
           <NotificationBell
             notifications={notifications}
+            unreadCount={unreadCount}
+            hasMore={hasMore}
+            canCollapse={canCollapse}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
+            onCollapse={collapse}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />

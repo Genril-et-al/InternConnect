@@ -45,7 +45,9 @@
   gap: 8px;
   min-height: 42px;
   padding: 8px 16px;
-  transition: filter 0.15s ease;
+  /* No `transition` here — a class-level one replaces the base button list
+     wholesale, and this rule used to name only `filter`, so the border-color
+     its own :hover sets was left to snap. The base covers both. */
 }
 
 .sd-primary:hover {
@@ -95,7 +97,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 20px;
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  transition: box-shadow var(--dur-1) ease, transform var(--dur-1) ease;
 }
 
 .sd-stat.clickable {
@@ -114,9 +116,11 @@
 }
 
 .sd-stat-label {
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--brand-brown);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .sd-stat-icon {
@@ -130,8 +134,8 @@
 .sd-stat-value {
   color: var(--brand-dark-red);
   font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 700;
+  font-size: 36px;
+  font-weight: 800;
   line-height: 1;
   margin: 0;
 }
@@ -189,7 +193,7 @@
   border-radius: 999px;
   display: block;
   height: 100%;
-  transition: width 0.3s ease;
+  transition: width var(--dur-3) ease;
 }
 
 /* Checklist */
@@ -231,7 +235,7 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 12px 14px;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--dur-1) ease;
 }
 
 .sd-list-row:hover {

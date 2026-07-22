@@ -51,6 +51,9 @@ export function AdminApp() {
   const [companies, setCompanies] = useState<AdminCompany[]>([])
   const [listings, setListings] = useState<AdminListing[]>([])
   const [appStats, setAppStats] = useState<AdminAppStats>(EMPTY_APP_STATS)
+  
+  const [highlightedCompanyId, setHighlightedCompanyId] = useState<string | null>(null)
+  const [highlightedListingId, setHighlightedListingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -102,17 +105,17 @@ export function AdminApp() {
   const name = profile?.full_name?.trim() || profile?.email || 'NLO Admin'
 
   return (
-    <div className={`ad-shell${collapsed ? ' sb-collapsed' : ''}`}>
-      <aside className="ad-sidebar">
-        <div className="ad-brand">
-          <img className="ad-logo" src="/logo.png" alt="InternConnect" />
-          <div className="ad-brand-text">
-            <div className="ad-brand-name">InternConnect</div>
-            <div className="ad-brand-sub">Admin Panel</div>
+    <div className={`ic-shell${collapsed ? ' sb-collapsed' : ''}`}>
+      <aside className="ic-sidebar">
+        <div className="ic-brand">
+          <img className="ic-logo" src="/logo.png" alt="InternConnect" />
+          <div className="ic-brand-text">
+            <div className="ic-brand-name">InternConnect</div>
+            <div className="ic-brand-sub">Admin Panel</div>
           </div>
           <button
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="ad-collapse"
+            className="ic-collapse"
             onClick={toggleCollapsed}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             type="button"
@@ -121,7 +124,7 @@ export function AdminApp() {
           </button>
         </div>
 
-        <nav className="ad-nav">
+        <nav className="ic-nav">
           {NAV.map((item, i) => {
             const Icon = item.icon
             return (
@@ -132,64 +135,72 @@ export function AdminApp() {
                 title={item.label}
                 type="button"
               >
-                <Icon size={16} /> <span className="ad-nav-label">{item.label}</span>
+                <Icon size={16} /> <span className="ic-nav-label">{item.label}</span>
               </button>
             )
           })}
         </nav>
 
-        <div className="ad-user">
+        <div className="ic-user">
           <Avatar
-            className="ad-user-avatar"
+            className="ic-user-avatar"
             fallback="NA"
             name={name}
             photoUrl={profile?.photo_url}
           />
-          <div className="ad-user-main">
-            <p className="ad-user-name">{name}</p>
-            <p className="ad-user-role">NLO Admin</p>
+          <div className="ic-user-main">
+            <p className="ic-user-name">{name}</p>
+            <p className="ic-user-role">NLO Admin</p>
           </div>
-          <SignOutButton ariaLabel="Sign out" className="ad-signout">
+          <SignOutButton ariaLabel="Sign out" className="ic-signout">
             <LogOut size={15} />
           </SignOutButton>
         </div>
       </aside>
 
-      <main className="ad-main">
-        {active === 0 && (
-          <AdminDashboard
-            appStats={appStats}
-            companies={companies}
-            listings={listings}
-            onNav={setActive}
-            students={students}
-          />
-        )}
-        {active === 1 && (
-          <AdminStudents
-            students={students}
-            loading={loading}
-            loadError={loadError}
-            onRefresh={refreshStudents}
-          />
-        )}
-        {active === 2 && (
-          <AdminCompanies
-            companies={companies}
-            loading={loading}
-            loadError={loadError}
-            onRefresh={refreshCompanies}
-          />
-        )}
-        {active === 3 && <AdminInternships listings={listings} onSetFlagged={handleSetFlagged} />}
-        {active === 4 && (
-          <AdminReports
-            appStats={appStats}
-            companies={companies}
-            listings={listings}
-            students={students}
-          />
-        )}
+      <main className="ic-main">
+        {/* Keyed on the active section so the enter animation replays on every
+            switch. Wrapping here rather than keying <main> keeps the shell's
+            fetched data (companies, listings, students) mounted. */}
+        <div className="page-enter" key={active}>
+          {active === 0 && (
+            <AdminDashboard
+              appStats={appStats}
+              companies={companies}
+              listings={listings}
+              onNav={setActive}
+              students={students}
+              onHighlightCompany={(id) => { setHighlightedCompanyId(id); if (id) setTimeout(() => setHighlightedCompanyId(null), 3000) }}
+              onHighlightListing={(id) => { setHighlightedListingId(id); if (id) setTimeout(() => setHighlightedListingId(null), 3000) }}
+            />
+          )}
+          {active === 1 && (
+            <AdminStudents
+              students={students}
+              loading={loading}
+              loadError={loadError}
+              onRefresh={refreshStudents}
+            />
+          )}
+          {active === 2 && (
+            <AdminCompanies
+              companies={companies}
+              loading={loading}
+              loadError={loadError}
+              onRefresh={refreshCompanies}
+              highlightedCompanyId={highlightedCompanyId}
+            />
+          )}
+          {active === 3 && <AdminInternships listings={listings} onSetFlagged={handleSetFlagged} highlightedListingId={highlightedListingId} />}
+          {active === 4 && (
+            <AdminReports
+              appStats={appStats}
+              companies={companies}
+              listings={listings}
+              students={students}
+            />
+          )}
+        </div>
       </main>
     </div>
   )

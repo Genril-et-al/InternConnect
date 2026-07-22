@@ -7,6 +7,7 @@ import { computeMatch } from './skillMatch'
 export { computeMatch, matchPool, pairScore, skillGaps } from './skillMatch'
 
 
+
 /**
  * Student-side data layer for internship listings, applications, and
  * bookmarks (UC-S03..S05). Reads/writes go through RLS: students only see
@@ -18,8 +19,12 @@ const STATUS_LABELS: Record<string, ApplicationStatus> = {
   under_review: 'Under review',
   shortlisted: 'Shortlisted',
   interview_scheduled: 'Interview scheduled',
+  offered: 'Offered',
   accepted: 'Accepted',
   rejected: 'Rejected',
+  discarded: 'Discarded',
+  withdrawn: 'Withdrawn',
+  expired: 'Expired',
 }
 
 const SETUP_LABELS: Record<string, Internship['setup']> = {
@@ -58,34 +63,78 @@ type ListingRow = {
   companies: { name: string; industry: string | null; logo_url: string | null } | null
 }
 
-/** Open listings, ranked by skills match against the student's profile. */
-export async function fetchOpenListings(profileSkills: string[]): Promise<Internship[]> {
-  const { data, error } = await supabase
-    .from('listings')
-    .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(name, industry, logo_url)')
-    .eq('status', 'open')
-    .order('created_at', { ascending: false })
-  if (error) throw new Error(error.message)
-  return ((data ?? []) as unknown as ListingRow[])
-    .map((r) => ({
-      id: r.id,
-      title: r.title,
-      company: r.companies?.name ?? 'Unknown company',
-      companyLogo: r.companies?.logo_url ?? null,
-      industry: r.companies?.industry ?? '—',
-      location: r.location ?? '—',
-      setup: SETUP_LABELS[r.setup] ?? 'Onsite',
-      deadline: formatDate(r.deadline),
-      duration: r.duration_hours ? `${r.duration_hours} hours` : '—',
-      slots: r.slots,
-      match: computeMatch(profileSkills, r.skills ?? []),
-      status: listingStatus(r.deadline),
-      skills: r.skills ?? [],
-      summary: r.description ?? '',
-    }))
-    // Unscored listings (no skill data to match on) sort last rather than
-    // being treated as 0%.
-    .sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
+function toInternship(row: ListingRow, profileSkills: string[]): Internship {
+  return {
+    id: row.id,
+    title: row.title,
+    company: row.companies?.name ?? 'Unknown company',
+    companyLogo: row.companies?.logo_url ?? null,
+    industry: row.companies?.industry ?? '—',
+    location: row.location ?? '—',
+    setup: SETUP_LABELS[row.setup] ?? 'Onsite',
+    deadline: formatDate(row.deadline),
+    duration: row.duration_hours ? `${row.duration_hours} hours` : '—',
+    slots: row.slots,
+    match: computeMatch(profileSkills, row.skills ?? []),
+    status: listingStatus(row.deadline),
+    skills: row.skills ?? [],
+    summary: row.description ?? '',
+  }
+}
+
+/** Unscored listings (nothing to match on) sort last rather than as 0%. */
+function rankedByMatch(listings: Internship[]): Internship[] {
+  return [...listings].sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
+}
+
+/**
+ * How many listings we pull per round trip.
+ *
+ * Note this is NOT UI paging. The board ranks by match score, and match is
+ * computed here on the client from the skill taxonomy — the database has no
+ * idea what a given student's match % is. So it cannot hand us "the best 20";
+ * page 1 by created_at says nothing about who ranks highest. Search and the
+ * match-filter pills are client-side over the full set for the same reason.
+ *
+ * Fetching in chunks instead of one giant response means the student sees a
+ * usable, ranked board after the first chunk rather than waiting on the whole
+ * table, and no single response has to be held in memory at once.
+ */
+const LISTINGS_PAGE_SIZE = 200
+
+/**
+ * Open listings, ranked by skills match against the student's profile.
+ *
+ * `onPartial` (optional) is called with the ranked listings so far after each
+ * chunk beyond the first, so callers can paint early and let the rest fill in.
+ * The resolved value is always the complete, fully ranked set.
+ */
+export async function fetchOpenListings(
+  profileSkills: string[],
+  onPartial?: (listings: Internship[]) => void,
+): Promise<Internship[]> {
+  const all: Internship[] = []
+
+  for (let from = 0; ; from += LISTINGS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(name, industry, logo_url)')
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      // id breaks ties so the window is stable: listings sharing a created_at
+      // could otherwise land in two chunks, or none, as we page through.
+      .order('id', { ascending: true })
+      .range(from, from + LISTINGS_PAGE_SIZE - 1)
+    if (error) throw new Error(error.message)
+
+    const rows = (data ?? []) as unknown as ListingRow[]
+    for (const row of rows) all.push(toInternship(row, profileSkills))
+
+    if (rows.length < LISTINGS_PAGE_SIZE) break
+    onPartial?.(rankedByMatch(all))
+  }
+
+  return rankedByMatch(all)
 }
 
 type ApplicationRow = {
@@ -93,7 +142,6 @@ type ApplicationRow = {
   listing_id: string
   status: string
   next_step: string | null
-  cover_letter: string | null
   feedback: string | null
   created_at: string
   listings: {
@@ -109,7 +157,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
   const { data, error } = await supabase
     .from('applications')
     .select(
-      'id, listing_id, status, next_step, cover_letter, feedback, created_at, ' +
+      'id, listing_id, status, next_step, feedback, created_at, ' +
         'listings(title, companies(name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
         'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
@@ -156,7 +204,6 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
       dateApplied: formatDate(r.created_at),
       status: STATUS_LABELS[r.status] ?? 'Pending',
       nextStep: r.next_step ?? '',
-      coverLetter: r.cover_letter ?? undefined,
       requirements: reqs,
       approvedRequirements: approved,
     }
@@ -167,12 +214,10 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
 export async function applyToListing(
   studentId: string,
   listingId: string,
-  coverLetter: string,
 ): Promise<void> {
   const { error } = await supabase.from('applications').insert({
     listing_id: listingId,
     student_id: studentId,
-    cover_letter: coverLetter.trim() || null,
   })
   if (error) {
     if (error.code === '23505') throw new Error('You have already applied to this internship.')
@@ -277,5 +322,98 @@ export async function setBookmarked(
       .eq('student_id', studentId)
       .eq('listing_id', listingId)
     if (error) throw new Error(error.message)
+  }
+}
+
+/** Reject an internship offer (UC-S04). */
+export async function rejectOffer(applicationId: string) {
+  const { error } = await supabase
+    .from('applications')
+    .update({ status: 'rejected' })
+    .eq('id', applicationId)
+  if (error) throw new Error(error.message)
+}
+
+/** Accept an internship offer (UC-S04). All other pending applications will be discarded. */
+export async function acceptOffer(studentId: string, applicationId: string) {
+  // Update the accepted application
+  const { error: acceptError } = await supabase
+    .from('applications')
+    .update({ status: 'accepted' })
+    .eq('id', applicationId)
+  
+  if (acceptError) throw new Error(acceptError.message)
+
+  // Discard all other applications for this student that are not accepted, rejected, or already discarded
+  // We need to fetch them first to save their previous status
+  const { data: appsToDiscard, error: fetchError } = await supabase
+    .from('applications')
+    .select('id, status')
+    .eq('student_id', studentId)
+    .neq('id', applicationId)
+    .neq('status', 'accepted')
+    .neq('status', 'rejected')
+    .neq('status', 'discarded')
+    .neq('status', 'withdrawn')
+
+  if (fetchError) throw new Error(fetchError.message)
+
+  for (const app of appsToDiscard || []) {
+    const { error: discardError } = await supabase
+      .from('applications')
+      .update({ status: 'discarded', previous_status: app.status })
+      .eq('id', app.id)
+      
+    if (discardError) throw new Error(discardError.message)
+  }
+}
+
+/** Withdraw acceptance from an internship offer. Restores discarded applications. */
+export async function withdrawAcceptance(studentId: string, applicationId: string) {
+  // Update the withdrawn application
+  const { error: withdrawError } = await supabase
+    .from('applications')
+    .update({ status: 'withdrawn' })
+    .eq('id', applicationId)
+  
+  if (withdrawError) throw new Error(withdrawError.message)
+
+  // Find discarded applications to restore
+  const { data: discardedApps, error: fetchError } = await supabase
+    .from('applications')
+    .select('id, previous_status, listing_id')
+    .eq('student_id', studentId)
+    .eq('status', 'discarded')
+
+  if (fetchError) throw new Error(fetchError.message)
+
+  const listingIds = Array.from(new Set((discardedApps || []).map((a) => a.listing_id)))
+  const closedListingIds = new Set<string>()
+
+  if (listingIds.length > 0) {
+    const { data: listings } = await supabase
+      .from('listings')
+      .select('id, status')
+      .in('id', listingIds)
+    
+    for (const listing of listings || []) {
+      if (listing.status === 'closed') {
+        closedListingIds.add(listing.id)
+      }
+    }
+  }
+
+  // Restore each to its previous status or set to expired if listing is closed
+  for (const app of discardedApps || []) {
+    if (app.previous_status) {
+      const isClosed = closedListingIds.has(app.listing_id)
+      const targetStatus = isClosed ? 'expired' : app.previous_status
+      const { error: restoreError } = await supabase
+        .from('applications')
+        .update({ status: targetStatus, previous_status: null })
+        .eq('id', app.id)
+        
+      if (restoreError) throw new Error(restoreError.message)
+    }
   }
 }

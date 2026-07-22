@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -7,6 +7,7 @@ import {
   FileText,
   Link2,
   Search,
+  X,
   XCircle,
 } from 'lucide-react'
 import { MATCH_FILTERS } from './companyData'
@@ -16,6 +17,9 @@ import type {
   CompanyListing,
 } from './companyData'
 import { signedDocumentUrl } from '../lib/profile'
+import type { InterviewDetails } from './companyQueries'
+import { Dropdown } from '../components/Dropdown'
+import { useScrollLock } from '../lib/useScrollLock'
 
 /**
  * UC-C04 / UC-C05 — review applications, open an applicant's profile
@@ -26,18 +30,31 @@ export function CompanyApplicants({
   applicants,
   listings,
   onSetStatus,
+  onScheduleInterview,
   onReviewSubmission,
+  highlightedApplicantId,
 }: {
   applicants: CompanyApplicant[]
   listings: CompanyListing[]
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
+  highlightedApplicantId?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [listingFilter, setListingFilter] = useState('All listings')
   const [statusFilter, setStatusFilter] = useState<'All' | ApplicantStatus>('All')
   const [matchFilter, setMatchFilter] = useState('Any match %')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (highlightedApplicantId) {
+      setTimeout(() => {
+        const el = document.querySelector('.cp-row.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedApplicantId])
 
   const filtered = useMemo(() => {
     const minMatch = MATCH_FILTERS[matchFilter] ?? 0
@@ -59,6 +76,7 @@ export function CompanyApplicants({
         applicant={selected}
         onBack={() => setSelectedId(null)}
         onSetStatus={onSetStatus}
+        onScheduleInterview={onScheduleInterview}
         onReviewSubmission={onReviewSubmission}
       />
     )
@@ -85,37 +103,25 @@ export function CompanyApplicants({
             value={search}
           />
         </div>
-        <select
-          className="cp-select"
-          onChange={(e) => setListingFilter(e.target.value)}
+        <Dropdown
+          ariaLabel="Filter by listing"
+          onChange={setListingFilter}
+          options={['All listings', ...listings.map((l) => l.title)]}
           value={listingFilter}
-        >
-          <option>All listings</option>
-          {listings.map((l) => (
-            <option key={l.id}>{l.title}</option>
-          ))}
-        </select>
-        <select
-          className="cp-select"
-          onChange={(e) => setStatusFilter(e.target.value as 'All' | ApplicantStatus)}
+        />
+        <Dropdown
+          ariaLabel="Filter by status"
+          onChange={(v) => setStatusFilter(v as 'All' | ApplicantStatus)}
+          options={['All', 'Pending', 'Reviewed', 'Accepted', 'Rejected']}
           value={statusFilter}
-        >
-          <option>All</option>
-          <option>Pending</option>
-          <option>Reviewed</option>
-          <option>Accepted</option>
-          <option>Rejected</option>
-        </select>
+        />
         {/* Match percent filter */}
-        <select
-          className="cp-select"
-          onChange={(e) => setMatchFilter(e.target.value)}
+        <Dropdown
+          ariaLabel="Filter by match percentage"
+          onChange={setMatchFilter}
+          options={Object.keys(MATCH_FILTERS)}
           value={matchFilter}
-        >
-          {Object.keys(MATCH_FILTERS).map((label) => (
-            <option key={label}>{label}</option>
-          ))}
-        </select>
+        />
       </div>
 
       <div className="cp-rows">
@@ -123,7 +129,7 @@ export function CompanyApplicants({
           <div className="cp-card cp-empty">No applications match the current filters.</div>
         ) : (
           filtered.map((a) => (
-            <button className="cp-row" key={a.id} onClick={() => setSelectedId(a.id)} type="button">
+            <button className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''}`} key={a.id} onClick={() => setSelectedId(a.id)} type="button">
               <span className="cp-row-avatar">{initials(a.name)}</span>
               <div className="cp-row-main">
                 <p className="cp-row-name">{a.name}</p>
@@ -147,14 +153,17 @@ function ApplicantDetail({
   applicant,
   onBack,
   onSetStatus,
+  onScheduleInterview,
   onReviewSubmission,
 }: {
   applicant: CompanyApplicant
   onBack: () => void
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
 }) {
   const [rejectOpen, setRejectOpen] = useState(false)
+  const [scheduleInterviewOpen, setScheduleInterviewOpen] = useState(false)
   const [revisionOpen, setRevisionOpen] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -162,6 +171,10 @@ function ApplicantDetail({
   const [previewDownloadUrl, setPreviewDownloadUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
+
+  // This view isn't itself a modal — it's the applicant page — so the lock
+  // belongs to the document preview it can open over itself.
+  useScrollLock(previewUrl !== null)
 
   const handleOpenDocument = async (path: string, name?: string) => {
     try {
@@ -185,7 +198,7 @@ function ApplicantDetail({
 
   return (
     <div className="cp-root">
-      <button className="cp-back" onClick={onBack} type="button">
+      <button className="detail-back" onClick={onBack} type="button">
         <ArrowLeft size={14} /> Back to applications
       </button>
 
@@ -205,16 +218,30 @@ function ApplicantDetail({
         </div>
 
       <div className="cp-detail-actions" style={{ marginTop: 18 }}>
-        {applicant.status !== 'Accepted' && (
+        {applicant.status === 'Interview Scheduled' && (
+          <>
+            <button
+              className="cp-accept"
+              onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
+              type="button"
+            >
+              <CheckCircle2 size={13} /> Pass Interview
+            </button>
+            <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
+              <XCircle size={13} /> Fail Interview
+            </button>
+          </>
+        )}
+        {applicant.status !== 'Accepted' && applicant.status !== 'Rejected' && applicant.status !== 'Interview Scheduled' && (
           <button
             className="cp-accept"
-            onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
+            onClick={() => setScheduleInterviewOpen(true)}
             type="button"
           >
             <CheckCircle2 size={13} /> Accept
           </button>
         )}
-        {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && (
+        {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && applicant.status !== 'Interview Scheduled' && (
           <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
             <XCircle size={13} /> Reject
           </button>
@@ -236,6 +263,29 @@ function ApplicantDetail({
       <p className="cp-notice rejected">
         <strong>Feedback sent to applicant:</strong> {applicant.feedback}
       </p>
+    )}
+
+    {applicant.status === 'Interview Scheduled' && applicant.nextStep && (
+      <section className="cp-card">
+        <h3 style={{ fontSize: '16px', margin: '0 0 16px 0', color: 'var(--brand-brown)' }}>Interview Details</h3>
+        <div style={{ fontSize: '14px', color: 'var(--text)' }}>
+          {(() => {
+            try {
+              const details = JSON.parse(applicant.nextStep)
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: '8px' }}>
+                  <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date}</span>
+                  <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time}</span>
+                  <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
+                  <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
+                </div>
+              )
+            } catch {
+              return <p>{applicant.nextStep}</p>
+            }
+          })()}
+        </div>
+      </section>
     )}
 
     {applicant.status === 'Accepted' && (
@@ -379,7 +429,23 @@ function ApplicantDetail({
 
       <section className="cp-card">
         <p className="cp-section-label">Cover letter</p>
-        <p className="cp-cover">{applicant.coverLetter}</p>
+        {applicant.coverLetterFile ? (
+          <div className="cp-doc">
+            <FileText size={14} />
+            <span className="cp-doc-name">
+              {docLabel(applicant.coverLetterFile, applicant.name, 'Cover Letter')}
+            </span>
+            <button
+              onClick={() => handleOpenDocument(applicant.coverLetterFile!, docLabel(applicant.coverLetterFile!, applicant.name, 'Cover Letter'))}
+              type="button"
+              disabled={previewLoading}
+            >
+              <Download size={12} /> View
+            </button>
+          </div>
+        ) : (
+          <p className="cp-muted">No cover letter uploaded.</p>
+        )}
       </section>
 
       {rejectOpen && (
@@ -389,6 +455,20 @@ function ApplicantDetail({
           onSubmit={(feedback) => {
             run(() => onSetStatus(applicant.id, 'Rejected', feedback))
             setRejectOpen(false)
+          }}
+        />
+      )}
+
+      {scheduleInterviewOpen && (
+        <ScheduleInterviewModal
+          onClose={() => setScheduleInterviewOpen(false)}
+          onSubmit={(details) => {
+            run(() => onScheduleInterview(applicant.id, details))
+            setScheduleInterviewOpen(false)
+          }}
+          onSkip={() => {
+            run(() => onSetStatus(applicant.id, 'Accepted'))
+            setScheduleInterviewOpen(false)
           }}
         />
       )}
@@ -449,6 +529,95 @@ function ApplicantDetail({
   )
 }
 
+/* ── Schedule Interview Modal ────────────────────────────── */
+
+function ScheduleInterviewModal({
+  onClose,
+  onSubmit,
+  onSkip,
+}: {
+  onClose: () => void
+  onSubmit: (details: InterviewDetails) => void
+  onSkip: () => void
+}) {
+  useScrollLock()
+
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
+  const [mode, setMode] = useState<'online' | 'in-person'>('online')
+  const [locationOrLink, setLocationOrLink] = useState('')
+
+  const isValid = date && time && locationOrLink.trim()
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal-panel">
+        <div className="modal-header">
+          <h3>Schedule Interview</h3>
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button">
+            <X size={16} />
+          </button>
+        </div>
+        <p className="cp-muted" style={{ marginBottom: '16px' }}>
+          Schedule an interview or skip directly to accepting the applicant.
+        </p>
+        
+        <div style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+          <label className="cp-modal-label">
+            Date *
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+          </label>
+          <label className="cp-modal-label">
+            Time *
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+          </label>
+          <div className="cp-modal-label">
+            Format *
+            <Dropdown
+              ariaLabel="Interview format"
+              onChange={(v) => setMode(v as InterviewDetails['mode'])}
+              options={[
+                { value: 'online', label: 'Online' },
+                { value: 'in-person', label: 'In-person' },
+              ]}
+              value={mode}
+            />
+          </div>
+          <label className="cp-modal-label">
+            {mode === 'online' ? 'Meeting Link *' : 'Location Address *'}
+            <input type="text" placeholder={mode === 'online' ? "https://meet.google.com/..." : "123 Office Bldg, Floor 4"} value={locationOrLink} onChange={(e) => setLocationOrLink(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+          </label>
+        </div>
+
+        <div className="cp-modal-footer" style={{ justifyContent: 'space-between' }}>
+          <button className="cp-secondary" onClick={onSkip} type="button" style={{ border: '2px solid var(--brand-orange)', color: 'var(--brand-orange-dark)', fontWeight: 'bold' }}>
+            Skip & Accept Directly
+          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="cp-secondary" onClick={onClose} type="button">
+              Cancel
+            </button>
+            <button
+              className="cp-accept"
+              disabled={!isValid}
+              onClick={() => onSubmit({ date, time, mode, locationOrLink: locationOrLink.trim() })}
+              type="button"
+              style={{ border: 'none', background: 'var(--brand-orange)', color: 'white' }}
+            >
+              <CheckCircle2 size={13} /> Schedule Interview
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Document Preview Modal ─────────────────────────────────────── */
 
 function DocumentPreviewModal({
@@ -462,6 +631,8 @@ function DocumentPreviewModal({
   name: string
   onClose: () => void
 }) {
+  useScrollLock()
+
   return (
     <div
       className="modal-overlay"
@@ -482,8 +653,8 @@ function DocumentPreviewModal({
             >
               <Download size={14} /> Download
             </a>
-            <button className="modal-close" onClick={onClose} type="button">
-              ✕
+            <button aria-label="Close" className="modal-close" onClick={onClose} type="button">
+              <X size={16} />
             </button>
           </div>
         </div>
@@ -504,6 +675,8 @@ function RevisionModal({
   onClose: () => void
   onSubmit: (feedback: string) => void
 }) {
+  useScrollLock()
+
   const [feedback, setFeedback] = useState('')
 
   return (
@@ -516,8 +689,8 @@ function RevisionModal({
       <div className="modal-panel">
         <div className="modal-header">
           <h3>Request Revision</h3>
-          <button className="modal-close" onClick={onClose} type="button">
-            ✕
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button">
+            <X size={16} />
           </button>
         </div>
         <p className="cp-muted">
@@ -560,6 +733,8 @@ function RejectModal({
   onClose: () => void
   onSubmit: (feedback: string) => void
 }) {
+  useScrollLock()
+
   const [feedback, setFeedback] = useState('')
 
   return (
@@ -572,8 +747,8 @@ function RejectModal({
       <div className="modal-panel">
         <div className="modal-header">
           <h3>Reject</h3>
-          <button className="modal-close" onClick={onClose} type="button">
-            ✕
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button">
+            <X size={16} />
           </button>
         </div>
         <p className="cp-muted">

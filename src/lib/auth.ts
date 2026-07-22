@@ -26,6 +26,9 @@ export type SignupName = {
   middleInitial: string
   lastName: string
   suffix: string
+  address?: string
+  contactNumber?: string
+  personalEmail?: string
 }
 
 /**
@@ -73,6 +76,9 @@ export async function requestSignupCode(
         middle_initial: formatMiddleInitial(name.middleInitial),
         last_name: name.lastName.trim(),
         suffix: name.suffix.trim(),
+        address: name.address?.trim() || null,
+        contact_number: name.contactNumber?.trim() || null,
+        personal_email: name.personalEmail?.trim() || null,
         ...(universityEmail
           ? { university_email: universityEmail.trim().toLowerCase() }
           : {}),

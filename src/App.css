@@ -28,9 +28,20 @@ button {
   cursor: pointer;
   min-height: 38px;
   padding: 8px 12px;
+  /* background and color are in here because hover states across the app change
+     them — .modal-close swaps colour, .nb-load-more swaps background — and a
+     property the base list omits simply snaps. Anything added to a :hover later
+     should be added here too, or it will jump while its neighbours ease.
+
+     Note that a `transition` on a class REPLACES this whole list rather than
+     adding to it, so a component that needs its own timing has to restate every
+     property it wants animated. That is why the ones below were re-checked. */
   transition:
+    background var(--dur-1) var(--ease-out),
     border-color var(--dur-1) var(--ease-out),
     box-shadow var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out),
+    filter var(--dur-1) var(--ease-out),
     transform var(--dur-1) var(--ease-out);
 }
 
@@ -38,6 +49,17 @@ button:hover {
   border-color: var(--accent);
   box-shadow: 0 8px 24px rgba(25, 52, 80, 0.08);
   transform: translateY(-1px);
+}
+
+/* The press. Hover lifts the button off the page, so a click should put it
+   back down — without this the button stays raised through the press and the
+   click has no physical read at all. Deliberately quicker than --dur-1: a
+   press is a direct response to the finger and lagging behind it feels
+   broken, where the release back to hover can afford to take its time. */
+button:active:not(:disabled) {
+  box-shadow: 0 2px 6px rgba(25, 52, 80, 0.1);
+  transform: translateY(0);
+  transition-duration: 90ms;
 }
 
 button.primary {
@@ -59,32 +81,30 @@ button.primary {
 }
 
 .workspace {
-  /* Three layers, topmost first: the white wash, the centred brand watermark,
-     then the hero mark in the corner. Both marks sit UNDER the wash, so its
-     alpha is what fades them — see --wm-size in index.css. The watermark is
-     `fixed` so it stays put while content scrolls, and its position is nudged
-     right by half the sidebar to centre it in the content area rather than
-     the viewport. */
+  /* Two layers, topmost first: the white wash, then the centred brand
+     watermark. The mark sits UNDER the wash, so its alpha is what fades it —
+     see --wm-size in index.css. The watermark is `fixed` so it stays put while
+     content scrolls, and its position is nudged right by half the sidebar to
+     centre it in the content area rather than the viewport. */
   background-color: #fff;
   background-image:
     linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(246, 248, 251, 0.95)),
-    url('/logo.png'),
-    url('./assets/hero.png');
+    url('/logo.png');
   background-position:
     0 0,
-    calc(50% + var(--sb-w) / 2) 50%,
-    right 28px top 24px;
-  background-repeat: no-repeat, no-repeat, no-repeat;
+    calc(50% + var(--sb-w) / 2) 50%;
+  background-repeat: no-repeat, no-repeat;
   background-size:
     auto,
-    var(--wm-size) auto,
-    160px auto;
-  background-attachment: scroll, fixed, scroll;
+    var(--wm-size) auto;
+  background-attachment: scroll, fixed;
+  /* Deliberately NOT transitioned — see .ic-main in admin.css for the reasoning.
+     margin-left is a layout property, so animating it re-wraps every line of
+     content on every frame. The rail's own width animation carries the motion. */
   margin-left: var(--sb-w);
   min-height: 100svh;
   min-width: 0;
   padding: 28px;
-  transition: margin-left var(--dur-2) var(--ease-out);
 }
 
 .topbar,
@@ -106,6 +126,15 @@ button.primary {
   font-size: 34px;
   margin: 0;
   text-transform: capitalize;
+}
+
+/* The trailing action group in a dashboard topbar — primary button + bell.
+   Was three copies of the same inline style; it needs to be a class so the
+   mobile layer can re-align it once .topbar becomes a stacked grid. */
+.topbar-actions {
+  align-items: center;
+  display: flex;
+  gap: 16px;
 }
 
 .quick-actions,
@@ -241,7 +270,7 @@ button.primary {
   gap: 8px;
   min-height: 42px;
   padding: 0 12px;
-  transition: border-color 160ms ease;
+  transition: border-color var(--dur-1) ease;
 }
 
 .browse-search-field:focus-within {
@@ -345,9 +374,9 @@ button.primary {
   min-height: 32px;
   padding: 4px 16px;
   transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
+    background var(--dur-1) ease,
+    border-color var(--dur-1) ease,
+    color var(--dur-1) ease;
 }
 
 .browse-pill:hover {
@@ -406,6 +435,22 @@ button.primary {
   outline-offset: 2px;
 }
 
+.application-strip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.application-strip.highlighted,
+.cp-card.highlighted,
+.cp-row.highlighted,
+.ic-card.highlighted,
+.ic-row.highlighted,
+tr.highlighted {
+  outline: 2px solid var(--brand-orange);
+  outline-offset: -2px;
+  background: var(--brand-orange-light, #fff5eb);
+}
+
 .strip-top {
   display: flex;
   padding: 20px;
@@ -450,6 +495,11 @@ button.primary {
   font-size: 14px;
   margin: 0 0 12px;
   line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .strip-tags {
@@ -567,21 +617,26 @@ button.primary {
   gap: 20px;
 }
 
+/* The one back-button design, used by every portal. Carries a lucide ArrowLeft
+   plus its label — the layout properties here are what let the icon sit on the
+   text baseline, so a bare text arrow is no longer needed. */
 .detail-back {
+  align-items: center;
   align-self: flex-start;
   background: none;
   border: 1px solid var(--brand-orange);
   border-radius: 8px;
   color: var(--brand-orange);
   cursor: pointer;
+  display: inline-flex;
   font-size: 13px;
   font-weight: 600;
+  gap: 6px;
   min-height: 36px;
   padding: 6px 14px;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
+  /* No `transition` of its own — the base button rule already animates
+     border-color and colour, and restating a partial list here would drop the
+     rest. */
 }
 
 .detail-back:hover {
@@ -921,8 +976,8 @@ button.primary {
   cursor: pointer;
   position: relative;
   transition:
-    border-color 160ms ease,
-    background 160ms ease;
+    border-color var(--dur-1) ease,
+    background var(--dur-1) ease;
 }
 
 .upload-zone:hover {
@@ -993,6 +1048,79 @@ button.primary {
   font-size: 13px;
   font-weight: 600;
   margin: 0;
+}
+
+/* Read-only document rows in the apply modal. Deliberately not .upload-zone:
+   that is a drop target (dashed border, pointer cursor, hover glow) and lays
+   its children out as blocks, which left the View button stranded under the
+   filename against the left edge. */
+.apply-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.apply-doc {
+  align-items: center;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.apply-doc-icon {
+  align-items: center;
+  color: var(--accent);
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* min-width:0 lets a long filename or URL shrink and wrap instead of forcing
+   the row wider than the modal. */
+.apply-doc-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.apply-doc-label {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.apply-doc-name {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.apply-doc-view {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-strong);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  transition:
+    border-color var(--dur-1) ease,
+    color var(--dur-1) ease;
+}
+
+.apply-doc-view:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.apply-doc-view:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .upload-remove {
@@ -1306,10 +1434,17 @@ label {
     transform var(--dur-2) var(--ease-out);
 }
 
-.application-strip:hover {
+.application-strip:not(.highlighted):not(.shaded):hover {
   border-color: var(--accent);
   box-shadow: 0 8px 24px rgba(231, 104, 20, 0.1);
   transform: translateY(-1px);
+}
+
+.application-strip.shaded {
+  opacity: 0.5;
+  filter: grayscale(1);
+  pointer-events: none;
+  cursor: default;
 }
 
 .strip-edit-btn {
@@ -1436,6 +1571,18 @@ label {
   color: var(--green);
 }
 
+.stepper-item.warning .stepper-circle {
+  background: white;
+  border-color: transparent;
+  color: var(--brand-orange);
+}
+
+.stepper-item.error .stepper-circle {
+  background: white;
+  border-color: transparent;
+  color: #d93025; /* Red */
+}
+
 .stepper-item.active .stepper-circle {
   border-color: var(--brand-orange-soft);
   border-width: 4px;
@@ -1458,6 +1605,16 @@ label {
 .stepper-item.done .stepper-label,
 .stepper-item.active .stepper-label {
   color: var(--brand-orange);
+}
+
+.stepper-item.warning .stepper-label {
+  color: var(--brand-orange);
+  font-weight: bold;
+}
+
+.stepper-item.error .stepper-label {
+  color: #d93025;
+  font-weight: bold;
 }
 
 .stepper-item.done .stepper-label {
@@ -1638,7 +1795,7 @@ label {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s ease;
+  transition: background var(--dur-2) ease;
 }
 
 .nb-trigger:hover {
@@ -1691,6 +1848,12 @@ label {
   font-weight: 600;
 }
 
+.nb-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .nb-mark-read {
   background: none;
   border: none;
@@ -1698,6 +1861,13 @@ label {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+
+/* The panel is a plain dropdown on desktop — clicking away is gesture enough,
+   so the explicit close and its scrim are mobile-only (see responsive.css). */
+.nb-close,
+.nb-backdrop {
+  display: none;
 }
 
 .nb-mark-read:hover {
@@ -1719,7 +1889,7 @@ label {
 .nb-item {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-light);
-  transition: background 0.15s ease;
+  transition: background var(--dur-1) ease;
 }
 
 .nb-item:last-child {
@@ -1731,6 +1901,12 @@ label {
 }
 
 .nb-item.clickable:hover {
+  background: var(--surface-light, #f5f5f5);
+}
+
+.nb-item.clicked {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
   background: var(--surface-light, #f5f5f5);
 }
 
@@ -1768,4 +1944,56 @@ label {
 .nb-date {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+/* Sits at the end of the list, inside the scroller, so it is reached by
+   scrolling rather than occupying height the notifications could use. */
+.nb-list-actions {
+  /* --border, not --border-light: the latter is referenced in five other
+     places but never defined, so any rule using it silently renders no border
+     at all. See the note in the commit that added this. */
+  border-top: 1px solid var(--border);
+  display: flex;
+}
+
+.nb-load-more,
+.nb-show-less {
+  background: none;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  /* Each takes half the row when both show, the full width when one does. */
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.nb-load-more {
+  color: var(--brand-dark-red);
+}
+
+/* Muted against "Load older": undoing the list is the lesser action. */
+.nb-show-less {
+  color: var(--text-muted);
+}
+
+/* Only when both are present -- a lone button needs no divider. */
+.nb-load-more + .nb-show-less {
+  border-left: 1px solid var(--border);
+}
+
+.nb-load-more:hover,
+.nb-show-less:hover {
+  background: var(--surface-light, #f5f5f5);
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
+
+.nb-load-more:disabled,
+.nb-show-less:disabled {
+  color: var(--text-muted);
+  cursor: default;
 }

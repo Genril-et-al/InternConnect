@@ -5,7 +5,7 @@
    cascade. Most rules here tie on specificity with the ones they replace, and
    win purely on source order — so the import position is load-bearing, not
    cosmetic. Where a rule has to beat a `.sb-collapsed .x` descendant selector
-   (0,2,0) it is scoped under `.ad-sidebar` to match that weight.
+   (0,2,0) it is scoped under `.ic-sidebar` to match that weight.
 
    Nothing here applies above the breakpoints; the desktop design is untouched.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -57,12 +57,12 @@
      re-apply their 76px on a shell the user had collapsed on desktop. */
   .app-shell,
   .app-shell.sb-collapsed,
-  .ad-shell,
-  .ad-shell.sb-collapsed {
+  .ic-shell,
+  .ic-shell.sb-collapsed {
     --sb-w: 0px;
   }
 
-  .ad-sidebar {
+  .ic-sidebar {
     top: auto;
     bottom: 0;
     left: 0;
@@ -83,12 +83,12 @@
   }
 
   /* The brand block and the collapse toggle have no role in a bottom bar. */
-  .ad-sidebar .ad-brand,
-  .ad-sidebar .ad-collapse {
+  .ic-sidebar .ic-brand,
+  .ic-sidebar .ic-collapse {
     display: none;
   }
 
-  .ad-sidebar .ad-nav {
+  .ic-sidebar .ic-nav {
     flex: 1;
     flex-direction: row;
     gap: 2px;
@@ -97,7 +97,7 @@
   }
 
   /* Icon stacked over its label, each item an equal share of the bar. */
-  .ad-sidebar .ad-nav button {
+  .ic-sidebar .ic-nav button {
     flex: 1;
     flex-direction: column;
     gap: 3px;
@@ -111,7 +111,7 @@
 
   /* Undo the rail's label collapse — max-width/opacity, not display, is what
      hid these, so all three have to be restored. */
-  .ad-sidebar .ad-nav-label {
+  .ic-sidebar .ic-nav-label {
     display: block;
     max-width: none;
     opacity: 1;
@@ -122,7 +122,7 @@
   }
 
   /* Avatar + sign-out become a trailing group, divided from the nav items. */
-  .ad-sidebar .ad-user {
+  .ic-sidebar .ic-user {
     flex-direction: row;
     align-items: center;
     gap: 2px;
@@ -131,11 +131,11 @@
     padding: 6px 6px 6px 8px;
   }
 
-  .ad-sidebar .ad-user-main {
+  .ic-sidebar .ic-user-main {
     display: none;
   }
 
-  .ad-sidebar .ad-user-trigger {
+  .ic-sidebar .ic-user-trigger {
     flex: 0 0 auto;
     width: auto;
     min-height: 44px;
@@ -146,7 +146,7 @@
 
   /* Restore from the collapsed state, which hid this and pulled it out of the
      tab order via visibility. */
-  .ad-sidebar .ad-signout {
+  .ic-sidebar .ic-signout {
     max-width: 40px;
     min-height: 44px;
     opacity: 1;
@@ -156,6 +156,22 @@
     padding: 6px;
     transition-delay: 0s;
   }
+
+  /* Sign-out moves off the tab bar and onto the profile page, under Save
+     changes — the avatar beside it already goes to Profile, so it is one tap
+     away and the bar gets the space back.
+
+     Scoped to .app-shell deliberately. The admin shell (.ic-shell) has no
+     profile page — ProfileSetup is only rendered by App.tsx, and the admin
+     avatar is not a button — so hiding its sign-out too would leave an admin
+     with no way to sign out on a phone at all. */
+  .app-shell .ic-signout {
+    display: none;
+  }
+
+  .profile-mobile-signout {
+    display: block;
+  }
 }
 
 
@@ -163,43 +179,156 @@
 @media (max-width: 760px) {
 
   .workspace,
-  .ad-main {
+  .ic-main {
     margin-left: 0;
     /* Bottom padding clears the ~64px bar plus the home indicator, so the last
        card in a list is never trapped underneath it. */
     padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* `background-attachment: fixed` is the single worst offender for scroll jank
-     on mobile Safari — it repaints the whole layer every frame, and on older
-     iOS versions the watermark detaches and drifts. Pin the layers to normal
-     scrolling instead and centre the mark now that there is no rail to offset
-     it against. */
+  /* Watermark placement — the mark must stay pinned to the viewport while
+     content scrolls past it, exactly as it does on desktop.
+
+     What broke it was `background-attachment: scroll` combined with a
+     PERCENTAGE y-position. Percentages resolve against the background
+     positioning area, which for a scrolling layer is the element's own padding
+     box — and .workspace / .ic-main are as tall as their content. So `38%`
+     meant 38% of the whole document: just under the header on a short page,
+     a thousand-odd pixels down on a long list (which read as "gone"), and a
+     different spot again whenever the content length changed.
+
+     `fixed` makes the positioning area the VIEWPORT instead, so `50% 50%` is
+     the centre of the screen at every scroll offset and on every page. That is
+     the only mechanism that pins a background layer without a pseudo-element,
+     and a pseudo-element is not available here: fading one needs `isolation`
+     on the container, which would trap the z-index:1000 .modal-overlay in a new
+     stacking context and paint it under the sidebar (see index.css).
+
+     The earlier note here dropped `fixed` over scroll-repaint cost on mobile
+     Safari. That is a real cost, but it is a performance nicety and this is
+     correctness — and the layer is one static image under an opaque wash,
+     which is the cheap case. The severe jank is with large or repeating fixed
+     layers. */
   .workspace {
-    background-attachment: scroll, scroll, scroll;
-    background-position: 0 0, 50% 38%, right 12px top 12px;
-    background-size: auto, var(--wm-size) auto, 96px auto;
+    background-attachment: scroll, fixed;
+    background-position: 0 0, 50% 50%;
+    background-size: auto, var(--wm-size) auto;
   }
 
-  .ad-main {
-    background-attachment: scroll, scroll;
-    background-position: 0 0, 50% 38%;
+  .ic-main {
+    background-attachment: scroll, fixed;
+    background-position: 0 0, 50% 50%;
+  }
+
+  /* The auth/loading screens draw the same mark. They keep `fixed` from
+     auth.css; what they lacked was the mobile --wm-size below, so the mark
+     rendered at the desktop 46vw (~172px on a phone). */
+  .auth-loading {
+    background-position: 0 0, 50% 50%;
   }
 
   /* 46vw put the watermark at ~172px on a phone — small enough to read as a
      stray graphic rather than a ghosted brand mark. */
   .app-shell,
-  .ad-shell {
+  .ic-shell,
+  .auth-loading {
     --wm-size: min(340px, 66vw);
   }
+}
 
-  .topbar h2 {
+
+/* ── 3b. Typography at phone widths ───────────────────────────────────────
+   A phone gives these views a ~343px column (375px less the 16px padding
+   either side). The display sizes were picked against a 1100px+ content area
+   and were never scaled down, so anything longer than a couple of words —
+   "Welcome back, <full name>", a listing title, a company name — broke into
+   three or four lines of 26–34px type that filled the screen before any
+   content did.
+
+   Two things are adjusted together, and the second matters as much as the
+   first: the size, and the line-height. Headings inherit `line-height: 1.45`
+   from :root, which is tuned for body copy; on a heading that has wrapped it
+   opens gaps between the lines wide enough that the heading stops reading as
+   one block. Large text needs proportionally less leading, not more.
+
+   `text-wrap: balance` (set globally in index.css) does the rest — it evens
+   the wrapped lines instead of leaving a single orphaned word on the last. */
+@media (max-width: 760px) {
+
+  /* Page titles — one per view, the largest text on the screen. */
+  .topbar h2,
+  .ic-main .ic-topbar h2,
+  .ic-main h2,
+  .sd-title,
+  .cp-title,
+  .ic-title,
+  .browse-title,
+  .applications-header h2,
+  .profile-head h1 {
+    font-size: 22px;
+    line-height: 1.2;
+  }
+
+  /* Secondary headings: detail views, modals and card headers. */
+  .detail-title,
+  .cp-detail-name,
+  .modal-panel h3,
+  .panel-heading h3 {
+    line-height: 1.25;
+  }
+
+  /* Stat tiles sit two-up in a ~165px track. The number is short, but the
+     label under it usually is not, so the tile is only as calm as the pair —
+     dropping the number a step keeps them balanced. */
+  .sd-stat-value {
+    font-size: 28px;
+  }
+
+  .ic-stat-value,
+  .cp-stat-value,
+  .sd-big-number,
+  .metric strong {
     font-size: 24px;
   }
 
-  .ad-main .ad-topbar h2,
-  .ad-main h2 {
+  /* Meta rows (company · location · posted date) are flex rows that assume
+     they fit on one line. Let them wrap rather than overflow the card. */
+  .strip-meta,
+  .detail-meta,
+  .card-topline,
+  .toolbar,
+  .quick-actions,
+  .topbar-actions {
+    flex-wrap: wrap;
+  }
+}
+
+
+/* Very narrow phones (iPhone SE and the 360px Android class) get one more
+   step down — at 320–360px even 22px headings wrap on two words. */
+@media (max-width: 400px) {
+
+  .topbar h2,
+  .ic-main .ic-topbar h2,
+  .ic-main h2,
+  .sd-title,
+  .cp-title,
+  .ic-title,
+  .browse-title,
+  .applications-header h2,
+  .profile-head h1 {
+    font-size: 20px;
+  }
+
+  .sd-stat-value {
     font-size: 24px;
+  }
+
+  .ic-stat-value,
+  .cp-stat-value,
+  .sd-big-number,
+  .metric strong {
+    font-size: 22px;
   }
 }
 
@@ -226,27 +355,152 @@
 /* ── 5. Overlays sized to the viewport ───────────────────────────────────── */
 @media (max-width: 760px) {
 
-  /* 320px fixed against a right-anchored trigger overflowed the screen edge on
-     a 375px device. */
-  .nb-dropdown {
-    width: min(320px, calc(100vw - 32px));
-    max-height: 70vh;
-    overflow-y: auto;
+  /* The notification panel is a card that pops up and hovers under the bell,
+     over a dimmed page. It stays anchored to its trigger (so the connection
+     between the bell and the panel is obvious) but detaches from the screen
+     edges, which is what makes it read as floating rather than as part of the
+     layout.
+
+     Two things were wrong with it as a plain dropdown:
+
+     - It scrolled twice. `.nb-dropdown` got `overflow-y: auto` here while
+       `.nb-list` keeps its own `max-height: 360px` scroller from App.css, so a
+       long list had nested scroll areas and a header that scrolled away.
+     - A 320px panel against a right-anchored trigger ran off the screen edge
+       on a 375px device.
+
+     Positioning stays `absolute` from App.css — none of the ancestors
+     (.app-shell / .workspace / the dashboard headers) set position, overflow,
+     transform or z-index, so there is no stacking context to trap the fixed
+     scrim and no clipping box to cut the card off. */
+
+  /* Load-bearing for the card below. The three dashboard headers that hold a
+     bell (.sd-header, .cp-head, .ic-page-head) are all
+     `flex-wrap: wrap; justify-content: space-between`. On a phone the heading
+     and this group no longer fit on one line, so the group wraps onto a line of
+     its own — and `space-between` puts a lone item on a line at the START. The
+     bell ends up on the left, and a card anchored to its right edge hangs off
+     the side of the screen.
+
+     `margin-left: auto` is what moves the group itself; `justify-content` here
+     would only arrange its children inside a box that is already content-sized,
+     which is why it has no effect. */
+  .topbar-actions {
+    margin-left: auto;
+  }
+  .nb-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(28, 10, 4, 0.45);
+    /* Above the bottom tab bar (60), below .modal-overlay (1000). */
+    z-index: 900;
+    animation: modal-fade-in var(--dur-2) var(--ease-out);
   }
 
-  /* Modals become bottom sheets: reachable by thumb, and the slide-up
-     animation the panel already has now reads as intentional. */
+  /* `right: 0` inherited from App.css pins the card to the trigger's right
+     edge, which the 16px .workspace padding already insets from the screen.
+     The width leaves a matching gap on the left, so the card floats clear of
+     both edges instead of butting up against one. */
+  .nb-dropdown {
+    width: min(340px, calc(100vw - 32px));
+    margin-top: 10px;
+    max-height: 60vh;
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(28, 10, 4, 0.3);
+    z-index: 901;
+    /* The open animation itself is .menu-pop in index.css — it used to be
+       defined here, mobile-only, which left the desktop panel appearing with
+       no transition at all. Only the layout overrides belong in this file. */
+  }
+
+  /* The one scroll container. `flex: 1` over the fixed 360px cap lets it use
+     whatever the 60vh leaves after the header, and `overscroll-behavior`
+     stops a flick at the end of the list from scrolling the page behind. */
+  .nb-list {
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* flex-shrink:0 so the header keeps its height when the list wants the
+     space — without it the flex column squeezes the title as the list grows. */
+  .nb-header {
+    flex-shrink: 0;
+    padding: 16px;
+  }
+
+  .nb-header h3 {
+    font-size: 16px;
+  }
+
+  .nb-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 4px;
+    min-width: 44px;
+    color: var(--text-muted);
+  }
+
+  /* Roomier rows: 13px text in a 14px box is a small tap target for a list
+     whose items navigate somewhere. */
+  .nb-item {
+    padding: 16px;
+  }
+
+  .nb-message {
+    font-size: 14px;
+  }
+
+  /* Modals stay CENTRED on mobile, as they are on desktop.
+
+     They used to be re-laid as bottom sheets docked to the bottom edge. The
+     sheet pattern earns its keep for a tall, scrollable, task-shaped panel that
+     the thumb has to work through. It does not suit what this app actually
+     puts in a modal: most of these are short confirmations — "Sign out?",
+     "Withdraw this application?" — two lines and two buttons. Docking a 140px
+     card to the bottom edge leaves the question stranded at the far end of the
+     screen from where the user is looking, and on a tall phone it sits below
+     the fold of attention entirely.
+
+     Centring keeps the message and its buttons together in the middle of the
+     screen, which is where the eye already is.
+
+     Only the overlay's alignment was ever overridden, so restoring it here is
+     enough — .modal-panel and .confirm-dialog inherit the desktop centring,
+     and .confirm-dialog (which reuses this overlay) is fixed by the same
+     change. */
   .modal-overlay {
-    align-items: flex-end;
-    padding: 0;
+    align-items: center;
+    /* Smaller than the desktop 24px so a wide panel still gets the width, but
+     not zero — the gap is what keeps the card reading as a floating dialog
+     rather than a full-bleed screen. The safe-area term keeps it clear of the
+     home indicator on the short axis. */
+    padding: 16px calc(16px + env(safe-area-inset-right, 0px))
+      calc(16px + env(safe-area-inset-bottom, 0px))
+      calc(16px + env(safe-area-inset-left, 0px));
   }
 
   .modal-panel {
-    max-height: 90vh;
+    /* svh, not vh: vh resolves against the LARGEST viewport (toolbars hidden),
+       so a 90vh panel is taller than the screen while the browser chrome is
+       showing and its buttons sit under the toolbar. svh is the smallest
+       viewport, which is the safe one to size a centred dialog against. */
+    max-height: 85svh;
     max-width: none;
-    padding: 20px 18px calc(20px + env(safe-area-inset-bottom, 0px));
-    border-radius: 18px 18px 0 0;
-    border-bottom: none;
+    padding: 22px 18px;
+    border-radius: 16px;
+  }
+
+  .confirm-dialog {
+    max-height: 85svh;
+    overflow-y: auto;
+    padding: 24px 20px;
   }
 }
 
@@ -259,7 +513,7 @@
 @media (max-width: 760px) {
 
   .table-wrap,
-  .ad-table-wrap {
+  .ic-table-wrap {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
   }

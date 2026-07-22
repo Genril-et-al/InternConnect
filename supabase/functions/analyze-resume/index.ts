@@ -16,9 +16,27 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-// Tried in order. A model can 404 if the key's project lacks access to it, so
-// falling back keeps analysis working instead of failing the whole request.
-const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']
+// Tried in order. Two independent things can go wrong per model, and they need
+// opposite responses:
+//   * permanent (404/400/403) — this key's project cannot use the model at all
+//     (e.g. gemini-2.5-flash is closed to keys created after its cutoff).
+//     Retrying is pointless; move to the next model immediately.
+//   * transient (429/500/503) — the model exists but Google is throttling or
+//     overloaded. Moving on wastes a working model; retry with backoff first.
+// Keep the list ordered widest-availability-first so the common path is one
+// call, and always keep at least one older-generation model as a last resort.
+const GEMINI_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.5-flash',
+  'gemini-flash-latest',
+  'gemini-2.0-flash-001',
+  'gemini-2.5-flash-lite',
+]
+
+/** Statuses worth retrying on the same model before falling through. */
+const TRANSIENT_STATUSES = new Set([408, 429, 500, 502, 503, 504])
+const RETRIES_PER_MODEL = 2
+const RETRY_BASE_MS = 700
 
 const geminiUrl = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
@@ -76,6 +94,8 @@ const PROMPT =
   'evidenced in the document — do not invent any. If the document is not a resume, or ' +
   'contains no identifiable skills or specializations, return empty arrays and fill ' +
   '`suggestion` with concrete advice for making the resume matchable to internships.'
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -172,28 +192,35 @@ Deno.serve(async (req) => {
     let geminiBody: Record<string, unknown> | null = null
     const attempts: string[] = []
 
-    for (const model of GEMINI_MODELS) {
-      let res: Response
-      try {
-        res = await fetch(geminiUrl(model), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
-          body: requestBody,
-        })
-      } catch (err) {
-        // Network/DNS failure reaching Google at all.
-        attempts.push(`${model}: fetch failed — ${err instanceof Error ? err.message : String(err)}`)
-        continue
+    model: for (const model of GEMINI_MODELS) {
+      for (let attempt = 0; attempt <= RETRIES_PER_MODEL; attempt++) {
+        if (attempt > 0) await sleep(RETRY_BASE_MS * 2 ** (attempt - 1))
+
+        let res: Response
+        try {
+          res = await fetch(geminiUrl(model), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
+            body: requestBody,
+          })
+        } catch (err) {
+          // Network/DNS failure reaching Google at all — worth one more try.
+          attempts.push(
+            `${model}: fetch failed — ${err instanceof Error ? err.message : String(err)}`,
+          )
+          continue
+        }
+        if (res.ok) {
+          geminiBody = await res.json()
+          break model
+        }
+        // Capture Google's own message; this is what actually explains a failure
+        // (bad key, API not enabled, quota exhausted, model not available).
+        const detail = await res.text()
+        attempts.push(`${model}: HTTP ${res.status} — ${detail.slice(0, 300)}`)
+        console.error('Gemini error', model, res.status, detail)
+        if (!TRANSIENT_STATUSES.has(res.status)) continue model
       }
-      if (res.ok) {
-        geminiBody = await res.json()
-        break
-      }
-      // Capture Google's own message; this is what actually explains a failure
-      // (bad key, API not enabled, quota exhausted, model not available).
-      const detail = await res.text()
-      attempts.push(`${model}: HTTP ${res.status} — ${detail.slice(0, 600)}`)
-      console.error('Gemini error', model, res.status, detail)
     }
 
     if (!geminiBody) {
@@ -202,10 +229,15 @@ Deno.serve(async (req) => {
         fn: 'analyze-resume',
         detail: summary.slice(0, 4000),
       })
-      // `detail` is surfaced so the failure is diagnosable from the UI instead
-      // of only from logs the team cannot read.
+      // The full provider payload goes to `edge_function_errors` for the team.
+      // The student gets a short status-code trail — enough for them to quote in
+      // a bug report, without a wall of Google's JSON in the middle of the form.
+      const codes = attempts.map((a) => a.split(' — ')[0]).join(', ')
       return json(
-        { error: 'AI analysis failed. Please try again shortly.', detail: summary.slice(0, 500) },
+        {
+          error: 'AI analysis is temporarily unavailable. Please try again in a few minutes.',
+          detail: codes.slice(0, 300),
+        },
         502,
       )
     }

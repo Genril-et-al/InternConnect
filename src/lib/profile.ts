@@ -10,6 +10,7 @@ export type ProfileSetupInput = {
   specializations: string[]
   photoUrl?: string | null
   resumePath?: string | null
+  coverLetterPath?: string | null
   portfolioLink?: string | null
   portfolioFilePath?: string | null
   // Personal details — collected on the profile, not during sign-up.
@@ -65,7 +66,7 @@ function avatarPathFromPublicUrl(url: string, userId: string): string | null {
  */
 export async function uploadDocument(
   userId: string,
-  kind: 'resume' | 'portfolio',
+  kind: 'resume' | 'portfolio' | 'cover_letter',
   file: File,
 ): Promise<string> {
   const ext = fileExt(file)
@@ -112,7 +113,13 @@ export async function markResumeReplaced(userId: string): Promise<void> {
   if (error) throw error
 }
 
-/** Create a temporary signed URL to view a private document. */
+/**
+ * Create a temporary signed URL for a private document.
+ *
+ * Passing `downloadName` sets Content-Disposition: attachment, so the browser
+ * saves the file instead of rendering it. Omit it to preview inline -- callers
+ * that want both (see CompanyApplicants) mint one URL each way.
+ */
 export async function signedDocumentUrl(path: string, downloadName?: string, expiresInSec = 3600): Promise<string> {
   const { data, error } = await supabase.storage
     .from('documents')
@@ -132,6 +139,7 @@ export async function completeProfile(userId: string, input: ProfileSetupInput) 
       ai_specializations: input.aiSpecializations ?? [],
       photo_url: input.photoUrl ?? null,
       resume_url: input.resumePath ?? null,
+      cover_letter_url: input.coverLetterPath ?? null,
       portfolio_link: input.portfolioLink ?? null,
       portfolio_file_url: input.portfolioFilePath ?? null,
       age: input.age ?? null,

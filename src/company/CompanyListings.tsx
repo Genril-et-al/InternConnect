@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
-import { Plus, Search, Trash2, X } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
+import { Eye, Plus, Search, Trash2, X } from 'lucide-react'
 import type { CompanyApplicant, CompanyListing, PreEmploymentRequirement } from './companyData'
 import type { NewListingInput } from './companyQueries'
+import { useScrollLock } from '../lib/useScrollLock'
 
 /** UC-C03 — view and search the company's listings with applicant counts. */
 export function CompanyListings({
@@ -11,6 +12,7 @@ export function CompanyListings({
   onCreate,
   onSetStatus,
   onDelete,
+  highlightedListingId,
 }: {
   listings: CompanyListing[]
   applicants: CompanyApplicant[]
@@ -18,12 +20,22 @@ export function CompanyListings({
   onCreate: (input: NewListingInput) => Promise<void>
   onSetStatus: (id: string, status: CompanyListing['status']) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  highlightedListingId?: string | null
 }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [isPosting, setIsPosting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [previewListing, setPreviewListing] = useState<CompanyListing | null>(null)
+
+  useEffect(() => {
+    if (highlightedListingId) {
+      setTimeout(() => {
+        const el = document.querySelector('.cp-card.highlighted')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
+  }, [highlightedListingId])
 
   const run = (action: () => Promise<void>) => {
     setActionError(null)
@@ -102,7 +114,7 @@ export function CompanyListings({
           <div className="cp-card cp-empty">No listings found.</div>
         ) : (
           filtered.map((l) => (
-            <div className="cp-card" key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px', cursor: 'pointer' }} onClick={() => setPreviewListing(l)}>
+            <div className={`cp-card ${l.id === highlightedListingId ? 'highlighted' : ''}`} key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px', cursor: 'pointer' }} onClick={() => setPreviewListing(l)}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text)' }}>{l.title}</h3>
@@ -194,88 +206,87 @@ function PreviewListingView({
   onBack: () => void
   onEdit: () => void
 }) {
+  useScrollLock()
+
+  // The status pill's own variants — .status.success / .warning / .error in
+  // App.css. The old markup asked for `neutral` and `rejected`, neither of
+  // which exists, which is why every colour here used to be repeated inline.
+  const statusVariant =
+    listing.status === 'Open' ? 'success' : listing.status === 'Draft' ? 'warning' : 'error'
+
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onBack() }}>
-      <div className="modal-panel detail-view" style={{ maxWidth: '750px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <button className="detail-back" onClick={onBack} type="button" style={{ margin: 0, padding: 0, background: 'none', border: 'none', color: 'var(--text-light)', cursor: 'pointer', fontSize: '14px' }}>
-            ← Back to listings
+      <div className="modal-panel listing-preview">
+        <div className="listing-preview-bar">
+          <button aria-label="Close" className="modal-close" onClick={onBack} type="button">
+            <X size={16} />
           </button>
-          <button className="cp-primary" onClick={onEdit} type="button" style={{ padding: '8px 16px', borderRadius: '20px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}>
+          <button className="cp-primary" onClick={onEdit} type="button">
             Edit Listing
           </button>
         </div>
 
-        <div style={{ background: 'rgba(255, 165, 0, 0.1)', color: 'var(--brand-orange)', padding: '8px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: 500, marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        <p className="listing-preview-note">
+          <Eye size={16} />
           This is a preview of how students will see your listing.
+        </p>
+
+        <div className="listing-preview-card listing-preview-header">
+          <div>
+            <h2>{listing.title}</h2>
+            <p>{listing.department}</p>
+          </div>
+          <span className={`status ${statusVariant}`}>{listing.status}</span>
         </div>
 
-        <div className="detail-header" style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px' }}>
-          <div style={{ flex: 1 }}>
-            <h2 className="detail-title" style={{ margin: '0 0 8px 0', fontSize: '24px', color: 'var(--text)' }}>{listing.title}</h2>
-            <p className="muted" style={{ margin: 0, color: 'var(--text-light)' }}>{listing.department}</p>
+        <section className="listing-preview-card">
+          <h4>Description</h4>
+          <p className="listing-preview-description">{listing.description}</p>
+        </section>
+
+        <div className="listing-preview-card listing-preview-grid">
+          <div>
+            <span className="listing-preview-label">Department</span>
+            <span className="listing-preview-value">{listing.department}</span>
           </div>
-          <span className={`status ${listing.status === 'Open' ? 'success' : listing.status === 'Draft' ? 'neutral' : 'rejected'}`} style={{ padding: '4px 12px', borderRadius: '16px', fontSize: '14px', fontWeight: 500, background: listing.status === 'Open' ? 'rgba(46, 160, 67, 0.15)' : listing.status === 'Draft' ? 'var(--bg-subtle)' : 'rgba(248, 81, 73, 0.15)', color: listing.status === 'Open' ? '#3fb950' : listing.status === 'Draft' ? 'var(--text)' : '#ff7b72' }}>
-            {listing.status}
-          </span>
+          <div>
+            <span className="listing-preview-label">Available Slots</span>
+            <span className="listing-preview-value">{listing.slots}</span>
+          </div>
+          <div>
+            <span className="listing-preview-label">Deadline</span>
+            <span className="listing-preview-value">{listing.deadline}</span>
+          </div>
         </div>
 
-        <div className="detail-body" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <section className="detail-section">
-            <h4 style={{ margin: '0 0 12px 0', color: 'var(--brand-brown)', fontSize: '16px' }}>Description</h4>
-            <p style={{ margin: 0, lineHeight: 1.6, color: 'var(--text)' }}>{listing.description}</p>
-          </section>
-
-          <div className="detail-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
-            <div className="detail-info-item" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span className="detail-info-label" style={{ fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Department</span>
-              <span className="detail-info-value" style={{ fontSize: '15px', color: 'var(--text)', fontWeight: 500 }}>{listing.department}</span>
-            </div>
-            <div className="detail-info-item" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span className="detail-info-label" style={{ fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Available Slots</span>
-              <span className="detail-info-value" style={{ fontSize: '15px', color: 'var(--text)', fontWeight: 500 }}>{listing.slots}</span>
-            </div>
-            <div className="detail-info-item" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span className="detail-info-label" style={{ fontSize: '12px', color: 'var(--text-light)', fontWeight: 600, textTransform: 'uppercase' }}>Deadline</span>
-              <span className="detail-info-value" style={{ fontSize: '15px', color: 'var(--text)', fontWeight: 500 }}>{listing.deadline}</span>
-            </div>
+        <section className="listing-preview-card">
+          <h4>Required Skills</h4>
+          <div className="listing-preview-tags">
+            {listing.skills.map((skill) => (
+              <span key={skill}>{skill}</span>
+            ))}
           </div>
+        </section>
 
-          <section className="detail-section">
-            <h4 style={{ margin: '0 0 12px 0', color: 'var(--brand-brown)', fontSize: '16px' }}>Required Skills</h4>
-            <div className="tag-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {listing.skills.map((skill) => (
-                <span key={skill} style={{ background: 'var(--brand-sand)', padding: '6px 12px', borderRadius: '16px', fontSize: '13px', color: 'var(--brand-brown)', fontWeight: 500 }}>
-                  {skill}
-                </span>
+        {listing.requirements && listing.requirements.length > 0 && (
+          <section className="listing-preview-card">
+            <h4>Pre-employment Requirements</h4>
+            <p className="listing-preview-subtext">
+              These are hidden from students until they accept an offer.
+            </p>
+            <div className="listing-preview-reqs">
+              {listing.requirements.map(req => (
+                <div key={req.id}>
+                  <span className="listing-preview-req-name">{req.name}</span>
+                  <span className="listing-preview-req-meta">
+                    {req.type === 'file' ? 'File upload' : 'Text instruction'}
+                    {req.isPrintable && ' · Needs to be printed'}
+                  </span>
+                </div>
               ))}
             </div>
           </section>
-
-          {listing.requirements && listing.requirements.length > 0 && (
-            <section className="detail-section" style={{ marginTop: '16px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
-              <h4 style={{ margin: '0 0 8px 0', color: 'var(--brand-brown)', fontSize: '16px' }}>Pre-employment Requirements</h4>
-              <p className="cp-muted" style={{ fontSize: '13px', marginBottom: '16px', color: 'var(--text-light)' }}>
-                These are hidden from students until they accept an offer.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {listing.requirements.map(req => (
-                  <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontWeight: 500, color: 'var(--text)', fontSize: '14px' }}>{req.name}</span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-light)' }}>
-                        {req.type === 'file' ? 'File upload' : 'Text instruction'}
-                        {req.isPrintable && ' · Needs to be printed'}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )
@@ -286,6 +297,8 @@ function newRequirementId(): string {
 }
 
 function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate: (input: NewListingInput) => Promise<void> }) {
+  useScrollLock()
+
   const [title, setTitle] = useState('')
   const [department, setDepartment] = useState('')
   const [slots, setSlots] = useState('1')
@@ -346,7 +359,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
       <div className="modal-panel" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', padding: '0', borderRadius: '12px', border: '1px solid var(--border)' }}>
         <div className="modal-header" style={{ padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, color: 'var(--brand-brown)', fontSize: '20px' }}>Post New Listing</h3>
-          <button className="modal-close" onClick={onClose} type="button" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)' }}><X size={18} /></button>
+          <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         </div>
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px' }}>
