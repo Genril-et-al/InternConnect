@@ -56,7 +56,7 @@ export function CompanyApplicants({
   const [expandedListings, setExpandedListings] = useState<Set<string>>(() => {
     const initial = new Set<string>()
     listings.forEach(l => {
-      const needsAttention = applicants.some(a => a.role === l.title && (a.status === 'Pending' || a.status === 'Interview Scheduled' || a.status === 'Under Review'))
+      const needsAttention = applicants.some(a => a.role === l.title && (a.status === 'Pending' || a.status === 'Interview Scheduled' || a.status === 'Reviewed'))
       if (needsAttention) initial.add(l.id)
     })
     return initial
@@ -221,7 +221,7 @@ function ListingGroupCard({
   const [closeHiringOpen, setCloseHiringOpen] = useState(false)
 
   const pendingCount = allApplicants.filter(a => a.status === 'Pending').length
-  const reviewCount = allApplicants.filter(a => a.status === 'Under Review').length
+  const reviewCount = allApplicants.filter(a => a.status === 'Reviewed').length
   const interviewCount = allApplicants.filter(a => a.status === 'Interview Scheduled').length
   const acceptedCount = allApplicants.filter(a => a.status === 'Accepted').length
   const rejectedCount = allApplicants.filter(a => a.status === 'Rejected').length
@@ -269,6 +269,7 @@ function ListingGroupCard({
             <span>{allApplicants.length} total applicants</span>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ background: '#FFF8E1', color: '#F57F17', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🟡 Pending ({pendingCount})</span>
+              {reviewCount > 0 && <span style={{ background: '#E3F2FD', color: '#1976D2', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔵 Review ({reviewCount})</span>}
               <span style={{ background: '#E3F2FD', color: '#1976D2', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔵 Interview ({interviewCount})</span>
               <span style={{ background: '#E8F5E9', color: '#388E3C', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🟢 Accepted ({acceptedCount})</span>
               <span style={{ background: '#FFEBEE', color: '#D32F2F', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>🔴 Rejected ({rejectedCount})</span>
@@ -474,7 +475,7 @@ function ApplicantDetail({
               const rounds = listings.find((l) => l.title === applicant.role)?.interviewProcess?.rounds ?? ['Interview']
               let currentRoundIdx = -1
               try {
-                const details = JSON.parse(applicant.nextStep)
+                const details = JSON.parse(applicant.nextStep ?? '{}')
                 if (details.roundName) {
                   currentRoundIdx = rounds.indexOf(details.roundName)
                 }
