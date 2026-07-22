@@ -29,7 +29,8 @@ const APPLICANT_STATUS_FROM_DB: Record<string, ApplicantStatus> = {
   pending: 'Pending',
   under_review: 'Reviewed',
   shortlisted: 'Reviewed',
-  interview_scheduled: 'Interview Scheduled',
+  interview_scheduled: 'Interview',
+  offered: 'Offer',
   accepted: 'Accepted',
   rejected: 'Rejected',
 }
@@ -37,7 +38,8 @@ const APPLICANT_STATUS_FROM_DB: Record<string, ApplicantStatus> = {
 const APPLICANT_STATUS_TO_DB: Record<ApplicantStatus, string> = {
   Pending: 'pending',
   Reviewed: 'under_review',
-  'Interview Scheduled': 'interview_scheduled',
+  Interview: 'interview_scheduled',
+  Offer: 'offered',
   Accepted: 'accepted',
   Rejected: 'rejected',
 }
@@ -281,20 +283,14 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
 }
 
 /** Accept / reject / mark-reviewed an application (UC-C05). */
-export async function updateApplicationStatus(
-  applicationId: string,
-  status: ApplicantStatus,
-  feedback?: string,
-): Promise<void> {
-  // feedback is left off entirely when not supplied, rather than written as
-  // null — an accept/reject with no note must not wipe an existing one.
-  const payload: { status: string; feedback?: string } = {
-    status: APPLICANT_STATUS_TO_DB[status],
-  }
+export async function updateApplicationStatus(id: string, status: ApplicantStatus, feedback?: string, nextStep?: string): Promise<void> {
+  const payload: any = { status: APPLICANT_STATUS_TO_DB[status] }
   if (feedback !== undefined) payload.feedback = feedback
-
-
-  const { error } = await supabase.from('applications').update(payload).eq('id', applicationId)
+  if (nextStep !== undefined) payload.next_step = nextStep
+  const { error } = await supabase
+    .from('applications')
+    .update(payload)
+    .eq('id', id)
   if (error) throw new Error(error.message)
 }
 

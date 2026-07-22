@@ -23,7 +23,7 @@ export type CompanyListing = {
   interviewProcess?: { rounds: string[] }
 }
 
-export type ApplicantStatus = 'Pending' | 'Reviewed' | 'Interview Scheduled' | 'Accepted' | 'Rejected'
+export type ApplicantStatus = 'Pending' | 'Reviewed' | 'Interview' | 'Offer' | 'Accepted' | 'Rejected'
 
 /** A file the company sends to an accepted applicant (UC-C05 extension). */
 export type RequirementFile = {

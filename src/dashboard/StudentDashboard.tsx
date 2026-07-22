@@ -72,6 +72,7 @@ export function StudentDashboard({
 
   const { proactiveNotifications, markProactiveRead, markAllProactiveRead, removeProactiveNotification, removeAllProactiveNotifications } = useProactiveNotifications(
     internships,
+    applications,
     profile?.id,
   )
 

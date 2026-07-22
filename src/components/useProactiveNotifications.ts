@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
-import type { Internship } from '../lib/mockData'
+import type { Internship, Application } from '../lib/mockData'
 import type { Notification } from './NotificationBell'
 
-export function useProactiveNotifications(internships: Internship[], userId?: string) {
+export function useProactiveNotifications(internships: Internship[], applications: Application[], userId?: string) {
   const [proactiveNotifications, setProactiveNotifications] = useState<Notification[]>([])
 
   useEffect(() => {
@@ -43,15 +43,40 @@ export function useProactiveNotifications(internships: Internship[], userId?: st
         return {
           id: `proactive-${internship.id}`,
           message: `New internship matching your skills (${internship.match}%): ${internship.title} at ${internship.company}`,
-          date: new Date().toISOString(), // Keeping raw ISO string for correct sorting
+          date: new Date().toISOString(),
           read: readIds.has(id),
-          // onClick is bound dynamically when passing to NotificationBell
         }
       })
       .filter(Boolean) as Notification[]
 
-    setProactiveNotifications(generated.reverse()) // newest first
-  }, [internships, userId])
+    const deadlineNotifications = applications
+      .filter(app => app.status === 'Offered' && app.nextStep && !dismissedIds.has(`offer-${app.id}`))
+      .map(app => {
+        try {
+          const details = JSON.parse(app.nextStep)
+          if (!details.expiresAt) return null
+          const expiry = new Date(details.expiresAt)
+          const daysLeft = Math.ceil((expiry.getTime() - Date.now()) / 86400000)
+          
+          if (daysLeft <= 1 && daysLeft >= 0) {
+            if (!notifiedIds.has(`offer-${app.id}`)) {
+              notifiedIds.add(`offer-${app.id}`)
+              localStorage.setItem(storageKeyNotified, JSON.stringify(Array.from(notifiedIds)))
+            }
+            return {
+              id: `proactive-offer-${app.id}`,
+              message: `Urgent: Your offer for ${app.role} at ${app.company} expires in ${daysLeft > 0 ? daysLeft + ' day(s)' : 'less than a day'}!`,
+              date: new Date().toISOString(),
+              read: readIds.has(`offer-${app.id}`),
+            }
+          }
+        } catch {}
+        return null
+      })
+      .filter(Boolean) as Notification[]
+
+    setProactiveNotifications([...deadlineNotifications, ...generated.reverse()])
+  }, [internships, applications, userId])
 
   const markProactiveRead = useCallback((notificationId: string) => {
     if (!notificationId.startsWith('proactive-') || !userId) return

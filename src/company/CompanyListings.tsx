@@ -305,6 +305,8 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
   const [deadline, setDeadline] = useState('')
   const [skills, setSkills] = useState('')
   const [description, setDescription] = useState('')
+  const [hasAllowance, setHasAllowance] = useState(false)
+  const [offerDeadlineDays, setOfferDeadlineDays] = useState('3')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -334,6 +336,10 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (description.length < 50) {
+      setSaveError('Job description must be at least 50 characters long.')
+      return
+    }
     setSaving(true)
     setSaveError(null)
     try {
@@ -344,6 +350,8 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
         deadline,
         skills: skills.split(',').map(s => s.trim()).filter(Boolean),
         description,
+        hasAllowance,
+        offerDeadlineDays: parseInt(offerDeadlineDays) || 3,
         publish: publishImmediately,
         requirements: requirements
           .filter(r => r.name.trim() !== '')
@@ -385,10 +393,21 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
             </div>
           </div>
           
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--brand-brown)', fontSize: '14px' }}>Application Deadline</label>
-            <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text)' }} />
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--brand-brown)', fontSize: '14px' }}>Application Deadline</label>
+              <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text)' }} />
+            </div>
+            <div style={{ width: '180px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--brand-brown)', fontSize: '14px' }}>Offer Expiration (Days)</label>
+              <input type="number" min="1" value={offerDeadlineDays} onChange={e => setOfferDeadlineDays(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)' }} title="Number of days the student has to accept an offer." />
+            </div>
           </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'var(--text-strong)', cursor: 'pointer', fontWeight: 500 }}>
+            <input type="checkbox" checked={hasAllowance} onChange={e => setHasAllowance(e.target.checked)} style={{ width: '16px', height: '16px', margin: 0, cursor: 'pointer', accentColor: 'var(--brand-orange)' }} />
+            Allowance provided
+          </label>
           
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--brand-brown)', fontSize: '14px' }}>Skills Needed <span style={{color:'var(--brand-crimson)'}}>*</span></label>
@@ -470,27 +489,22 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
                       style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', marginBottom: '12px' }}
                     />
                     
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center', fontSize: '12px', flexWrap: 'wrap', color: 'var(--text-light)' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                        <input type="radio" name={`type-${req.id}`} checked={req.type === 'text'} onChange={() => updateRequirement(req.id, { type: 'text' })} style={{ width: '12px', height: '12px', margin: 0 }} />
-                        Text instruction
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                        <input type="radio" name={`type-${req.id}`} checked={req.type === 'file'} onChange={() => updateRequirement(req.id, { type: 'file' })} style={{ width: '12px', height: '12px', margin: 0 }} />
-                        File upload
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto', cursor: 'pointer', background: 'var(--bg-subtle)', padding: '4px 8px', borderRadius: '4px' }}>
-                        <input type="checkbox" checked={req.isPrintable} onChange={e => updateRequirement(req.id, { isPrintable: e.target.checked })} style={{ width: '12px', height: '12px', margin: 0 }} />
-                        Needs to be printed
-                      </label>
+                    <textarea 
+                      placeholder="Text instruction for the student (optional)..." 
+                      value={req.description || ''} 
+                      onChange={e => updateRequirement(req.id, { description: e.target.value })}
+                      style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', marginBottom: '12px', fontFamily: 'inherit', minHeight: '60px', resize: 'vertical', fontSize: '13px' }}
+                    />
+
+                    <div style={{ padding: '12px', background: 'var(--bg-subtle)', borderRadius: '6px', border: '1px dashed var(--border)', marginBottom: '12px' }}>
+                      <p style={{ fontSize: '12px', marginBottom: '8px', color: 'var(--text-light)' }}>File upload (Optional template/document for the student):</p>
+                      <input type="file" style={{ fontSize: '12px' }} />
                     </div>
 
-                    {req.type === 'file' && (
-                      <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-subtle)', borderRadius: '6px', border: '1px dashed var(--border)' }}>
-                        <p style={{ fontSize: '12px', marginBottom: '8px', color: 'var(--text-light)' }}>Upload template or document for students to fill out (optional):</p>
-                        <input type="file" style={{ fontSize: '12px' }} />
-                      </div>
-                    )}
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'var(--bg-subtle)', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', color: 'var(--text-light)' }}>
+                      <input type="checkbox" checked={req.isPrintable} onChange={e => updateRequirement(req.id, { isPrintable: e.target.checked })} style={{ width: '14px', height: '14px', margin: 0 }} />
+                      Needs to be printed
+                    </label>
                   </div>
                   {requirements.length > 1 && (
                     <button type="button" onClick={() => removeRequirement(req.id)} style={{ padding: '8px', background: 'transparent', color: 'var(--brand-crimson)', border: 'none', cursor: 'pointer', opacity: 0.7 }} title="Remove requirement">

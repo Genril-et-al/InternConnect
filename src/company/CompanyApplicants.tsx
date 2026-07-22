@@ -39,7 +39,7 @@ export function CompanyApplicants({
 }: {
   applicants: CompanyApplicant[]
   listings: CompanyListing[]
-  onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onSetStatus: (id: string, status: ApplicantStatus, feedback?: string, nextStep?: string) => Promise<void>
   onBulkReject?: (rejections: { id: string; feedback: string }[]) => Promise<void>
   onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
@@ -56,7 +56,7 @@ export function CompanyApplicants({
   const [expandedListings, setExpandedListings] = useState<Set<string>>(() => {
     const initial = new Set<string>()
     listings.forEach(l => {
-      const needsAttention = applicants.some(a => a.role === l.title && (a.status === 'Pending' || a.status === 'Interview Scheduled' || a.status === 'Reviewed'))
+      const needsAttention = applicants.some(a => a.role === l.title && (a.status === 'Pending' || a.status === 'Interview' || a.status === 'Reviewed'))
       if (needsAttention) initial.add(l.id)
     })
     return initial
@@ -222,7 +222,7 @@ function ListingGroupCard({
 
   const pendingCount = allApplicants.filter(a => a.status === 'Pending').length
   const reviewCount = allApplicants.filter(a => a.status === 'Reviewed').length
-  const interviewCount = allApplicants.filter(a => a.status === 'Interview Scheduled').length
+  const interviewCount = allApplicants.filter(a => a.status === 'Interview').length
   const acceptedCount = allApplicants.filter(a => a.status === 'Accepted').length
   const rejectedCount = allApplicants.filter(a => a.status === 'Rejected').length
 
@@ -235,7 +235,7 @@ function ListingGroupCard({
   }
   const handleSelectInterviewed = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setSelectedIds(new Set(applicants.filter(a => a.status === 'Interview Scheduled').map(a => a.id)))
+    setSelectedIds(new Set(applicants.filter(a => a.status === 'Interview').map(a => a.id)))
     if (!isExpanded) onToggleExpand()
   }
   const handleSelectAll = (e: React.MouseEvent) => {
@@ -248,7 +248,7 @@ function ListingGroupCard({
     if (onSetStatus) {
       // Loop over and update status
       for (const id of Array.from(selectedIds)) {
-        await onSetStatus(id, 'Interview Scheduled')
+        await onSetStatus(id, 'Interview')
       }
     }
     setSelectedIds(new Set())
@@ -400,7 +400,7 @@ function ApplicantDetail({
   applicant: CompanyApplicant
   listings: CompanyListing[]
   onBack: () => void
-  onSetStatus: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onSetStatus: (id: string, status: ApplicantStatus, feedback?: string, nextStep?: string) => Promise<void>
   onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
 }) {
@@ -462,10 +462,46 @@ function ApplicantDetail({
         </div>
 
       <div className="cp-detail-actions" style={{ marginTop: 18 }}>
-        {applicant.status === 'Interview Scheduled' && (
+        {applicant.status === 'Interview' && (() => {
+          let interviewConcluded = false;
+          let hasSchedule = false;
+          let errorMsg = null;
+          try {
+            const details = JSON.parse(applicant.nextStep ?? '{}');
+            if (details.date && details.time) {
+              hasSchedule = true;
+              const interviewDate = new Date(`${details.date}T${details.time}`);
+              if (Date.now() > interviewDate.getTime()) {
+                interviewConcluded = true;
+              } else {
+                errorMsg = "Wait for the interview to conclude before deciding.";
+              }
+            } else {
+              errorMsg = "Schedule date and time must be set.";
+            }
+          } catch {}
+
+          return (
           <>
+            {errorMsg && <div style={{width: '100%', fontSize: '13px', color: 'var(--brand-orange)', marginBottom: '8px', fontWeight: 500}}>⚠️ {errorMsg}</div>}
+            <button
+              className="cp-primary"
+              disabled={!interviewConcluded}
+              title={errorMsg || ''}
+              onClick={() => {
+                const listing = listings.find((l) => l.title === applicant.role)
+                const days = listing?.offerDeadlineDays || 3
+                const expiresAt = new Date(Date.now() + days * 86400000).toISOString()
+                run(() => onSetStatus(applicant.id, 'Offer', undefined, JSON.stringify({ expiresAt })))
+              }}
+              type="button"
+            >
+              <CheckCircle2 size={13} /> Send Offer
+            </button>
             <button
               className="cp-accept"
+              disabled={!interviewConcluded}
+              title={errorMsg || ''}
               onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
               type="button"
             >
@@ -486,6 +522,8 @@ function ApplicantDetail({
                 return (
                   <button
                     className="cp-secondary"
+                    disabled={!interviewConcluded}
+                    title={errorMsg || ''}
                     onClick={() => {
                       setNextRoundName(rounds[currentRoundIdx + 1])
                       setScheduleInterviewOpen(true)
@@ -498,12 +536,19 @@ function ApplicantDetail({
               }
               return null
             })()}
-            <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
+            <button className="cp-danger" disabled={!interviewConcluded} title={errorMsg || ''} onClick={() => setRejectOpen(true)} type="button">
               <XCircle size={13} /> Fail Interview
             </button>
           </>
+        )
+        })()}
+        {applicant.status === 'Offer' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text-light)', fontSize: '14px', fontWeight: 500 }}>
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--brand-orange)' }} />
+            Waiting for student to accept the offer...
+          </div>
         )}
-        {applicant.status !== 'Accepted' && applicant.status !== 'Rejected' && applicant.status !== 'Interview Scheduled' && (
+        {applicant.status !== 'Accepted' && applicant.status !== 'Rejected' && applicant.status !== 'Interview' && applicant.status !== 'Offer' && (
           <button
             className="cp-accept"
             onClick={() => {
@@ -520,7 +565,7 @@ function ApplicantDetail({
             <CheckCircle2 size={13} /> Accept
           </button>
         )}
-        {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && applicant.status !== 'Interview Scheduled' && (
+        {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && applicant.status !== 'Interview' && applicant.status !== 'Offer' && (
           <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
             <XCircle size={13} /> Reject
           </button>
@@ -544,7 +589,7 @@ function ApplicantDetail({
       </p>
     )}
 
-    {applicant.status === 'Interview Scheduled' && applicant.nextStep && (
+    {applicant.status === 'Interview' && applicant.nextStep && (
       <section className="cp-card">
         <h3 style={{ fontSize: '16px', margin: '0 0 16px 0', color: 'var(--brand-brown)' }}>Interview Details</h3>
         <div style={{ fontSize: '14px', color: 'var(--text)' }}>
@@ -559,8 +604,8 @@ function ApplicantDetail({
                         <strong style={{ color: 'var(--brand-brown)' }}>Round:</strong> <span>{details.roundName}</span>
                       </>
                     )}
-                    <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date || 'TBD'}</span>
-                    <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time || 'TBD'}</span>
+                    <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date ? new Date(details.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD'}</span>
+                    <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time ? new Date(`1970-01-01T${details.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }) : 'TBD'}</span>
                     <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
                     <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
                   </div>
@@ -571,17 +616,33 @@ function ApplicantDetail({
                       <p style={{ margin: '0 0 12px 0', color: '#856404', fontSize: '13px' }}><strong>Reason:</strong> {details.rescheduleReason}</p>
                       
                       {!details.proposedDates && (
-                        <button 
-                          className="cp-primary"
-                          onClick={() => {
-                            setIsRescheduling(true)
-                            setScheduleInterviewOpen(true)
-                          }}
-                          type="button"
-                          style={{ fontSize: '13px', padding: '6px 12px' }}
-                        >
-                          Propose New Dates
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button 
+                            className="cp-primary"
+                            onClick={() => {
+                              setIsRescheduling(true)
+                              setScheduleInterviewOpen(true)
+                            }}
+                            type="button"
+                            style={{ fontSize: '13px', padding: '6px 12px' }}
+                          >
+                            Propose New Dates
+                          </button>
+                          <button 
+                            className="cp-danger"
+                            onClick={() => {
+                              const msg = window.prompt("Enter a message to decline the reschedule request:")
+                              if (msg !== null) {
+                                const newDetails = { ...details, studentResponse: 'reschedule_declined', declineMessage: msg }
+                                run(() => onScheduleInterview(applicant.id, newDetails as any))
+                              }
+                            }}
+                            type="button"
+                            style={{ fontSize: '13px', padding: '6px 12px', background: 'var(--brand-crimson)', color: 'white', border: 'none', borderRadius: '6px' }}
+                          >
+                            Decline
+                          </button>
+                        </div>
                       )}
                       
                       {details.proposedDates && (
@@ -797,7 +858,10 @@ function ApplicantDetail({
             setIsRescheduling(false)
           }}
           onSkip={!isRescheduling ? () => {
-            run(() => onSetStatus(applicant.id, 'Accepted'))
+            const listing = listings.find((l) => l.title === applicant.role)
+            const days = listing?.offerDeadlineDays || 3
+            const expiresAt = new Date(Date.now() + days * 86400000).toISOString()
+            run(() => onSetStatus(applicant.id, 'Offer', undefined, JSON.stringify({ expiresAt })))
             setScheduleInterviewOpen(false)
             setIsRescheduling(false)
           } : undefined}
@@ -961,7 +1025,7 @@ function ScheduleInterviewModal({
         <div className="cp-modal-footer" style={{ justifyContent: onSkip ? 'space-between' : 'flex-end' }}>
           {onSkip && (
             <button className="cp-secondary" onClick={onSkip} type="button" style={{ border: '2px solid var(--brand-orange)', color: 'var(--brand-orange-dark)', fontWeight: 'bold' }}>
-              Skip & Accept Directly
+              Skip Interview & Send Offer
             </button>
           )}
           <div style={{ display: 'flex', gap: '12px' }}>
@@ -1195,7 +1259,7 @@ export function StatusBadge({ status, nextStep }: { status: ApplicantStatus, nex
           ? 'pending'
           : 'info'
           
-  if (status === 'Interview Scheduled' && nextStep) {
+  if (status === 'Interview' && nextStep) {
     try {
       const parsed = JSON.parse(nextStep)
       if (parsed.studentResponse === 'reschedule_requested') {

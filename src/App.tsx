@@ -847,8 +847,8 @@ function ProgressModal({
                             <strong style={{ color: 'var(--brand-brown)' }}>Round:</strong> <span>{details.roundName}</span>
                           </>
                         )}
-                        <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date || 'TBD'}</span>
-                        <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time || 'TBD'}</span>
+                        <strong style={{ color: 'var(--brand-brown)' }}>Date:</strong> <span>{details.date ? new Date(details.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD'}</span>
+                        <strong style={{ color: 'var(--brand-brown)' }}>Time:</strong> <span>{details.time ? new Date(`1970-01-01T${details.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }) : 'TBD'}</span>
                         <strong style={{ color: 'var(--brand-brown)' }}>Mode:</strong> <span style={{ textTransform: 'capitalize' }}>{details.mode}</span>
                         <strong style={{ color: 'var(--brand-brown)' }}>Location/Link:</strong> <span>{details.mode === 'online' ? <a href={details.locationOrLink} target="_blank" rel="noreferrer" style={{ color: 'var(--brand-orange)' }}>{details.locationOrLink}</a> : details.locationOrLink}</span>
                       </div>
@@ -863,7 +863,7 @@ function ProgressModal({
                       {showRescheduleForm && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px', padding: '12px', background: 'var(--bg-subtle)', borderRadius: '6px' }}>
                           <label style={{ fontSize: '13px', fontWeight: 500 }}>Reason for rescheduling:</label>
-                          <textarea value={rescheduleReason} onChange={e => setRescheduleReason(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', minHeight: '60px' }} placeholder="Please let the company know why you need to reschedule." />
+                          <textarea value={rescheduleReason} onChange={e => setRescheduleReason(e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', minHeight: '60px', fontFamily: 'inherit' }} placeholder="Please let the company know why you need to reschedule." />
                           <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                             <button className="sd-primary" disabled={confirmBusy || !rescheduleReason.trim()} onClick={() => handleInterviewResponse('reschedule_requested', rescheduleReason)} type="button">Submit Request</button>
                             <button className="sd-secondary" disabled={confirmBusy} onClick={() => setShowRescheduleForm(false)} type="button">Cancel</button>
@@ -873,7 +873,13 @@ function ProgressModal({
                       
                       {details.studentResponse === 'reschedule_requested' && !details.proposedDates && (
                         <div style={{ padding: '12px', background: '#fff3cd', color: '#856404', borderRadius: '6px', fontSize: '13px' }}>
-                          You have requested a reschedule. Waiting for the company to propose new dates.
+                          You have requested a reschedule. This must be approved by the company.
+                        </div>
+                      )}
+                      
+                      {details.studentResponse === 'reschedule_declined' && (
+                        <div style={{ padding: '12px', background: '#f8d7da', color: '#721c24', borderRadius: '6px', marginTop: '8px', fontSize: '13px' }}>
+                          <strong>Reschedule Declined:</strong> {details.declineMessage || 'The company cannot accommodate your request.'}
                         </div>
                       )}
                       
@@ -884,7 +890,7 @@ function ProgressModal({
                             {details.proposedDates.map((p: any, idx: number) => (
                               <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                                 <input type="radio" name="proposedDate" checked={selectedProposedDate === idx} onChange={() => setSelectedProposedDate(idx)} style={{ width: '16px', height: '16px', margin: 0, flexShrink: 0 }} />
-                                <span><strong>{p.date}</strong> at {p.time}</span>
+                                <span><strong>{new Date(p.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })}</strong> at {new Date(`1970-01-01T${p.time}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true })}</span>
                               </label>
                             ))}
                           </div>
@@ -915,6 +921,21 @@ function ProgressModal({
             <p style={{ margin: 0, color: 'var(--text)', textAlign: 'center', fontSize: '14px' }}>
               The company has extended an internship offer to you. Please accept or decline the offer below.
             </p>
+            {(() => {
+              try {
+                const details = JSON.parse(application.nextStep)
+                if (details.expiresAt) {
+                  const expiry = new Date(details.expiresAt)
+                  const daysLeft = Math.ceil((expiry.getTime() - Date.now()) / 86400000)
+                  return (
+                    <div style={{ padding: '8px 16px', background: daysLeft <= 1 ? '#f8d7da' : '#fff3cd', color: daysLeft <= 1 ? '#721c24' : '#856404', borderRadius: '6px', fontSize: '13px', fontWeight: 500 }}>
+                      Offer expires on: {expiry.toLocaleDateString()} {daysLeft >= 0 ? `(${daysLeft} days left)` : '(Expired)'}
+                    </div>
+                  )
+                }
+              } catch {}
+              return null
+            })()}
             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
               <button 
                 className="sd-primary"
@@ -933,32 +954,41 @@ function ProgressModal({
           </div>
         )}
 
-        {application.status === 'Accepted' && application.requirements && (
+        {application.status === 'Accepted' && (
           <div className="progress-reqs-card">
-            <div className="progress-reqs-header">
-              <div>
-                <h3>Pre-Employment Progress</h3>
-                <p className="muted">{application.approvedRequirements || 0} of {application.requirements.length} requirements approved</p>
-              </div>
-              <strong className="progress-pct">
-                {Math.round(((application.approvedRequirements || 0) / application.requirements.length) * 100)}%
-              </strong>
-            </div>
-            <div className="strip-match-track" style={{ width: '100%', marginTop: '12px' }}>
-              <div className="strip-match-progress" style={{ width: `${Math.round(((application.approvedRequirements || 0) / application.requirements.length) * 100)}%` }} />
-            </div>
+            {application.requirements && application.requirements.length > 0 ? (
+              <>
+                <div className="progress-reqs-header">
+                  <div>
+                    <h3>Pre-Employment Progress</h3>
+                    <p className="muted">{application.approvedRequirements || 0} of {application.requirements.length} requirements approved</p>
+                  </div>
+                  <strong className="progress-pct">
+                    {Math.round(((application.approvedRequirements || 0) / application.requirements.length) * 100)}%
+                  </strong>
+                </div>
+                <div className="strip-match-track" style={{ width: '100%', marginTop: '12px' }}>
+                  <div className="strip-match-progress" style={{ width: `${Math.round(((application.approvedRequirements || 0) / application.requirements.length) * 100)}%` }} />
+                </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-              {application.requirements.map((req) => (
-                <RequirementSubmitRow
-                  applicationId={application.id}
-                  key={req.id}
-                  onSubmitted={onSubmitted}
-                  requirement={req}
-                  userId={userId}
-                />
-              ))}
-            </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+                  {application.requirements.map((req) => (
+                    <RequirementSubmitRow
+                      applicationId={application.id}
+                      key={req.id}
+                      onSubmitted={onSubmitted}
+                      requirement={req}
+                      userId={userId}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                <h3 style={{ margin: '0 0 8px', color: 'var(--brand-brown)' }}>Ready to Start</h3>
+                <p style={{ margin: 0, color: 'var(--text)', fontSize: '14px' }}>No pre-employment requirements needed for this position.</p>
+              </div>
+            )}
             
             <div style={{ marginTop: '24px', textAlign: 'center', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
               <button 
@@ -1048,13 +1078,8 @@ function RequirementSubmitRow({
     setBusy(true)
     setError(null)
     try {
-      if (requirement.type === 'file') {
-        if (!file) throw new Error('Choose a file first.')
-        await submitRequirementFile(userId, applicationId, requirement.id, file)
-      } else {
-        if (!text.trim()) throw new Error('Enter your response first.')
-        await submitRequirementText(applicationId, requirement.id, text)
-      }
+      if (!file) throw new Error('Choose a file first.')
+      await submitRequirementFile(userId, applicationId, requirement.id, file)
       setFile(null)
       setIsEditing(false)
       onSubmitted?.()
@@ -1075,10 +1100,11 @@ function RequirementSubmitRow({
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-        <div>
+        <div style={{ flex: 1 }}>
           <p style={{ margin: 0, fontWeight: 500, fontSize: '14px' }}>{requirement.name}</p>
+          {requirement.description && <p style={{ margin: '4px 0', fontSize: '13px', color: 'var(--text)' }}>{requirement.description}</p>}
           <p className="muted" style={{ margin: '2px 0 0 0', fontSize: '12px' }}>
-            {requirement.type === 'file' ? 'File upload' : 'Text response'}
+            File upload
             {requirement.isPrintable && ' · Needs to be printed'}
           </p>
         </div>
@@ -1094,11 +1120,6 @@ function RequirementSubmitRow({
               <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
                 Your Submission
               </span>
-              {requirement.type === 'text' ? (
-                <p style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {requirement.submittedText}
-                </p>
-              ) : (
                 <button
                   className="sd-link"
                   disabled={busy}
@@ -1121,7 +1142,6 @@ function RequirementSubmitRow({
                 >
                   {busy ? 'Loading document...' : 'View submitted document'}
                 </button>
-              )}
               {error && !isEditing && <p className="muted" style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--brand-crimson)' }}>{error}</p>}
             </div>
             
@@ -1150,7 +1170,6 @@ function RequirementSubmitRow({
 
       {isEditing && (
         <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {requirement.type === 'file' ? (
             <label className={`upload-zone ${file ? 'has-file' : ''}`}>
               <input
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
@@ -1177,15 +1196,6 @@ function RequirementSubmitRow({
                 </div>
               )}
             </label>
-          ) : (
-            <textarea
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Type your response…"
-              rows={2}
-              style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', resize: 'vertical', fontSize: '13px', color: 'var(--text)' }}
-              value={text}
-            />
-          )}
           {error && <p className="muted" style={{ margin: 0, fontSize: '12px', color: 'var(--brand-crimson)' }}>{error}</p>}
           <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-start' }}>
             <button
