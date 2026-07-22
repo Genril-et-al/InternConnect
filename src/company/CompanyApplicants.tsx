@@ -156,7 +156,7 @@ export function CompanyApplicants({
             type="checkbox" 
             checked={showEmptyListings} 
             onChange={e => setShowEmptyListings(e.target.checked)} 
-            style={{ margin: 0, cursor: 'pointer', accentColor: 'var(--brand-orange)' }}
+            style={{ margin: 0, cursor: 'pointer', accentColor: 'var(--brand-orange)', width: '16px', height: '16px' }}
           />
           Show empty listings
         </label>
