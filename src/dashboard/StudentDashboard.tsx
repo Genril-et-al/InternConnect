@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   AlertCircle,
   CheckCircle2,
@@ -11,6 +12,7 @@ import { useAuth } from '../auth/context'
 import type { Application, Internship } from '../lib/mockData'
 import { NotificationBell } from '../components/NotificationBell'
 import { useNotifications } from '../components/useNotifications'
+import { useProactiveNotifications } from '../components/useProactiveNotifications'
 import './dashboard.css'
 
 /**
@@ -41,15 +43,15 @@ export function StudentDashboard({
   const accepted = applications.filter((a) => a.status === 'Accepted').length
 
   const {
-    notifications,
-    unreadCount,
+    notifications: dbNotifications,
+    unreadCount: dbUnreadCount,
     hasMore,
     canCollapse,
     loadingMore,
     loadMore,
     collapse,
-    handleMarkRead,
-    handleMarkAllRead,
+    handleMarkRead: handleDbMarkRead,
+    handleMarkAllRead: handleDbMarkAllRead,
   } = useNotifications((hint, notification) => {
     if (hint === 'Pending') {
       onFilterApplications?.('Pending')
@@ -65,6 +67,58 @@ export function StudentDashboard({
       }
     }
   })
+
+  const { proactiveNotifications, markProactiveRead, markAllProactiveRead } = useProactiveNotifications(
+    internships,
+    profile?.id,
+  )
+
+  const combinedNotifications = [
+    ...proactiveNotifications.map(n => ({
+      ...n,
+      onClick: () => {
+        markProactiveRead(n.id)
+        onNavigate('Browse Internships')
+      }
+    })),
+    ...dbNotifications
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const unreadCount = dbUnreadCount + proactiveNotifications.filter(n => !n.read).length
+
+  const handleMarkRead = (id: string) => {
+    if (id.startsWith('proactive-')) {
+      markProactiveRead(id)
+    } else {
+      handleDbMarkRead(id)
+    }
+  }
+
+  const handleMarkAllRead = () => {
+    markAllProactiveRead()
+    handleDbMarkAllRead()
+  }
+
+  // Handle combined pagination
+  const [displayLimit, setDisplayLimit] = useState(10)
+
+  const handleLoadMore = () => {
+    if (displayLimit < combinedNotifications.length) {
+      setDisplayLimit(displayLimit + 10)
+    } else {
+      loadMore()
+      setDisplayLimit(displayLimit + 10)
+    }
+  }
+
+  const handleCollapse = () => {
+    setDisplayLimit(10)
+    collapse()
+  }
+
+  const visibleNotifications = combinedNotifications.slice(0, displayLimit)
+  const combinedHasMore = hasMore || displayLimit < combinedNotifications.length
+  const combinedCanCollapse = displayLimit > 10 || canCollapse
   const rejected = applications.filter((a) => a.status === 'Rejected').length
   const pending = applications.length - accepted - rejected
 
@@ -113,13 +167,13 @@ export function StudentDashboard({
             <Search size={14} /> Browse Internships
           </button>
           <NotificationBell
-            notifications={notifications}
+            notifications={visibleNotifications}
             unreadCount={unreadCount}
-            hasMore={hasMore}
-            canCollapse={canCollapse}
+            hasMore={combinedHasMore}
+            canCollapse={combinedCanCollapse}
             loadingMore={loadingMore}
-            onLoadMore={loadMore}
-            onCollapse={collapse}
+            onLoadMore={handleLoadMore}
+            onCollapse={handleCollapse}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
           />

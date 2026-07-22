@@ -24,6 +24,7 @@ const STATUS_LABELS: Record<string, ApplicationStatus> = {
   rejected: 'Rejected',
   discarded: 'Discarded',
   withdrawn: 'Withdrawn',
+  expired: 'Expired',
 }
 
 const SETUP_LABELS: Record<string, Internship['setup']> = {
@@ -380,18 +381,36 @@ export async function withdrawAcceptance(studentId: string, applicationId: strin
   // Find discarded applications to restore
   const { data: discardedApps, error: fetchError } = await supabase
     .from('applications')
-    .select('id, previous_status')
+    .select('id, previous_status, listing_id')
     .eq('student_id', studentId)
     .eq('status', 'discarded')
 
   if (fetchError) throw new Error(fetchError.message)
 
-  // Restore each to its previous status
+  const listingIds = Array.from(new Set((discardedApps || []).map((a) => a.listing_id)))
+  let closedListingIds = new Set<string>()
+
+  if (listingIds.length > 0) {
+    const { data: listings } = await supabase
+      .from('listings')
+      .select('id, status')
+      .in('id', listingIds)
+    
+    for (const listing of listings || []) {
+      if (listing.status === 'closed') {
+        closedListingIds.add(listing.id)
+      }
+    }
+  }
+
+  // Restore each to its previous status or set to expired if listing is closed
   for (const app of discardedApps || []) {
     if (app.previous_status) {
+      const isClosed = closedListingIds.has(app.listing_id)
+      const targetStatus = isClosed ? 'expired' : app.previous_status
       const { error: restoreError } = await supabase
         .from('applications')
-        .update({ status: app.previous_status, previous_status: null })
+        .update({ status: targetStatus, previous_status: null })
         .eq('id', app.id)
         
       if (restoreError) throw new Error(restoreError.message)
