@@ -156,8 +156,8 @@ export function CompanyApplicants({
           <div className="cp-card cp-empty">No applications match the current filters.</div>
         ) : (
           filtered.map((a) => (
-            <div className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''}`} key={a.id} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <div style={{ padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''}`} key={a.id} style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '0 0 0 16px', display: 'flex', alignItems: 'center' }}>
                 <input 
                   type="checkbox" 
                   checked={selectedApplicantIds.has(a.id)}
@@ -167,21 +167,21 @@ export function CompanyApplicants({
                     else newSet.delete(a.id)
                     setSelectedApplicantIds(newSet)
                   }}
-                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--brand-orange)', margin: 0 }}
                 />
               </div>
               <button 
                 onClick={() => setSelectedId(a.id)} 
                 type="button" 
-                style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', padding: '16px', cursor: 'pointer', textAlign: 'left', minWidth: 0 }}
+                style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', padding: '14px 16px', cursor: 'pointer', textAlign: 'left', minWidth: 0, outline: 'none' }}
               >
                 <span className="cp-row-avatar">{initials(a.name)}</span>
-              <div className="cp-row-main">
-                <p className="cp-row-name">{a.name}</p>
-                <p className="cp-muted">
-                  {a.role} · Applied {a.applied}
-                </p>
-              </div>
+                <div className="cp-row-main">
+                  <p className="cp-row-name">{a.name}</p>
+                  <p className="cp-muted">
+                    {a.role} · Applied {a.applied}
+                  </p>
+                </div>
                 <MatchBar value={a.match} />
                 <StatusBadge status={a.status} />
               </button>
