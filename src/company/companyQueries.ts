@@ -72,7 +72,7 @@ type CompanyListingRow = {
 export async function fetchCompanyListings(companyId: string): Promise<CompanyListing[]> {
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, status, slots, deadline, department, skills, description, interview_process, listing_requirements(id, name, kind, is_printable)')
+    .select('id, title, status, slots, deadline, department, skills, description, listing_requirements(id, name, kind, is_printable)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
@@ -85,7 +85,6 @@ export async function fetchCompanyListings(companyId: string): Promise<CompanyLi
     department: r.department ?? '—',
     skills: r.skills ?? [],
     description: r.description ?? '',
-    interviewProcess: r.interview_process ?? { rounds: ['Interview'] },
     requirements: (r.listing_requirements ?? []).map((q) => ({
       id: q.id,
       name: q.name,
@@ -119,7 +118,6 @@ export async function createListing(companyId: string, input: NewListingInput): 
       skills: input.skills,
       description: input.description,
       status: input.publish ? 'open' : 'draft',
-      interview_process: input.interviewProcess,
     })
     .select('id')
     .single()
