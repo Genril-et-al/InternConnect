@@ -1150,10 +1150,11 @@ function StudentApplications({
   }, [highlightedAppId])
 
   const visible = applications.filter((application) => {
-    let matchesFilter = false
-    if (filter === 'All') matchesFilter = true
-    else if (filter === 'Closed') matchesFilter = TERMINAL_STATUSES.includes(application.status)
-    else matchesFilter = application.status === filter
+    const matchesFilter =
+      filter === 'All' ||
+      (filter === 'Closed'
+        ? TERMINAL_STATUSES.includes(application.status)
+        : application.status === filter)
 
     const matchesSearch = [application.company, application.role]
       .join(' ')
@@ -1176,15 +1177,13 @@ function StudentApplications({
 
   const filters: { label: string; count: number }[] = [
     { label: 'All', count: total },
-    ...FILTER_TABS.map((tab) => {
-      let count = 0
-      if (tab === 'Closed') {
-        count = TERMINAL_STATUSES.reduce((sum, status) => sum + (counts[status] ?? 0), 0)
-      } else {
-        count = counts[tab as ApplicationStatus] ?? 0
-      }
-      return { label: tab, count }
-    }),
+    ...FILTER_TABS.map((tab) => ({
+      label: tab,
+      count:
+        tab === 'Closed'
+          ? TERMINAL_STATUSES.reduce((sum, status) => sum + (counts[status] ?? 0), 0)
+          : counts[tab as ApplicationStatus] ?? 0,
+    })),
   ]
 
   return (

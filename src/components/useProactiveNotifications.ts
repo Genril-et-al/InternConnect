@@ -60,7 +60,11 @@ export function useProactiveNotifications(internships: Internship[], userId?: st
       const readIds = new Set<string>(JSON.parse(localStorage.getItem(storageKeyRead) || '[]'))
       readIds.add(listingId)
       localStorage.setItem(storageKeyRead, JSON.stringify(Array.from(readIds)))
-    } catch {}
+    } catch {
+      // Read state is a convenience, not data worth surfacing an error over:
+      // localStorage throws on corrupt JSON and in private-mode Safari once the
+      // quota is hit. The badge just reappears next session.
+    }
 
     setProactiveNotifications((prev) =>
       prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
@@ -74,7 +78,9 @@ export function useProactiveNotifications(internships: Internship[], userId?: st
     try {
       const notifiedIds = new Set<string>(JSON.parse(localStorage.getItem(storageKeyNotified) || '[]'))
       localStorage.setItem(storageKeyRead, JSON.stringify(Array.from(notifiedIds)))
-    } catch {}
+    } catch {
+      // Swallowed for the same reason as in markProactiveRead above.
+    }
 
     setProactiveNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
   }, [userId])

@@ -388,7 +388,7 @@ export async function withdrawAcceptance(studentId: string, applicationId: strin
   if (fetchError) throw new Error(fetchError.message)
 
   const listingIds = Array.from(new Set((discardedApps || []).map((a) => a.listing_id)))
-  let closedListingIds = new Set<string>()
+  const closedListingIds = new Set<string>()
 
   if (listingIds.length > 0) {
     const { data: listings } = await supabase
