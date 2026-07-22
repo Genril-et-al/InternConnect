@@ -62,34 +62,78 @@ type ListingRow = {
   companies: { name: string; industry: string | null; logo_url: string | null } | null
 }
 
-/** Open listings, ranked by skills match against the student's profile. */
-export async function fetchOpenListings(profileSkills: string[]): Promise<Internship[]> {
-  const { data, error } = await supabase
-    .from('listings')
-    .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(name, industry, logo_url)')
-    .eq('status', 'open')
-    .order('created_at', { ascending: false })
-  if (error) throw new Error(error.message)
-  return ((data ?? []) as unknown as ListingRow[])
-    .map((r) => ({
-      id: r.id,
-      title: r.title,
-      company: r.companies?.name ?? 'Unknown company',
-      companyLogo: r.companies?.logo_url ?? null,
-      industry: r.companies?.industry ?? '—',
-      location: r.location ?? '—',
-      setup: SETUP_LABELS[r.setup] ?? 'Onsite',
-      deadline: formatDate(r.deadline),
-      duration: r.duration_hours ? `${r.duration_hours} hours` : '—',
-      slots: r.slots,
-      match: computeMatch(profileSkills, r.skills ?? []),
-      status: listingStatus(r.deadline),
-      skills: r.skills ?? [],
-      summary: r.description ?? '',
-    }))
-    // Unscored listings (no skill data to match on) sort last rather than
-    // being treated as 0%.
-    .sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
+function toInternship(row: ListingRow, profileSkills: string[]): Internship {
+  return {
+    id: row.id,
+    title: row.title,
+    company: row.companies?.name ?? 'Unknown company',
+    companyLogo: row.companies?.logo_url ?? null,
+    industry: row.companies?.industry ?? '—',
+    location: row.location ?? '—',
+    setup: SETUP_LABELS[row.setup] ?? 'Onsite',
+    deadline: formatDate(row.deadline),
+    duration: row.duration_hours ? `${row.duration_hours} hours` : '—',
+    slots: row.slots,
+    match: computeMatch(profileSkills, row.skills ?? []),
+    status: listingStatus(row.deadline),
+    skills: row.skills ?? [],
+    summary: row.description ?? '',
+  }
+}
+
+/** Unscored listings (nothing to match on) sort last rather than as 0%. */
+function rankedByMatch(listings: Internship[]): Internship[] {
+  return [...listings].sort((a, b) => (b.match ?? -1) - (a.match ?? -1))
+}
+
+/**
+ * How many listings we pull per round trip.
+ *
+ * Note this is NOT UI paging. The board ranks by match score, and match is
+ * computed here on the client from the skill taxonomy — the database has no
+ * idea what a given student's match % is. So it cannot hand us "the best 20";
+ * page 1 by created_at says nothing about who ranks highest. Search and the
+ * match-filter pills are client-side over the full set for the same reason.
+ *
+ * Fetching in chunks instead of one giant response means the student sees a
+ * usable, ranked board after the first chunk rather than waiting on the whole
+ * table, and no single response has to be held in memory at once.
+ */
+const LISTINGS_PAGE_SIZE = 200
+
+/**
+ * Open listings, ranked by skills match against the student's profile.
+ *
+ * `onPartial` (optional) is called with the ranked listings so far after each
+ * chunk beyond the first, so callers can paint early and let the rest fill in.
+ * The resolved value is always the complete, fully ranked set.
+ */
+export async function fetchOpenListings(
+  profileSkills: string[],
+  onPartial?: (listings: Internship[]) => void,
+): Promise<Internship[]> {
+  const all: Internship[] = []
+
+  for (let from = 0; ; from += LISTINGS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(name, industry, logo_url)')
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      // id breaks ties so the window is stable: listings sharing a created_at
+      // could otherwise land in two chunks, or none, as we page through.
+      .order('id', { ascending: true })
+      .range(from, from + LISTINGS_PAGE_SIZE - 1)
+    if (error) throw new Error(error.message)
+
+    const rows = (data ?? []) as unknown as ListingRow[]
+    for (const row of rows) all.push(toInternship(row, profileSkills))
+
+    if (rows.length < LISTINGS_PAGE_SIZE) break
+    onPartial?.(rankedByMatch(all))
+  }
+
+  return rankedByMatch(all)
 }
 
 type ApplicationRow = {

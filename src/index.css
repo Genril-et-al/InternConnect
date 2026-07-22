@@ -39,6 +39,11 @@
      stronger. */
   --wm-size: min(620px, 46vw);
 
+  /* Scrollbar thumb — the page text colour at low alpha, so the bar reads as
+     part of the page rather than as OS chrome sitting on top of it. */
+  --scrollbar-thumb: rgba(113, 66, 54, 0.32);
+  --scrollbar-thumb-hover: rgba(113, 66, 54, 0.55);
+
   --font-display: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-family: 'Source Sans 3', ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -62,6 +67,58 @@
    the red brand panel visibly jumps narrower as you move between steps. */
 html {
   scrollbar-gutter: stable;
+}
+
+/* Scrollbars. Without these, every scrollable surface — the page, modal bodies,
+   dropdown menus, the admin sidebar and its tables — falls back to whatever the
+   OS draws, which on Windows is a wide grey bar with stepper arrows that looks
+   nothing like the rest of the app.
+
+   The two syntaxes below are deliberately mutually exclusive. Blink ignores the
+   ::-webkit-scrollbar pseudo-elements entirely on any element that also sets
+   scrollbar-width or scrollbar-color, so declaring both would leave the webkit
+   block dead wherever the standard properties are supported — and subtly
+   different where they are not. @supports picks exactly one path. */
+@supports (scrollbar-width: thin) {
+  * {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+    scrollbar-width: thin;
+  }
+}
+
+@supports not (scrollbar-width: thin) {
+  ::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* The transparent border plus padding-box clipping insets the thumb from the
+     track edges, which is what gives it the floating pill shape. */
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    background-clip: padding-box;
+  }
+
+  /* The stepper arrows at each end of the track are the most obviously
+     OS-flavoured part of the native bar. */
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 body {

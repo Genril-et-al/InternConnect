@@ -60,10 +60,6 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function includesWholePhrase(value: string, phrase: string): boolean {
-  return new RegExp(`(^|\\W)${escapeRegExp(phrase)}(\\W|$)`).test(value)
-}
-
 function tokens(value: string): string[] {
   return value.match(/[a-z0-9+#]+/g) ?? []
 }
@@ -72,33 +68,56 @@ function clampScore(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
 
-function tokenOverlapScore(a: string, b: string): number {
-  const aTokens = new Set(tokens(a))
-  const bTokens = tokens(b)
-  if (!aTokens.size || !bTokens.length) return 0
-  const shared = bTokens.filter((token) => aTokens.has(token)).length
-  return shared / Math.max(aTokens.size, bTokens.length)
-}
-
 function phraseSpecificity(value: string): number {
   return Math.min(tokens(value).length / 4, 1)
 }
 
+/**
+ * The cluster terms, normalised and pre-compiled once at module load.
+ *
+ * This used to be done inside relatedSkillScore, which meant every skill pair
+ * re-normalised all ~100 terms and built a fresh RegExp for each. A student
+ * with 10 skills against 160 listings is ~9,600 pairs, so that came to roughly
+ * two million RegExp constructions per page load — about 2s of blocked main
+ * thread once the demo data grew. The terms are static, so none of it needs to
+ * happen more than once.
+ */
+type ClusterTerm = { pattern: RegExp; specificity: number; tokens: string[]; tokenSet: Set<string> }
+
+const NORMALIZED_GROUPS: ClusterTerm[][] = RELATED_SKILL_GROUPS.map((group) =>
+  group.map((raw) => {
+    const term = normalizeSkill(raw)
+    const termTokens = tokens(term)
+    return {
+      pattern: new RegExp(`(^|\\W)${escapeRegExp(term)}(\\W|$)`),
+      specificity: phraseSpecificity(term),
+      tokens: termTokens,
+      tokenSet: new Set(termTokens),
+    }
+  }),
+)
+
+function tokenOverlapScore(a: ClusterTerm, b: ClusterTerm): number {
+  if (!a.tokenSet.size || !b.tokens.length) return 0
+  const shared = b.tokens.filter((token) => a.tokenSet.has(token)).length
+  return shared / Math.max(a.tokenSet.size, b.tokens.length)
+}
+
 function relatedSkillScore(profileSkill: string, listingSkill: string): number {
   let best = 0
-  for (const group of RELATED_SKILL_GROUPS) {
-    const profileTerms = group.map(normalizeSkill).filter((term) => includesWholePhrase(profileSkill, term))
+  for (const group of NORMALIZED_GROUPS) {
+    const profileTerms = group.filter((term) => term.pattern.test(profileSkill))
     if (!profileTerms.length) continue
 
-    const listingTerms = group.map(normalizeSkill).filter((term) => includesWholePhrase(listingSkill, term))
+    const listingTerms = group.filter((term) => term.pattern.test(listingSkill))
     if (!listingTerms.length) continue
 
     for (const profileTerm of profileTerms) {
       for (const listingTerm of listingTerms) {
         const score =
           0.45 +
-          phraseSpecificity(profileTerm) * 0.16 +
-          phraseSpecificity(listingTerm) * 0.16 +
+          profileTerm.specificity * 0.16 +
+          listingTerm.specificity * 0.16 +
           tokenOverlapScore(profileTerm, listingTerm) * 0.18
         best = Math.max(best, clampScore(score))
       }
@@ -114,14 +133,35 @@ function relatedSkillScore(profileSkill: string, listingSkill: string): number {
  */
 const GAP_KEY = 'internconnect.skillGaps'
 
+/**
+ * In-memory mirror of the stored gap list, so the common case (a skill we have
+ * already logged) costs a Set lookup instead of a localStorage read plus a
+ * JSON.parse of up to 500 entries. Matching calls this once per skill per
+ * listing — thousands of times a load — and localStorage is synchronous, so the
+ * old read-every-time version showed up directly in load time.
+ */
+let gapCache: Set<string> | null = null
+
+function loadGaps(): Set<string> {
+  if (gapCache) return gapCache
+  try {
+    gapCache = new Set<string>(JSON.parse(localStorage.getItem(GAP_KEY) ?? '[]'))
+  } catch {
+    gapCache = new Set<string>()
+  }
+  return gapCache
+}
+
 export function recordSkillGap(skill: string): void {
   const s = normalizeSkill(skill)
   if (!s || isKnownSkill(s)) return
   if (typeof localStorage === 'undefined') return
+
+  const gaps = loadGaps()
+  if (gaps.has(s)) return
+  gaps.add(s)
   try {
-    const existing: string[] = JSON.parse(localStorage.getItem(GAP_KEY) ?? '[]')
-    if (existing.includes(s)) return
-    localStorage.setItem(GAP_KEY, JSON.stringify([...existing, s].slice(-500)))
+    localStorage.setItem(GAP_KEY, JSON.stringify([...gaps].slice(-500)))
   } catch {
     // Private mode / quota — the gap log is best-effort, never break matching.
   }
@@ -138,6 +178,17 @@ export function skillGaps(): string[] {
 }
 
 /**
+ * Scoring one pair is pure, and the same pairs recur constantly — one student's
+ * skills are scored against every listing on the board, and listings share
+ * skills heavily. This cache turns thousands of calls into a few hundred.
+ * Bounded because the skill vocabulary is open-ended (students type free text);
+ * at the cap we stop adding rather than evict, since scoring stays correct
+ * either way.
+ */
+const PAIR_CACHE_LIMIT = 20_000
+const pairCache = new Map<string, number>()
+
+/**
  * How well ONE student skill covers ONE required skill, 0..1.
  * Best of: exact match, the taxonomy, a substring hit, the legacy clusters.
  */
@@ -147,6 +198,19 @@ export function pairScore(studentSkill: string, requiredSkill: string): number {
   if (!mine || !need) return 0
   if (mine === need) return 1
 
+  // NUL is a collision-free separator; a space is not, because normalised
+  // skills contain spaces ("node js" + "react" vs "node" + "js react").
+  const key = `${mine}\0${need}`
+  const cached = pairCache.get(key)
+  if (cached !== undefined) return cached
+
+  const score = computePairScore(mine, need)
+  if (pairCache.size < PAIR_CACHE_LIMIT) pairCache.set(key, score)
+  return score
+}
+
+/** The actual scorer. Inputs are already normalised and known to differ. */
+function computePairScore(mine: string, need: string): number {
   const viaTaxonomy = taxonomyScore(mine, need)
 
   // Substring is a weak signal ("MQTT" inside "MQTT Protocols" is a real hit,

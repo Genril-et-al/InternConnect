@@ -16,7 +16,8 @@ import { useAuth } from '../auth/context'
 import { SignOutButton } from '../components/SignOutButton'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { TagInput } from './TagInput'
-import { Pencil, Trash2, X } from 'lucide-react'
+import { PhotoLightbox } from '../components/PhotoLightbox'
+import { Pencil, Trash2 } from 'lucide-react'
 import './profile.css'
 /**
  * Tag lists compare as unordered sets — analysis reorders skills (AI-extracted
@@ -443,22 +444,11 @@ export function ProfileSetup({
         title="Unsaved changes"
       />
       {showPhotoModal && photoPreview && (
-        <div 
-          className="photo-modal-overlay"
-          onClick={() => setShowPhotoModal(false)}
-          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
-        >
-          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
-            <button 
-              onClick={() => setShowPhotoModal(false)}
-              style={{ position: 'absolute', top: '-40px', right: 0, background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}
-              type="button"
-            >
-              <X size={32} />
-            </button>
-            <img src={photoPreview} alt="Profile" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }} />
-          </div>
-        </div>
+        <PhotoLightbox
+          alt="Profile photo"
+          onClose={() => setShowPhotoModal(false)}
+          src={photoPreview}
+        />
       )}
       <form className={`profile-card${isEdit ? ' embedded' : ''}`} onSubmit={handleSubmit}>
       <div className="profile-head">

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { CheckCircle2, FileText, Upload, Pencil, X } from 'lucide-react'
+import { CheckCircle2, FileText, Upload, Pencil } from 'lucide-react'
+import { PhotoLightbox } from '../components/PhotoLightbox'
 import { TagInput } from '../profile/TagInput'
 import { useAuth } from '../auth/context'
 import { uploadAvatar, removeAvatar } from '../lib/profile'
@@ -94,22 +95,11 @@ export function CompanyProfileView() {
       )}
 
       {showPhotoModal && logoPreview && (
-        <div 
-          className="photo-modal-overlay"
-          onClick={() => setShowPhotoModal(false)}
-          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
-        >
-          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
-            <button 
-              onClick={() => setShowPhotoModal(false)}
-              style={{ position: 'absolute', top: '-40px', right: 0, background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}
-              type="button"
-            >
-              <X size={32} />
-            </button>
-            <img src={logoPreview} alt="Company logo" style={{ maxWidth: '100%', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px' }} />
-          </div>
-        </div>
+        <PhotoLightbox
+          alt="Company logo"
+          onClose={() => setShowPhotoModal(false)}
+          src={logoPreview}
+        />
       )}
 
       <section className="cp-card">

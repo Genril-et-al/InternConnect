@@ -1,0 +1,58 @@
+/* Full-screen photo preview. The backdrop, its fade, and the panel's rise are
+   borrowed from .modal-overlay / modal-slide-up in App.css so this reads as the
+   same kind of layer as every other modal rather than as its own thing. */
+
+.photo-lightbox {
+  /* Above .signout-veil (2000), so a lightbox left open while the user signs
+     out is covered by the veil rather than punching through it. */
+  z-index: 1500;
+}
+
+.photo-lightbox-image {
+  animation: modal-slide-up var(--dur-3) var(--ease-out);
+  border-radius: 12px;
+  box-shadow: 0 32px 64px rgba(28, 10, 4, 0.45);
+  max-height: 90vh;
+  max-width: 90vw;
+  object-fit: contain;
+}
+
+/* Pinned to the viewport rather than to the image. Anchoring it to the image
+   meant its position moved with every photo's aspect ratio, and for a tall
+   image it was pushed off the top of the screen entirely. */
+.photo-lightbox-close {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  position: fixed;
+  right: 24px;
+  top: 24px;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+  width: 40px;
+}
+
+.photo-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.photo-lightbox-close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .photo-lightbox-image {
+    animation: none;
+  }
+}

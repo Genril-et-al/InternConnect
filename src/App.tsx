@@ -66,6 +66,19 @@ function App() {
   const [activeView, setActiveView] = useState('Dashboard')
   const [collapsed, toggleCollapsed] = useSidebarCollapsed()
 
+  // App stays mounted across sign-out — the login screen is a branch of this
+  // render, not a separate tree — so activeView would otherwise survive into the
+  // next session and drop whoever signs in next wherever the last user left off
+  // (usually Profile, opened from the account card). Reset on every change of
+  // user. Done during render rather than in an effect so the first painted frame
+  // is already the Dashboard, with no flash of the stale view.
+  const userId = session?.user.id ?? null
+  const [lastUserId, setLastUserId] = useState(userId)
+  if (userId !== lastUserId) {
+    setLastUserId(userId)
+    setActiveView('Dashboard')
+  }
+
   // Every view switch goes through here so a form holding unsaved work (the
   // profile editor) can confirm before it's discarded. When nothing is
   // unsaved the switch happens immediately.
@@ -228,20 +241,23 @@ function StudentPortal({
   // state — unmounting whatever view the student was working in.
   const matchKey = JSON.stringify([profile?.skills ?? [], profile?.specializations ?? []])
 
-  const refresh = useCallback(async () => {
-    if (!userId) return
-    const [skills, specializations] = JSON.parse(matchKey) as [string[], string[]]
-    const [l, a, b] = await Promise.all([
-      // Match against the full profile pool: resume-extracted skills plus any
-      // manually added skills and specializations.
-      fetchOpenListings(matchPool(skills, specializations)),
-      fetchMyApplications(userId),
-      fetchBookmarks(userId),
-    ])
-    setInternships(l)
-    setApplications(a)
-    setBookmarkedIds(b)
-  }, [userId, matchKey])
+  const refresh = useCallback(
+    async (onPartialListings?: (listings: Internship[]) => void) => {
+      if (!userId) return
+      const [skills, specializations] = JSON.parse(matchKey) as [string[], string[]]
+      const [l, a, b] = await Promise.all([
+        // Match against the full profile pool: resume-extracted skills plus any
+        // manually added skills and specializations.
+        fetchOpenListings(matchPool(skills, specializations), onPartialListings),
+        fetchMyApplications(userId),
+        fetchBookmarks(userId),
+      ])
+      setInternships(l)
+      setApplications(a)
+      setBookmarkedIds(b)
+    },
+    [userId, matchKey],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -252,7 +268,14 @@ function StudentPortal({
       // unmounting it.
       setLoadError(null)
       try {
-        await refresh()
+        // Listings arrive in chunks. Show the board as soon as the first one
+        // lands instead of holding the spinner until every listing is in —
+        // the remaining chunks re-rank underneath the student.
+        await refresh((partial) => {
+          if (cancelled) return
+          setInternships(partial)
+          setLoading(false)
+        })
       } catch (err) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load internships.')
       } finally {
