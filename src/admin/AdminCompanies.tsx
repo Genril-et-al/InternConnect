@@ -7,6 +7,7 @@ import { setCompanyVerification, removeApprovedCompany } from './adminQueries'
 import type { AdminCompany, VerifStatus } from './adminData'
 import { supabase } from '../lib/supabase'
 import { Dropdown } from '../components/Dropdown'
+import { useScrollLock } from '../lib/useScrollLock'
 
 /** UC-A02 / UC-A03 — Manage company accounts and NLO verification. */
 export function AdminCompanies({
@@ -236,6 +237,8 @@ function ViewCompanyModal({
   onVerif: (c: AdminCompany, v: VerifStatus) => Promise<void>
   onRemove: (c: AdminCompany) => void
 }) {
+  useScrollLock()
+
   const [details, setDetails] = useState<{
     description: string
     size: string
@@ -505,6 +508,8 @@ function ViewCompanyModal({
 }
 
 function AddCompanyModal({ onClose, onAdded }: { onClose: () => void, onAdded: () => Promise<void> }) {
+  useScrollLock()
+
   const [name, setName] = useState('')
   const [industry, setIndustry] = useState('')
   const [contactEmail, setContactEmail] = useState('')

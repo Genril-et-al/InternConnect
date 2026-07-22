@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Search, Trash2, X } from 'lucide-react'
 import type { CompanyApplicant, CompanyListing, PreEmploymentRequirement } from './companyData'
 import type { NewListingInput } from './companyQueries'
+import { useScrollLock } from '../lib/useScrollLock'
 
 /** UC-C03 — view and search the company's listings with applicant counts. */
 export function CompanyListings({
@@ -205,6 +206,8 @@ function PreviewListingView({
   onBack: () => void
   onEdit: () => void
 }) {
+  useScrollLock()
+
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onBack() }}>
       <div className="modal-panel detail-view" style={{ maxWidth: '750px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)' }}>
@@ -297,6 +300,8 @@ function newRequirementId(): string {
 }
 
 function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate: (input: NewListingInput) => Promise<void> }) {
+  useScrollLock()
+
   const [title, setTitle] = useState('')
   const [department, setDepartment] = useState('')
   const [slots, setSlots] = useState('1')

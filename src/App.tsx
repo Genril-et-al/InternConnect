@@ -40,6 +40,7 @@ import {
 } from './lib/listingsApi'
 import type { PreEmploymentRequirement } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
+import { useScrollLock } from './lib/useScrollLock'
 import { SignOutButton } from './components/SignOutButton'
 import { Avatar } from './components/Avatar'
 import { Dropdown } from './components/Dropdown'
@@ -651,6 +652,8 @@ function ProgressModal({
   onSubmitted?: () => void
   onClose: () => void
 }) {
+  useScrollLock()
+
   const internship = useMemo(() => internships.find(i => i.id === application.internshipId), [internships, application.internshipId])
 
   // In-app confirmation for offer/acceptance actions (replaces window.confirm).
@@ -1418,6 +1421,8 @@ function ApplyModal({
   onSubmit: () => Promise<void>
   onClose: () => void
 }) {
+  useScrollLock()
+
   const { profile, demo } = useAuth()
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)

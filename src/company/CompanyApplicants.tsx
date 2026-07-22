@@ -19,6 +19,7 @@ import type {
 import { signedDocumentUrl } from '../lib/profile'
 import type { InterviewDetails } from './companyQueries'
 import { Dropdown } from '../components/Dropdown'
+import { useScrollLock } from '../lib/useScrollLock'
 
 /**
  * UC-C04 / UC-C05 — review applications, open an applicant's profile
@@ -170,6 +171,10 @@ function ApplicantDetail({
   const [previewDownloadUrl, setPreviewDownloadUrl] = useState<string | null>(null)
   const [previewName, setPreviewName] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
+
+  // This view isn't itself a modal — it's the applicant page — so the lock
+  // belongs to the document preview it can open over itself.
+  useScrollLock(previewUrl !== null)
 
   const handleOpenDocument = async (path: string, name?: string) => {
     try {
@@ -535,6 +540,8 @@ function ScheduleInterviewModal({
   onSubmit: (details: InterviewDetails) => void
   onSkip: () => void
 }) {
+  useScrollLock()
+
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [mode, setMode] = useState<'online' | 'in-person'>('online')
@@ -624,6 +631,8 @@ function DocumentPreviewModal({
   name: string
   onClose: () => void
 }) {
+  useScrollLock()
+
   return (
     <div
       className="modal-overlay"
@@ -666,6 +675,8 @@ function RevisionModal({
   onClose: () => void
   onSubmit: (feedback: string) => void
 }) {
+  useScrollLock()
+
   const [feedback, setFeedback] = useState('')
 
   return (
@@ -722,6 +733,8 @@ function RejectModal({
   onClose: () => void
   onSubmit: (feedback: string) => void
 }) {
+  useScrollLock()
+
   const [feedback, setFeedback] = useState('')
 
   return (

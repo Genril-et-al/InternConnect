@@ -14,6 +14,7 @@ import {
 } from './allowlist'
 import { removeApprovedStudent, setStudentActive } from './adminQueries'
 import { Dropdown } from '../components/Dropdown'
+import { useScrollLock } from '../lib/useScrollLock'
 
 /** UC-A01 — Manage Student Accounts: roster, activate, deactivate. */
 export function AdminStudents({
@@ -253,6 +254,8 @@ function ViewStudentModal({
   onToggle: (s: AdminStudent) => void
   onRemove: (s: AdminStudent) => void
 }) {
+  useScrollLock()
+
   const initials = student.name
     .split(' ')
     .filter(Boolean)
@@ -358,6 +361,8 @@ function DeactivateStudentModal({
   onClose: () => void
   busy: boolean
 }) {
+  useScrollLock()
+
   const [reason, setReason] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
@@ -402,6 +407,8 @@ function DeactivateStudentModal({
 }
 
 function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: () => Promise<void> }) {
+  useScrollLock()
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [studentNumber, setStudentNumber] = useState('')
@@ -460,6 +467,8 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
 }
 
 export function BulkUploadModal({ type, onClose, onDone }: { type: 'student' | 'company', onClose: () => void, onDone: () => Promise<void> }) {
+  useScrollLock()
+
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
