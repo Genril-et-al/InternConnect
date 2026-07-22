@@ -1,2 +1,2 @@
--- Add interview_process column to internships (listings)
-ALTER TABLE public.internships ADD COLUMN IF NOT EXISTS interview_process jsonb DEFAULT '{"rounds": ["Interview"]}'::jsonb;
+-- Add interview_process column to listings
+ALTER TABLE public.listings ADD COLUMN IF NOT EXISTS interview_process jsonb DEFAULT '{"rounds": ["Interview"]}'::jsonb;
