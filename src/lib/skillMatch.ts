@@ -128,10 +128,27 @@ function relatedSkillScore(profileSkill: string, listingSkill: string): number {
 
 /**
  * Skills seen in real listings/profiles that the taxonomy cannot place.
- * This is the backlog `npm run skills:learn` works through. Stored in
- * localStorage, so it costs nothing and needs no table.
+ * This is the backlog `npm run skills:learn` works through.
+ *
+ * localStorage is the de-duplication record, not the destination: it is what
+ * stops the same skill being reported on every page load. The list itself goes
+ * to the server through the sink below, because a backlog sitting in each
+ * student's own browser is one nobody can ever collect.
  */
 const GAP_KEY = 'internconnect.skillGaps'
+
+type GapSink = (skill: string) => void
+let gapSink: GapSink | null = null
+
+/**
+ * Where newly-seen unknown skills are reported. Left unset here on purpose —
+ * this module must stay free of Supabase so it can run from a plain script
+ * (see the note at the top). The app installs the real sink at startup;
+ * scripts simply never install one.
+ */
+export function setSkillGapSink(sink: GapSink | null): void {
+  gapSink = sink
+}
 
 /**
  * In-memory mirror of the stored gap list, so the common case (a skill we have
@@ -155,11 +172,14 @@ function loadGaps(): Set<string> {
 export function recordSkillGap(skill: string): void {
   const s = normalizeSkill(skill)
   if (!s || isKnownSkill(s)) return
-  if (typeof localStorage === 'undefined') return
 
   const gaps = loadGaps()
   if (gaps.has(s)) return
   gaps.add(s)
+
+  gapSink?.(s)
+
+  if (typeof localStorage === 'undefined') return
   try {
     localStorage.setItem(GAP_KEY, JSON.stringify([...gaps].slice(-500)))
   } catch {
