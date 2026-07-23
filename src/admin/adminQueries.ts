@@ -304,6 +304,29 @@ export async function removeApprovedStudent(email: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+/**
+ * Correct a registered student's course and year level (admin-only).
+ *
+ * Calls the `admin_update_student_course` RPC which is SECURITY DEFINER and
+ * gated by `is_admin()` server-side. It updates both the live `profiles` row
+ * (what the student and company portal see) and the `approved_students` roster
+ * row (so any future re-registration inherits the corrected values).
+ */
+export async function updateStudentCourseYear(
+  profileId: string,
+  email: string,
+  course: string | null,
+  yearLevel: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_update_student_course', {
+    p_profile_id: profileId,
+    p_email: email.trim().toLowerCase(),
+    p_course: course?.trim() ?? '',
+    p_year_level: yearLevel?.trim() ?? '',
+  })
+  if (error) throw new Error(error.message)
+}
+
 /** Remove a company from the roster (only meaningful before they register). */
 export async function removeApprovedCompany(contactEmail: string): Promise<void> {
   const { error } = await supabase

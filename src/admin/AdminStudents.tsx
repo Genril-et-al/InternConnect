@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { UserCheck, UserX, Plus, Upload, X, Trash2 } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { UserCheck, UserX, Plus, Upload, X, Trash2, Pencil, Check } from 'lucide-react'
 import { AdBadge, AdSearch } from './components'
 import type { AdminStudent } from './adminData'
 import {
@@ -12,7 +12,7 @@ import {
   sheetNames,
   splitName,
 } from './allowlist'
-import { removeApprovedStudent, setStudentActive } from './adminQueries'
+import { removeApprovedStudent, setStudentActive, updateStudentCourseYear } from './adminQueries'
 import { Dropdown } from '../components/Dropdown'
 import { useScrollLock } from '../lib/useScrollLock'
 
@@ -218,6 +218,7 @@ export function AdminStudents({
           student={students.find((s) => s.id === viewTarget.id) || viewTarget}
           busy={busyId === viewTarget.id}
           onClose={() => setViewTarget(null)}
+          onRefresh={onRefresh}
           onToggle={(s) => {
             handleToggle(s)
             if (s.status === 'active') {
@@ -248,21 +249,29 @@ export function AdminStudents({
   )
 }
 
-/** UC-A01 — read-only view of a student's account information. */
+/** UC-A01 — read-only view of a student's account information, with admin edit for course/year. */
 function ViewStudentModal({
   student,
   busy,
   onClose,
+  onRefresh,
   onToggle,
   onRemove,
 }: {
   student: AdminStudent
   busy: boolean
   onClose: () => void
+  onRefresh: () => Promise<void>
   onToggle: (s: AdminStudent) => void
   onRemove: (s: AdminStudent) => void
 }) {
   useScrollLock()
+
+  const [editing, setEditing] = useState(false)
+  const [editCourse, setEditCourse] = useState(student.program ?? '')
+  const [editYear, setEditYear] = useState(student.year ?? '')
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const initials = student.name
     .split(' ')
@@ -272,22 +281,71 @@ function ViewStudentModal({
     .join('')
     .toUpperCase()
 
-  const rows: [string, string | number][] = [
+  async function handleSaveCourseYear() {
+    if (!student.profileId || saving) return
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await updateStudentCourseYear(
+        student.profileId,
+        student.email,
+        editCourse || null,
+        editYear || null,
+      )
+      await onRefresh()
+      setEditing(false)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Could not save changes.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const rows: [string, React.ReactNode][] = [
     ['Email', student.email],
     ['Student ID', student.studentId ?? '—'],
-    ['Program', student.program ?? '—'],
-    ['Year Level', student.year ?? '—'],
+    [
+      'Program',
+      editing ? (
+        <input
+          className="ic-input"
+          value={editCourse}
+          onChange={(e) => setEditCourse(e.target.value)}
+          placeholder="e.g. BSCS"
+          style={{ padding: '4px 8px', fontSize: '13px', width: '100%' }}
+          autoFocus
+        />
+      ) : (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {student.program ?? '—'}
+        </span>
+      ),
+    ],
+    [
+      'Year Level',
+      editing ? (
+        <input
+          className="ic-input"
+          value={editYear}
+          onChange={(e) => setEditYear(e.target.value)}
+          placeholder="e.g. 3rd Year"
+          style={{ padding: '4px 8px', fontSize: '13px', width: '100%' }}
+        />
+      ) : (
+        <span>{student.year ?? '—'}</span>
+      ),
+    ],
     ['Contact No.', student.phone ?? '—'],
     ['Applications', student.applications],
     ['Joined', student.joined],
   ]
 
   return (
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose() }}>
       <div className="modal-panel" style={{ width: '440px' }}>
         <div className="modal-header">
           <h3>Student Account</h3>
-          <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
+          <button aria-label="Close" className="modal-close" onClick={onClose} disabled={saving} type="button"><X size={16} /></button>
         </div>
         <div className="ic-view">
           <div className="ic-view-head">
@@ -303,9 +361,53 @@ function ViewStudentModal({
             </div>
           </div>
 
+          {/* Programme / Year edit row header */}
+          {student.profileId && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '12px 0 4px' }}>
+              <span className="ic-muted" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Programme &amp; Year
+              </span>
+              {editing ? (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className="ic-primary"
+                    style={{ padding: '4px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    onClick={handleSaveCourseYear}
+                    disabled={saving}
+                  >
+                    <Check size={12} /> {saving ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    className="ic-secondary"
+                    style={{ padding: '4px 10px', fontSize: '12px' }}
+                    onClick={() => { setEditing(false); setSaveError(null); setEditCourse(student.program ?? ''); setEditYear(student.year ?? '') }}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="ic-secondary"
+                  style={{ padding: '4px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  onClick={() => { setEditing(true); setEditCourse(student.program ?? ''); setEditYear(student.year ?? '') }}
+                  title="Correct this student's programme and year level"
+                >
+                  <Pencil size={11} /> Edit
+                </button>
+              )}
+            </div>
+          )}
+          {saveError && (
+            <p style={{ margin: '0 0 8px', color: 'var(--brand-crimson, #c0392b)', fontSize: '12px' }}>{saveError}</p>
+          )}
+
           <dl className="ic-view-list">
             {rows.map(([label, value]) => (
-              <div className="ic-view-row" key={label}>
+              <div className="ic-view-row" key={label as string}>
                 <dt>{label}</dt>
                 <dd>{value}</dd>
               </div>
@@ -330,7 +432,7 @@ function ViewStudentModal({
                 className="ic-secondary"
                 onClick={() => onToggle(student)}
                 type="button"
-                disabled={busy}
+                disabled={busy || saving}
                 style={{ width: '100%', justifyContent: 'center' }}
               >
                 {student.status === 'active' ? (
@@ -344,7 +446,7 @@ function ViewStudentModal({
                 className="ic-danger"
                 onClick={() => onRemove(student)}
                 type="button"
-                disabled={busy}
+                disabled={busy || saving}
                 style={{ width: '100%', justifyContent: 'center' }}
               >
                 <Trash2 size={14} /> {busy ? 'Removing…' : 'Remove'}
