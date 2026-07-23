@@ -307,17 +307,8 @@
 
 /* ── Content ───────────────────────────────────────────────────────── */
 .ic-main {
-  /* Centred brand watermark under an almost-opaque wash of the page colour —
-     same construction as .workspace, see the note there and --wm-size in
-     index.css. */
-  background-color: #faf9f6;
-  background-image:
-    linear-gradient(rgba(250, 249, 246, 0.94), rgba(250, 249, 246, 0.94)),
-    url('/logo.png');
-  background-position: 0 0, calc(50% + var(--sb-w) / 2) 50%;
-  background-repeat: no-repeat, no-repeat;
-  background-size: auto, var(--wm-size) auto;
-  background-attachment: scroll, fixed;
+  /* Wash + watermark are drawn by ::before below, not here. */
+  background: transparent;
   /* The offset follows --sb-w with no transition, on purpose.
 
      margin-left is a layout property: animating it re-runs layout on this whole
@@ -337,6 +328,25 @@
   margin-left: var(--sb-w);
   min-height: 100svh;
   padding: 32px;
+}
+
+/* Centred brand watermark under an almost-opaque wash of the page colour.
+   Fixed pseudo-element rather than `background-attachment: fixed` — same
+   construction and the same reasoning as .workspace::before in App.css, which
+   carries the full note. */
+.ic-main::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: #faf9f6;
+  background-image:
+    linear-gradient(rgba(250, 249, 246, 0.94), rgba(250, 249, 246, 0.94)),
+    url('/logo.png');
+  background-position: 0 0, calc(50% + var(--sb-w) / 2) 50%;
+  background-repeat: no-repeat, no-repeat;
+  background-size: auto, var(--wm-size) auto;
 }
 
 /* ── Collapsed rail state (shared by every sidebar) ────────────────── */

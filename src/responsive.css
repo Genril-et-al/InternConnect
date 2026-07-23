@@ -186,44 +186,23 @@
     padding: 16px 16px calc(80px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Watermark placement — the mark must stay pinned to the viewport while
-     content scrolls past it, exactly as it does on desktop.
+  /* Watermark placement — the mark stays pinned to the viewport while content
+     scrolls past it, exactly as on desktop. The layer itself is a fixed
+     pseudo-element (see .workspace::before in App.css for why); all that
+     changes here is the horizontal offset.
 
-     What broke it was `background-attachment: scroll` combined with a
-     PERCENTAGE y-position. Percentages resolve against the background
-     positioning area, which for a scrolling layer is the element's own padding
-     box — and .workspace / .ic-main are as tall as their content. So `38%`
-     meant 38% of the whole document: just under the header on a short page,
-     a thousand-odd pixels down on a long list (which read as "gone"), and a
-     different spot again whenever the content length changed.
-
-     `fixed` makes the positioning area the VIEWPORT instead, so `50% 50%` is
-     the centre of the screen at every scroll offset and on every page. That is
-     the only mechanism that pins a background layer without a pseudo-element,
-     and a pseudo-element is not available here: fading one needs `isolation`
-     on the container, which would trap the z-index:1000 .modal-overlay in a new
-     stacking context and paint it under the sidebar (see index.css).
-
-     The earlier note here dropped `fixed` over scroll-repaint cost on mobile
-     Safari. That is a real cost, but it is a performance nicety and this is
-     correctness — and the layer is one static image under an opaque wash,
-     which is the cheap case. The severe jank is with large or repeating fixed
-     layers. */
-  .workspace {
-    background-attachment: scroll, fixed;
+     There is no sidebar at this width, so the desktop nudge of half --sb-w
+     would push the mark off-centre. Centre it on the viewport instead. */
+  .workspace::before,
+  .ic-main::before {
     background-position: 0 0, 50% 50%;
     background-size: auto, var(--wm-size) auto;
   }
 
-  .ic-main {
-    background-attachment: scroll, fixed;
-    background-position: 0 0, 50% 50%;
-  }
-
-  /* The auth/loading screens draw the same mark. They keep `fixed` from
-     auth.css; what they lacked was the mobile --wm-size below, so the mark
-     rendered at the desktop 46vw (~172px on a phone). */
-  .auth-loading {
+  /* The auth/loading screens draw the same mark, on the same fixed layer.
+     What they lacked was the mobile --wm-size below, so the mark rendered at
+     the desktop 46vw (~172px on a phone). */
+  .auth-loading::before {
     background-position: 0 0, 50% 50%;
   }
 
