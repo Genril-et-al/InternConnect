@@ -13,6 +13,7 @@ export function CompanyListings({
   applicants,
   verification,
   onCreate,
+  onUpdate,
   onSetStatus,
   onDelete,
   highlightedListingId,
