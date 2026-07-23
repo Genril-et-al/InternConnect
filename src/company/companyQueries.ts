@@ -175,6 +175,8 @@ export async function createListing(companyId: string, input: NewListingInput): 
       skills: input.skills,
       description: input.description,
       status: input.publish ? 'open' : 'draft',
+      has_allowance: input.hasAllowance,
+      offer_deadline_days: input.offerDeadlineDays,
       interview_process: input.interviewProcess,
     })
     .select('id')
@@ -210,6 +212,8 @@ export async function updateListing(listingId: string, input: NewListingInput): 
       skills: input.skills,
       description: input.description,
       status: input.publish ? 'open' : 'draft',
+      has_allowance: input.hasAllowance,
+      offer_deadline_days: input.offerDeadlineDays,
       interview_process: input.interviewProcess,
     })
     .eq('id', listingId)

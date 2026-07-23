@@ -372,7 +372,7 @@ function PostListingModal({
     return Array.from(splitTags)
   })
   const [description, setDescription] = useState(initialListing?.description || '')
-  const [hasAllowance, setHasAllowance] = useState(false)
+  const [hasAllowance, setHasAllowance] = useState(initialListing?.hasAllowance ?? false)
   const [offerDeadlineDays, setOfferDeadlineDays] = useState(initialListing?.offerDeadlineDays?.toString() || '3')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
