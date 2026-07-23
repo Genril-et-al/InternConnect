@@ -43,34 +43,22 @@
 // one fetch settles in ~200-400ms, which fits the budget with room to spare and
 // keeps the error reporting. Until then, expect occasional hook timeouts.
 //
-// Delivery to @cit.edu — why every code also goes to a personal inbox:
-// Gmail accepts the message, cit.edu accepts it from Gmail, and then it is
-// quarantined on the far side with no bounce. Nothing here can undo that: the
-// hook returns 200, the auth log says "Hook ran successfully", and the student
-// still has an empty inbox. Every account in auth.users that was asked to
-// confirm a @cit.edu address is unconfirmed; every account that was mailed at a
-// gmail.com address is confirmed. That is the whole bug — password reset only
-// looked healthy because it was tested on accounts whose auth email is a
-// personal address.
+// Recipients: the account's institutional address, and nothing else. Codes are
+// no longer CC'd to a personal inbox — signup does not ask for one — so
+// receiving a code proves control of the institutional mailbox.
 //
-// So the message is addressed to BOTH the institutional address and the
-// student's personal address, in a single SMTP session (one `to` array, not two
-// sends — a second session would double ~3.5s and blow the 5s hook budget).
-// Both copies go to the same person, so nothing is disclosed by listing them
-// together, and whichever inbox actually accepts mail delivers the code.
-//
-// This is delivery only. auth.users.email remains the university address, so
-// identity, the roster join, login, and the password-reset lookup are all
-// untouched — unlike migration 0013, which solved the same problem by moving
-// the identity itself and left a dual-address mess behind.
+// Watch @cit.edu delivery. Gmail accepts the message, cit.edu accepts it from
+// Gmail, and it has been quarantined on the far side with no bounce: the hook
+// returns 200, the auth log says "Hook ran successfully", and the student still
+// has an empty inbox. Nothing here can detect that. If it recurs, the fix is at
+// the mail layer — an authenticated sending domain (Resend/Postmark) or an
+// institutional allowlist for our sender — not a second recipient.
 
 import { Webhook } from 'npm:standardwebhooks@1.0.0'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 
 const GMAIL_USER = Deno.env.get('GMAIL_USER') ?? 'internconnect000@gmail.com'
 const FROM_NAME = Deno.env.get('EMAIL_FROM_NAME') ?? 'InternConnect'
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
 type EmailData = {
   token: string
@@ -84,58 +72,8 @@ type HookPayload = {
   user: {
     id: string
     email: string
-    // GoTrue sends the whole user record, so the signup form's metadata is
-    // already here on the first send and no round trip is needed.
-    user_metadata?: Record<string, unknown> | null
   }
   email_data: EmailData
-}
-
-/** A usable address that is not just the primary one spelled differently. */
-function isUsableAlternate(candidate: unknown, primary: string): candidate is string {
-  if (typeof candidate !== 'string') return false
-  const value = candidate.trim().toLowerCase()
-  return value.includes('@') && value !== primary.trim().toLowerCase()
-}
-
-/**
- * The student's personal inbox, so the code has somewhere to land when the
- * university address quarantines it.
- *
- * Signup metadata carries it for free. Recovery does not — that request only
- * has the account — so fall back to the profile row, which handle_new_user
- * populates from the same field and which also picks up an address added later
- * on the profile page. The lookup is capped at 1s: this runs inside the 5s hook
- * budget, and a code delivered to one inbox beats a hook that times out
- * reaching for the second.
- */
-async function personalEmailFor(
-  user: HookPayload['user'],
-): Promise<string | null> {
-  const fromMetadata = user.user_metadata?.personal_email
-  if (isUsableAlternate(fromMetadata, user.email)) return fromMetadata.trim()
-
-  if (!SUPABASE_URL || !SERVICE_KEY || !user.id) return null
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=personal_email`,
-      {
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-        },
-        signal: AbortSignal.timeout(1000),
-      },
-    )
-    if (!res.ok) return null
-    const rows = (await res.json()) as { personal_email: string | null }[]
-    const fromProfile = rows?.[0]?.personal_email
-    return isUsableAlternate(fromProfile, user.email) ? fromProfile.trim() : null
-  } catch (err) {
-    // Never fatal: worst case the code goes to the institutional address alone.
-    console.error('Personal-email lookup failed', err)
-    return null
-  }
 }
 
 /**
@@ -230,11 +168,8 @@ function emailText(intro: string, what: string, token: string, to: string): stri
   ].join('\n')
 }
 
-/**
- * One message, one SMTP session, however many addresses. `to` is a list because
- * the same code is addressed to the institutional inbox and the student's
- * personal one — see the delivery note at the top of this file.
- */
+/** One message, one SMTP session. `to` is a list, but today it is always the
+ * account's institutional address alone — see the delivery note at the top. */
 async function sendEmail(
   to: string[],
   subject: string,
@@ -315,19 +250,16 @@ Deno.serve(async (req) => {
   }
 
   // 2. Deliver the code Supabase generated via Gmail SMTP, to the account's
-  //    address and — when we know one — the student's personal inbox as well,
-  //    in the same message. The body still names the account address: that is
-  //    the address the code belongs to, whichever inbox it arrives in.
+  //    institutional address and nowhere else — that is the address the code
+  //    belongs to, and receiving it is what proves control of the mailbox.
   const { subject, intro, what } = copyFor(email_data.email_action_type)
   const token = email_data.token
   const to = user.email
-  const alternate = await personalEmailFor(user)
-  const recipients = alternate ? [to, alternate] : [to]
   // Awaited deliberately — see the timeout note at the top of this file before
   // changing this to a background send.
   try {
     await sendEmail(
-      recipients,
+      [to],
       subject(token),
       emailHtml(intro, what, token, to),
       emailText(intro, what, token, to),

@@ -339,10 +339,6 @@ function SignupFlow({
   const [step, setStep] = useState<SignupStep>('role')
   const [accountType, setAccountType] = useState<AccountType | null>(null)
   const [email, setEmail] = useState('')
-  // Second delivery address for the code, and a profile contact detail
-  // afterwards. Required for students: @cit.edu quarantines our mail, so
-  // without it a signup can stall with no inbox to read the code from.
-  const [personalEmail, setPersonalEmail] = useState('')
   const [code, setCode] = useState('')
   const [expiresAt, setExpiresAt] = useState<number | null>(null)
   const [timeLeft, setTimeLeft] = useState(0)
@@ -373,9 +369,7 @@ function SignupFlow({
   const totalSteps = 4
 
   // Names, address and contact number come from the roster now — signup no
-  // longer asks for what the NLO already recorded. The personal email is the
-  // exception: nothing upstream knows it, and send-email-hook needs it to have
-  // a second inbox to deliver the code to.
+  // longer asks for what the NLO already recorded.
   const signupName = {
     firstName: '',
     middleInitial: '',
@@ -383,25 +377,20 @@ function SignupFlow({
     suffix: '',
     address: '',
     contactNumber: '',
-    personalEmail: accountType === 'company' ? '' : personalEmail.trim(),
   }
 
   /**
    * The account is created on the institutional address — the university email
    * for students, the work email for companies — which is what the roster is
-   * keyed on and what they log in with afterwards. The code itself is mailed to
-   * that address and to the student's personal one, since @cit.edu holds our
-   * mail; send-email-hook picks the personal address up from the metadata
-   * below.
+   * keyed on, what they log in with afterwards, and the only address the
+   * verification code is delivered to.
    */
   async function sendCode() {
     await requestSignupCode(email, signupName)
   }
 
   /** Where the student should go looking for the code we just sent. */
-  const codeDestination = signupName.personalEmail
-    ? `${email} and ${signupName.personalEmail}`
-    : email
+  const codeDestination = email
 
   async function handleRequestCode(event: React.FormEvent) {
     event.preventDefault()
@@ -645,27 +634,10 @@ function SignupFlow({
           value={email}
         />
       </label>
-      {accountType !== 'company' && (
-        <>
-          <label>
-            Personal email
-            <input
-              autoComplete="email"
-              onChange={(e) => setPersonalEmail(e.target.value)}
-              placeholder="yourname@gmail.com"
-              required
-              type="email"
-              value={personalEmail}
-            />
-          </label>
-          <p className="auth-hint auth-hint-left">
-            We send your code to both addresses. @cit.edu often holds automated
-            mail back, so the personal inbox is usually where it lands first —
-            which is why it is required here. Your account still belongs to your
-            university email, and that is what you log in with.
-          </p>
-        </>
-      )}
+      <p className="auth-hint auth-hint-left">
+        We send your 6-digit code to this address, and it is what you log in
+        with afterwards.
+      </p>
       {error && <p className="auth-error">{error}</p>}
       <button className="auth-primary" disabled={busy} type="submit">
         {busy ? 'Sending code…' : 'Send verification code'}
