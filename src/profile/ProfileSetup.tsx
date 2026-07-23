@@ -9,7 +9,7 @@ import {
   uploadDocument,
   signedDocumentUrl,
 } from '../lib/profile'
-import { analyzeResume, NO_SKILLS_MESSAGE } from '../lib/resumeAnalysis'
+import { analyzeResume, NO_SKILLS_MESSAGE, NAME_MISMATCH_MESSAGE } from '../lib/resumeAnalysis'
 import { formatMiddleInitial } from '../lib/name'
 import { setUnsavedGuard } from '../lib/unsavedGuard'
 import { useAuth } from '../auth/context'
@@ -98,10 +98,11 @@ export function ProfileSetup({
     message: string
     suggestion: string | null
   } | null>(
-    profile?.resume_status === 'no_skills_found'
+    profile?.resume_status === 'no_skills_found' || profile?.resume_status === 'name_mismatch'
       ? {
         fileName: 'your current resume',
-        message: NO_SKILLS_MESSAGE,
+        message:
+          profile.resume_status === 'name_mismatch' ? NAME_MISMATCH_MESSAGE : NO_SKILLS_MESSAGE,
         suggestion: profile?.resume_ai_suggestion ?? null,
       }
       : null,
@@ -225,6 +226,16 @@ export function ProfileSetup({
         setResumeRejected({
           fileName: displayResumeName ?? 'your current resume',
           message: result.message || NO_SKILLS_MESSAGE,
+          suggestion: result.suggestion ?? null,
+        })
+      } else if (result.status === 'name_mismatch') {
+        // The resume on file belongs to someone else — drop its extracted
+        // skills so a stale match can't linger, and flag it for re-upload.
+        setAiSkills([])
+        setAiSpecializations([])
+        setResumeRejected({
+          fileName: displayResumeName ?? 'your current resume',
+          message: result.message || NAME_MISMATCH_MESSAGE,
           suggestion: result.suggestion ?? null,
         })
       } else if (result.status === 'unsupported_format') {
@@ -399,6 +410,18 @@ export function ProfileSetup({
             setResumeRejected({
               fileName: resume.name,
               message: result.message || NO_SKILLS_MESSAGE,
+              suggestion: result.suggestion ?? null,
+            })
+            setResume(null)
+            return
+          }
+          if (result.status === 'name_mismatch') {
+            // Resume names someone else — refuse it and require the student's own.
+            setAiSkills([])
+            setAiSpecializations([])
+            setResumeRejected({
+              fileName: resume.name,
+              message: result.message || NAME_MISMATCH_MESSAGE,
               suggestion: result.suggestion ?? null,
             })
             setResume(null)

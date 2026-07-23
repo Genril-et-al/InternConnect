@@ -48,6 +48,7 @@ const corsHeaders = {
 
 type Extraction = {
   is_valid_resume: boolean
+  candidate_name: string
   skills: string[]
   specializations: string[]
   suggestion: string
@@ -59,6 +60,13 @@ const EXTRACTION_SCHEMA = {
     is_valid_resume: {
       type: 'BOOLEAN',
       description: 'True only if the document is actually a resume/CV.',
+    },
+    candidate_name: {
+      type: 'STRING',
+      description:
+        "The candidate's own full name exactly as printed on the resume — " +
+        'usually the heading at the top. Do NOT include titles, degrees, or ' +
+        'contact lines. Empty string if the resume states no name.',
     },
     skills: {
       type: 'ARRAY',
@@ -84,16 +92,21 @@ const EXTRACTION_SCHEMA = {
         'Empty string otherwise.',
     },
   },
-  required: ['is_valid_resume', 'skills', 'specializations', 'suggestion'],
+  required: ['is_valid_resume', 'candidate_name', 'skills', 'specializations', 'suggestion'],
 }
 
 const PROMPT =
   'You are the resume analyzer for InternConnect, an internship matching platform. ' +
-  'Read the attached document. If it is a resume/CV, extract the candidate\'s skills ' +
-  'and specializations exactly per the response schema. Only report skills actually ' +
-  'evidenced in the document — do not invent any. If the document is not a resume, or ' +
-  'contains no identifiable skills or specializations, return empty arrays and fill ' +
-  '`suggestion` with concrete advice for making the resume matchable to internships.'
+  'Read the attached document. If it is a resume/CV, extract the candidate\'s full name, ' +
+  'skills and specializations exactly per the response schema. Report the name exactly as ' +
+  'written on the resume, and only report skills actually evidenced in the document — do ' +
+  'not invent any. If the document is not a resume, or contains no identifiable skills or ' +
+  'specializations, return empty arrays and fill `suggestion` with concrete advice for ' +
+  'making the resume matchable to internships.'
+
+/** Shown to the student when the resume names someone other than the account holder. */
+const NAME_MISMATCH_MESSAGE =
+  'The name on this resume does not match your InternConnect account.'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -129,7 +142,7 @@ Deno.serve(async (req) => {
     //    service-role download cannot be pointed at another student's files.
     const { data: profileRow, error: profileError } = await admin
       .from('profiles')
-      .select('resume_url, role')
+      .select('resume_url, role, full_name, first_name, middle_initial, last_name, suffix')
       .eq('id', uid)
       .single()
     if (profileError) return json({ error: profileError.message }, 500)
@@ -254,6 +267,38 @@ Deno.serve(async (req) => {
     }
     const extraction = JSON.parse(text) as Extraction
 
+    // Identity check. A resume made out to someone else is either the wrong file
+    // or another person's — either way it must not seed this student's skills,
+    // and matching an internship to it would misrepresent the applicant. Only
+    // enforced when the document is a real resume that actually states a name;
+    // an unreadable/absent name can't be verified, so it isn't blocked here.
+    if (extraction.is_valid_resume && extraction.candidate_name?.trim()) {
+      if (!nameMatchesProfile(profileRow, extraction.candidate_name)) {
+        const profileName = profileFullName(profileRow)
+        const resumeName = extraction.candidate_name.trim()
+        const detail =
+          `Your account name is "${profileName}", but this resume is made out to ` +
+          `"${resumeName}". Please upload your own resume. If your legal name recently ` +
+          'changed, ask your coordinator to update it on your account.'
+        const { error: mismatchError } = await admin
+          .from('profiles')
+          .update({
+            resume_status: 'name_mismatch',
+            resume_analyzed_at: new Date().toISOString(),
+            resume_ai_suggestion: detail,
+            ai_skills: [],
+            ai_specializations: [],
+          })
+          .eq('id', uid)
+        if (mismatchError) return json({ error: mismatchError.message }, 500)
+        return json({
+          status: 'name_mismatch',
+          message: NAME_MISMATCH_MESSAGE,
+          suggestion: detail,
+        })
+      }
+    }
+
     const skills = dedupe(extraction.skills)
     const specializations = dedupe(extraction.specializations)
     const empty = !extraction.is_valid_resume ||
@@ -287,6 +332,77 @@ Deno.serve(async (req) => {
     return json({ error: 'Unexpected error during resume analysis.' }, 500)
   }
 })
+
+type ProfileNameParts = {
+  full_name?: string | null
+  first_name?: string | null
+  middle_initial?: string | null
+  last_name?: string | null
+  suffix?: string | null
+}
+
+/** Human-readable account name for the mismatch message. */
+function profileFullName(p: ProfileNameParts): string {
+  if (p.full_name?.trim()) return p.full_name.trim()
+  return [p.first_name, p.middle_initial, p.last_name, p.suffix]
+    .map((s) => (s ?? '').trim())
+    .filter(Boolean)
+    .join(' ')
+}
+
+/**
+ * Split a name into comparable tokens: strip diacritics, lowercase, keep only
+ * letters/digits, and drop one-character fragments (initials, particles) so
+ * "José D. Dela-Cruz" and "Jose Dela Cruz" reduce to the same set.
+ */
+function nameTokens(s: string): string[] {
+  return (s ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // strip combining diacritical marks
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 2)
+}
+
+/**
+ * True if one name-part of the account (e.g. the last name) is represented in
+ * the resume's name. A single shared token is enough, so a two-part given name
+ * stored as "Maria Cristina" still matches a resume that prints only "Cristina".
+ * Compound surnames written solid ("Dela Cruz" -> "delacruz") match via the
+ * joined form.
+ */
+function partPresent(partTokens: string[], resumeSet: Set<string>, resumeJoined: string): boolean {
+  if (partTokens.length === 0) return true // nothing on the account to check
+  if (partTokens.some((t) => resumeSet.has(t))) return true
+  if (partTokens.length >= 2) {
+    const joined = partTokens.join('')
+    if (joined.length >= 4 && resumeJoined.includes(joined)) return true
+  }
+  return false
+}
+
+/**
+ * Verify the resume belongs to the account holder. Requires the first name AND
+ * the last name to each be present in the resume's name — order-independent and
+ * tolerant of middle names, so a genuine student passes while a wholesale
+ * different name (wrong file or someone else's resume) is caught.
+ */
+function nameMatchesProfile(p: ProfileNameParts, resumeName: string): boolean {
+  const resumeTokens = nameTokens(resumeName)
+  if (resumeTokens.length === 0) return true // no readable name — can't verify
+  const resumeSet = new Set(resumeTokens)
+  const resumeJoined = resumeTokens.join('')
+
+  const firstTokens = nameTokens(p.first_name ?? '')
+  const lastTokens = nameTokens(p.last_name ?? '')
+  if (firstTokens.length === 0 && lastTokens.length === 0) return true // no name on file
+
+  return (
+    partPresent(firstTokens, resumeSet, resumeJoined) &&
+    partPresent(lastTokens, resumeSet, resumeJoined)
+  )
+}
 
 function dedupe(values: unknown): string[] {
   if (!Array.isArray(values)) return []
