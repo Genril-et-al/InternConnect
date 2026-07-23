@@ -41,7 +41,7 @@ import {
   submitRequirementText,
 } from './lib/listingsApi'
 import type { PreEmploymentRequirement } from './lib/mockData'
-import { useRealtimeRefresh } from './lib/realtime'
+import { useArrivals, useRealtimeRefresh } from './lib/realtime'
 import { useSidebarCollapsed } from './lib/useSidebar'
 import { useScrollLock } from './lib/useScrollLock'
 import { SignOutButton } from './components/SignOutButton'
@@ -242,6 +242,10 @@ function StudentPortal({
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // Distinct from `loading`, which clears after the first chunk of listings so
+  // the board can paint. This one waits for the last chunk, so the arrival
+  // animation doesn't fire for listings that were simply still loading.
+  const [hydrated, setHydrated] = useState(false)
 
   const userId = profile?.id
   // Compared by value, not reference: every refreshProfile() hands back a new
@@ -308,7 +312,10 @@ function StudentPortal({
       } catch (err) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Failed to load internships.')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setHydrated(true)
+        }
       }
     })()
     return () => {
@@ -380,6 +387,7 @@ function StudentPortal({
         {activeView === 'Browse Internships' && (
           <BrowseInternships
             internships={internships}
+            hydrated={hydrated}
             appliedIds={new Set(applications.map((a) => a.internshipId))}
             bookmarkedIds={bookmarkedIds}
             hasAcceptedOffer={applications.some((a) => a.status === 'Accepted')}
@@ -456,6 +464,7 @@ const matchOrder = ['90+', '80+', '70+', '60+', 'All']
 
 function BrowseInternships({
   internships,
+  hydrated,
   appliedIds,
   bookmarkedIds,
   hasAcceptedOffer,
@@ -465,6 +474,8 @@ function BrowseInternships({
   onSelectInternship
 }: {
   internships: Internship[]
+  /** False until the last chunk of the first load is in — see useArrivals. */
+  hydrated?: boolean
   appliedIds: Set<string>
   bookmarkedIds: Set<string>
   hasAcceptedOffer: boolean
@@ -474,6 +485,9 @@ function BrowseInternships({
   onSelectInternship: (internship: Internship | null) => void
 }) {
   const { profile } = useAuth()
+  // Keyed off the unfiltered board so a listing posted while the student has a
+  // search typed still reads as new if they clear the search within the beat.
+  const arrived = useArrivals(internships, hydrated)
   const [query, setQuery] = useState('')
   const [searchField, setSearchField] = useState('All')
   const [matchFilter, setMatchFilter] = useState('All')
@@ -656,6 +670,7 @@ function BrowseInternships({
             <InternshipStrip
               internship={internship}
               isBookmarked={bookmarkedIds.has(internship.id)}
+              isNew={arrived.has(internship.id)}
               key={internship.id}
               onClick={() => onSelectInternship(internship)}
               onToggleBookmark={(e) => toggleBookmark(internship.id, e)}
@@ -705,11 +720,11 @@ const STATUS_BADGE: Record<ApplicationStatus, string> = {
   Expired: 'error',
 }
 
-function ApplicationStrip({ application, onClick, isHighlighted, isShaded }: { application: Application; onClick: () => void; isHighlighted?: boolean; isShaded?: boolean }) {
+function ApplicationStrip({ application, onClick, isHighlighted, isNew, isShaded }: { application: Application; onClick: () => void; isHighlighted?: boolean; isNew?: boolean; isShaded?: boolean }) {
   const statusClass = STATUS_BADGE[application.status] ?? 'warning'
 
   return (
-    <article className={`application-strip ${isHighlighted ? 'highlighted' : ''} ${isShaded ? 'shaded' : ''}`} role="button" tabIndex={0} onClick={isShaded ? undefined : onClick}>
+    <article className={`application-strip ${isHighlighted ? 'highlighted' : ''} ${isNew ? 'ic-arrive' : ''} ${isShaded ? 'shaded' : ''}`} role="button" tabIndex={0} onClick={isShaded ? undefined : onClick}>
       {application.companyLogo ? (
         <img src={application.companyLogo} alt={application.company} className="strip-avatar" style={{ objectFit: 'contain' }} />
       ) : (
@@ -1382,6 +1397,7 @@ function StudentApplications({
 }) {
   const [searchQuery, setSearchQuery] = useState('')
   const hasAccepted = applications.some(a => a.status === 'Accepted')
+  const arrived = useArrivals(applications)
 
   useEffect(() => {
     if (highlightedAppId) {
@@ -1466,11 +1482,12 @@ function StudentApplications({
 
       <div className="application-strips">
         {visible.map(app => (
-          <ApplicationStrip 
-            key={app.id} 
-            application={app} 
+          <ApplicationStrip
+            key={app.id}
+            application={app}
             onClick={() => onOpenProgress(app)}
             isHighlighted={app.id === highlightedAppId}
+            isNew={arrived.has(app.id)}
             isShaded={hasAccepted && app.status !== 'Accepted'}
           />
         ))}
@@ -1491,15 +1508,18 @@ function InternshipStrip({
   internship,
   onClick,
   isBookmarked,
+  isNew,
   onToggleBookmark,
 }: {
   internship: Internship
   onClick: () => void
   isBookmarked?: boolean
+  /** Posted while the student was already on this page — see useArrivals. */
+  isNew?: boolean
   onToggleBookmark?: (e: React.MouseEvent) => void
 }) {
   return (
-    <article className="internship-strip clickable" onClick={onClick} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
+    <article className={`internship-strip clickable${isNew ? ' ic-arrive' : ''}`} onClick={onClick} role="button" tabIndex={0} style={{ cursor: 'pointer' }}>
       <div className="strip-top">
         {internship.companyLogo ? (
           <img src={internship.companyLogo} alt={internship.company} className="strip-avatar" style={{ objectFit: 'contain' }} />

@@ -407,6 +407,41 @@ a {
   }
 }
 
+/* A row that arrived over Realtime while the list was already on screen — a
+   listing a company just posted, an application that just landed. Applied from
+   useArrivals() (src/lib/realtime.ts) for a beat, then dropped.
+
+   Longer and more pronounced than .view-swap: the user did not ask for this
+   one. Nothing they did caused the row to appear, so it has to catch the eye
+   on its own or the list simply grew while they were looking elsewhere on the
+   page. The outline is what does that work — it opens on the brand colour and
+   fades to transparent, so the row is ringed as it settles and ordinary
+   afterwards. Animating `outline` rather than `box-shadow` leaves each row's
+   own shadow alone.
+
+   `backwards`, not `forwards`/`both` — see the note on .page-enter above; a
+   held transform would make every arrived row a containing block for fixed
+   overlays opened out of it. */
+.ic-arrive {
+  animation: ic-arrive var(--dur-3) var(--ease-out) backwards;
+}
+
+@keyframes ic-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    outline: 2px solid var(--brand-orange);
+    outline-offset: 2px;
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+}
+
 /* Respect users who ask for less motion: neutralise transitions/animations
    everywhere instead of relying on each stylesheet to opt in individually. */
 @media (prefers-reduced-motion: reduce) {

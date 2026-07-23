@@ -22,6 +22,7 @@ import { signedDocumentUrl } from '../lib/profile'
 import type { InterviewDetails } from './companyQueries'
 import { Dropdown } from '../components/Dropdown'
 import { useScrollLock } from '../lib/useScrollLock'
+import { useArrivals } from '../lib/realtime'
 
 /**
  * UC-C04 / UC-C05 — review applications, open an applicant's profile
@@ -228,6 +229,8 @@ function ListingGroupCard({
   onSetStatus?: (id: string, status: ApplicantStatus, feedback?: string, nextStep?: string) => Promise<void>
   onSetListingStatus?: (id: string, status: 'Open' | 'Closed' | 'Draft') => Promise<void>
 }) {
+  // Students applying while this card is open — the row should announce itself.
+  const arrived = useArrivals(allApplicants)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false)
   const [closeHiringOpen, setCloseHiringOpen] = useState(false)
@@ -326,7 +329,7 @@ function ListingGroupCard({
 
           <div className="cp-rows" style={{ gap: '8px' }}>
             {applicants.map(a => (
-              <div className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''}`} key={a.id} style={{ padding: 0, overflow: 'hidden', borderRadius: '8px', boxShadow: 'none', border: '1px solid var(--border-light, #eee)' }}>
+              <div className={`cp-row ${a.id === highlightedApplicantId ? 'highlighted' : ''} ${arrived.has(a.id) ? 'ic-arrive' : ''}`} key={a.id} style={{ padding: 0, overflow: 'hidden', borderRadius: '8px', boxShadow: 'none', border: '1px solid var(--border-light, #eee)' }}>
                 <div style={{ padding: '0 0 0 16px', display: 'flex', alignItems: 'center' }}>
                   <input 
                     type="checkbox" 

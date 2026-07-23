@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isSupabaseConfigured, supabase } from './supabase'
 
 /**
@@ -64,9 +64,10 @@ export function useRealtimeRefresh(
     function run() {
       timer = null
       if (disposed) return
-      // Nobody is looking at this tab. Hold the change and replay it the moment
-      // the user comes back, rather than refetching into a hidden page.
-      if (document.hidden || running) {
+      // Deliberately runs whether or not the tab is in the foreground: a
+      // student who left the board open in a background tab should find it
+      // already current when they come back, not watch it load then.
+      if (running) {
         pending = true
         return
       }
@@ -105,6 +106,10 @@ export function useRealtimeRefresh(
       subscribedBefore = true
     })
 
+    // Backstop, not the main path. Browsers clamp timers in background tabs, so
+    // a refresh scheduled while hidden can sit unfired for far longer than the
+    // coalesce window; this makes sure it has landed by the time the tab is
+    // looked at again.
     const onVisible = () => {
       if (!document.hidden && pending) schedule()
     }
@@ -117,4 +122,72 @@ export function useRealtimeRefresh(
       supabase.removeChannel(channel)
     }
   }, [key, enabled])
+}
+
+/**
+ * How long an arrived row keeps the `ic-arrive` class. Must outlast the CSS
+ * animation (--dur-3), or the class is pulled while the row is still moving and
+ * it snaps into place.
+ */
+const ARRIVAL_HOLD_MS = 1200
+
+const NO_ARRIVALS: ReadonlySet<string> = new Set()
+
+/**
+ * The ids of rows that appeared in a list after it was already on screen —
+ * a listing another company just posted, an application that just landed.
+ *
+ * Give the returned set to the row's className (see `.ic-arrive` in index.css)
+ * so a live update announces itself instead of silently changing the list under
+ * the user. Rows present on the first load are never reported: the whole list
+ * arriving at once is the page loading, not news.
+ *
+ * Pass `ready: false` while that first load is still in flight for lists that
+ * fill in more than one go — the internships board paints after its first chunk
+ * and keeps appending, and without this every later chunk would animate as if
+ * it had just been posted.
+ */
+export function useArrivals<T extends { id: string }>(
+  items: readonly T[],
+  ready = true,
+): ReadonlySet<string> {
+  const [arrivals, setArrivals] = useState<ReadonlySet<string>>(NO_ARRIVALS)
+  /** Null until the first list lands, which is what makes that load silent. */
+  const seen = useRef<Set<string> | null>(null)
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
+
+  useEffect(
+    () => () => {
+      for (const t of timers.current) clearTimeout(t)
+      timers.current.clear()
+    },
+    [],
+  )
+
+  useEffect(() => {
+    const ids = items.map((i) => i.id)
+    if (!ready || seen.current === null) {
+      seen.current = new Set(ids)
+      return
+    }
+    const fresh = ids.filter((id) => !seen.current!.has(id))
+    // Rebuilt rather than added to, so a row that leaves and comes back — a
+    // listing reopened, an application restored after a withdrawal — reads as
+    // an arrival the second time too.
+    seen.current = new Set(ids)
+    if (fresh.length === 0) return
+
+    setArrivals((prev) => new Set([...prev, ...fresh]))
+    const timer = setTimeout(() => {
+      timers.current.delete(timer)
+      setArrivals((prev) => {
+        const next = new Set(prev)
+        for (const id of fresh) next.delete(id)
+        return next
+      })
+    }, ARRIVAL_HOLD_MS)
+    timers.current.add(timer)
+  }, [items, ready])
+
+  return arrivals
 }
