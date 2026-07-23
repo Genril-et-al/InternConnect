@@ -101,10 +101,15 @@ export async function removeNotification(id: string): Promise<void> {
 }
 
 export async function removeAllNotifications(): Promise<void> {
-  // We can't do a blanket delete without a filter in Supabase usually,
-  // but we can filter by the user's own ID which RLS covers anyway, 
-  // or use a dummy filter like id is not null.
-  const { error } = await supabase.from('notifications').delete().not('id', 'is', null)
+  // Supabase refuses a filterless delete as a guard against wiping a table by
+  // accident, so scope it to the signed-in user explicitly. RLS would confine
+  // it to their own rows regardless, but naming the owner is clearer than the
+  // `id is not null` stand-in this used to carry, and it means a future policy
+  // change can't silently widen what this clears.
+  const { data } = await supabase.auth.getUser()
+  const userId = data.user?.id
+  if (!userId) return
+  const { error } = await supabase.from('notifications').delete().eq('user_id', userId)
   if (error) throw new Error(error.message)
 }
 

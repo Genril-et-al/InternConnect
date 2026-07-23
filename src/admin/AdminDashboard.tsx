@@ -50,6 +50,8 @@ export function AdminDashboard({
     collapse,
     handleMarkRead,
     handleMarkAllRead,
+    handleRemove,
+    handleRemoveAll,
   } = useNotifications((hint, notification) => {
     const index = Number(hint.split(':')[1])
     if (!Number.isNaN(index)) onNav(index)
@@ -94,6 +96,8 @@ export function AdminDashboard({
             onCollapse={collapse}
             onMarkRead={handleMarkRead}
             onMarkAllRead={handleMarkAllRead}
+            onRemove={handleRemove}
+            onRemoveAll={handleRemoveAll}
           />
         </div>
       </div>
