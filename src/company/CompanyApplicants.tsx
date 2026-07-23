@@ -231,6 +231,7 @@ function ListingGroupCard({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false)
   const [closeHiringOpen, setCloseHiringOpen] = useState(false)
+  const [finalOfferApplicantId, setFinalOfferApplicantId] = useState<string | null>(null)
 
   const pendingCount = allApplicants.filter(a => a.status === 'Pending').length
   const reviewCount = allApplicants.filter(a => a.status === 'Reviewed').length
@@ -245,7 +246,7 @@ function ListingGroupCard({
     return nonPrintable.every(req => req.status === 'Approved')
   }).length
 
-  const currentOffers = allApplicants.filter(a => a.status === 'Offer').length
+
   const pendingAcceptanceCount = allApplicants.filter(a => {
     if (a.status === 'Offer') return true;
     if (a.status === 'Accepted') {
@@ -429,11 +430,6 @@ function ListingGroupCard({
         <FinalOfferModal
           onClose={() => setFinalOfferApplicantId(null)}
           onSubmit={() => {
-            const days = listing?.offerDeadlineDays || 3
-            const expiresAt = new Date(Date.now() + days * 86400000).toISOString()
-            if (onSetStatus && finalOfferApplicantId) {
-              onSetStatus(finalOfferApplicantId, 'Offer', undefined, JSON.stringify({ expiresAt }))
-            }
             setFinalOfferApplicantId(null)
           }}
         />
@@ -469,6 +465,7 @@ function ApplicantDetail({
   const [revisionOpen, setRevisionOpen] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [showFinalOfferWarning, setShowFinalOfferWarning] = useState(false)
+  const [finalOfferApplicantId, setFinalOfferApplicantId] = useState<string | null>(null)
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewDownloadUrl, setPreviewDownloadUrl] = useState<string | null>(null)

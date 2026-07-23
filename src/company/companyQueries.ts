@@ -77,9 +77,9 @@ export async function fetchCompanyProfile(): Promise<CompanyProfile | null> {
     .select('id, name, industry, location, website, description, logo_url, contact_email, contact_phone')
     .eq('owner_id', (await supabase.auth.getUser()).data.user?.id ?? '')
     .maybeSingle()
-    
+
   if (error) {
-    console.warn("Failed to fetch contact details. Falling back...", error)
+    console.warn('Failed to fetch contact details. Falling back...', error)
     const fallback = await supabase
       .from('companies')
       .select('id, name, industry, location, website, description, logo_url')
@@ -90,7 +90,7 @@ export async function fetchCompanyProfile(): Promise<CompanyProfile | null> {
     }
     error = fallback.error
   }
-  
+
   if (error) throw new Error(error.message)
   return data as CompanyProfile | null
 }
@@ -100,9 +100,9 @@ export async function updateCompanyProfile(id: string, updates: Partial<CompanyP
     .from('companies')
     .update(updates)
     .eq('id', id)
-    
+
   if (error) {
-    console.warn("Update with contact details failed. Falling back...", error)
+    console.warn('Update with contact details failed. Falling back...', error)
     const { contact_email, contact_phone, ...baseUpdates } = updates
     const fallback = await supabase
       .from('companies')
@@ -110,7 +110,7 @@ export async function updateCompanyProfile(id: string, updates: Partial<CompanyP
       .eq('id', id)
     error = fallback.error
   }
-  
+
   if (error) throw new Error(error.message)
 }
 
@@ -190,7 +190,7 @@ export async function createListing(companyId: string, input: NewListingInput): 
     throw new Error(error.message)
   }
   if (input.requirements.length) {
-    await supabase.from('listing_requirements').insert(
+    const { error: reqErr } = await supabase.from('listing_requirements').insert(
       input.requirements.map((r) => ({
         listing_id: data.id,
         name: r.name,
@@ -198,7 +198,7 @@ export async function createListing(companyId: string, input: NewListingInput): 
         is_printable: r.isPrintable,
       })),
     )
-    if (reqError) throw new Error(reqError.message)
+    if (reqErr) throw new Error(reqErr.message)
   }
 }
 
@@ -231,33 +231,6 @@ export async function updateListing(listingId: string, input: NewListingInput): 
     if (reqError) throw new Error(reqError.message)
   }
 }
-
-export async function checkAndCloseHiring(listingId: string): Promise<void> {
-  const { data: listing } = await supabase.from('listings').select('slots').eq('id', listingId).single()
-  if (!listing) return
-  
-  const { data: accepted } = await supabase.from('applications').select('id').eq('listing_id', listingId).eq('status', 'accepted')
-  if (accepted && accepted.length >= listing.slots) {
-    await supabase.from('listings').update({ status: 'closed' }).eq('id', listingId)
-    
-    const { data: pending } = await supabase.from('applications')
-      .select('id')
-      .eq('listing_id', listingId)
-      .in('status', ['pending', 'interview_scheduled'])
-      
-    if (pending && pending.length > 0) {
-      const pendingIds = pending.map(p => p.id)
-      const rejectionReason = "Thank you for your interest. However, this position has been filled."
-      
-      const promises = pendingIds.map(id => 
-        supabase.from('applications').update({ status: 'rejected', feedback: rejectionReason }).eq('id', id)
-      )
-      await Promise.all(promises)
-    }
-  }
-}
-
-
 
 export async function setListingStatus(
   listingId: string,
@@ -455,7 +428,6 @@ export async function scheduleInterview(
   }
   const { error } = await supabase.from('applications').update(payload).eq('id', applicationId)
   if (error) throw new Error(error.message)
-
 }
 
 export async function proposeInterviewDates(
@@ -478,9 +450,9 @@ export async function reviewSubmission(
 ): Promise<void> {
   const { error } = await supabase
     .from('requirement_submissions')
-    .update({ 
-      status: approve ? 'approved' : 'rejected', 
-      reviewed_at: new Date().toISOString() 
+    .update({
+      status: approve ? 'approved' : 'rejected',
+      reviewed_at: new Date().toISOString()
     })
     .eq('id', submissionId)
   if (error) throw new Error(error.message)
@@ -492,14 +464,14 @@ export async function reviewSubmission(
       .select('requirement_id')
       .eq('id', submissionId)
       .single()
-      
+
     if (subData) {
       const { data: appData } = await supabase
         .from('applications')
         .select('feedback')
         .eq('id', applicationId)
         .single()
-        
+
       let parsedFeedback: Record<string, string> = {}
       if (appData?.feedback) {
         try {
@@ -509,9 +481,9 @@ export async function reviewSubmission(
           // JSON map. Start fresh rather than losing the new feedback.
         }
       }
-      
+
       parsedFeedback[subData.requirement_id] = feedback
-      
+
       const { error: appErr } = await supabase
         .from('applications')
         .update({ feedback: JSON.stringify(parsedFeedback) })
@@ -535,13 +507,13 @@ export async function reviewSubmission(
 export async function checkAndCloseHiring(listingId: string): Promise<void> {
   const { data: listing } = await supabase.from('listings').select('slots').eq('id', listingId).single()
   if (!listing) return
-  
+
   const { count } = await supabase
     .from('applications')
     .select('*', { count: 'exact', head: true })
     .eq('listing_id', listingId)
     .eq('status', 'accepted')
-    
+
   if (count !== null && count >= listing.slots) {
     await supabase.from('listings').update({ status: 'closed' }).eq('id', listingId)
     await supabase.from('applications').update({ status: 'expired' }).eq('listing_id', listingId).in('status', ['pending', 'under_review', 'shortlisted', 'interview_scheduled'])

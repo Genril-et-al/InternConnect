@@ -1112,6 +1112,7 @@ function RequirementSubmitRow({
   onSubmitted?: () => void
 }) {
   const [file, setFile] = useState<File | null>(null)
+  const [text, setText] = useState(requirement.submittedText ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const status = requirement.submissionStatus ?? 'not_submitted'

@@ -1,7 +1,6 @@
 import { supabase } from './supabase'
 import type { Application, ApplicationStatus, Internship, PreEmploymentRequirement } from './mockData'
 import { computeMatch } from './skillMatch'
-import { checkAndCloseHiring } from '../company/companyQueries'
 
 // The scorer lives in skillMatch.ts (no Supabase import, so it is testable from
 // a plain script). Re-exported here so existing callers keep working.
@@ -362,7 +361,7 @@ export async function rejectOffer(applicationId: string) {
 /** Accept an internship offer (UC-S04). All other pending applications will be discarded. */
 export async function acceptOffer(studentId: string, applicationId: string) {
   // Update the accepted application
-  const { data: acceptedApp, error: acceptError } = await supabase
+  const { error: acceptError } = await supabase
     .from('applications')
     .update({ status: 'accepted' })
     .eq('id', applicationId)
