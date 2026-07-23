@@ -41,6 +41,7 @@ import {
   submitRequirementText,
 } from './lib/listingsApi'
 import type { PreEmploymentRequirement } from './lib/mockData'
+import { useRealtimeRefresh } from './lib/realtime'
 import { useSidebarCollapsed } from './lib/useSidebar'
 import { useScrollLock } from './lib/useScrollLock'
 import { SignOutButton } from './components/SignOutButton'
@@ -249,22 +250,42 @@ function StudentPortal({
   // state — unmounting whatever view the student was working in.
   const matchKey = JSON.stringify([profile?.skills ?? [], profile?.specializations ?? []])
 
+  const refreshListings = useCallback(
+    async (onPartialListings?: (listings: Internship[]) => void) => {
+      const [skills, specializations] = JSON.parse(matchKey) as [string[], string[]]
+      // Match against the full profile pool: resume-extracted skills plus any
+      // manually added skills and specializations.
+      setInternships(await fetchOpenListings(matchPool(skills, specializations), onPartialListings))
+    },
+    [matchKey],
+  )
+
+  const refreshApplications = useCallback(async () => {
+    if (!userId) return
+    setApplications(await fetchMyApplications(userId))
+  }, [userId])
+
   const refresh = useCallback(
     async (onPartialListings?: (listings: Internship[]) => void) => {
       if (!userId) return
-      const [skills, specializations] = JSON.parse(matchKey) as [string[], string[]]
-      const [l, a, b] = await Promise.all([
-        // Match against the full profile pool: resume-extracted skills plus any
-        // manually added skills and specializations.
-        fetchOpenListings(matchPool(skills, specializations), onPartialListings),
-        fetchMyApplications(userId),
-        fetchBookmarks(userId),
+      await Promise.all([
+        refreshListings(onPartialListings),
+        refreshApplications(),
+        fetchBookmarks(userId).then(setBookmarkedIds),
       ])
-      setInternships(l)
-      setApplications(a)
-      setBookmarkedIds(b)
     },
-    [userId, matchKey],
+    [userId, refreshListings, refreshApplications],
+  )
+
+  // Live updates (no reload): a company posting or closing a listing, an
+  // admin flagging one, a status change on one of this student's applications,
+  // or a requirement being reviewed. Split in two so a decision on one
+  // application doesn't drag the whole listings board through a refetch.
+  useRealtimeRefresh(['listings', 'companies'], refreshListings, Boolean(userId))
+  useRealtimeRefresh(
+    ['applications', 'requirement_submissions', 'listing_requirements'],
+    refreshApplications,
+    Boolean(userId),
   )
 
   useEffect(() => {

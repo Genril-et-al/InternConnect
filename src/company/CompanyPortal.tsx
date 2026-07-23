@@ -18,6 +18,7 @@ import {
 } from './companyQueries'
 import type { InterviewDetails, NewListingInput } from './companyQueries'
 import type { ApplicantStatus } from './companyData'
+import { useRealtimeRefresh } from '../lib/realtime'
 import './company.css'
 
 /**
@@ -47,6 +48,33 @@ export function CompanyPortal({
     setListings(l)
     setApplicants(a)
   }, [])
+
+  // Live updates (no reload). Listings and applicants are refreshed separately
+  // so a student submitting a requirement doesn't refetch the whole board.
+  const refreshListings = useCallback(async () => {
+    if (companyId) setListings(await fetchCompanyListings(companyId))
+  }, [companyId])
+
+  const refreshApplicants = useCallback(async () => {
+    if (companyId) setApplicants(await fetchApplicants(companyId))
+  }, [companyId])
+
+  // Verification is decided by an admin in another session — pick it up as it
+  // happens so the portal unlocks without the company having to reload.
+  const refreshVerification = useCallback(async () => {
+    const company = await fetchMyCompany()
+    if (company) setVerification(company.verification)
+  }, [])
+
+  useRealtimeRefresh(['listings', 'listing_requirements'], refreshListings, Boolean(companyId))
+  // applicant_profiles is a view, so it emits nothing of its own — the
+  // applicant rows it projects move when the application does.
+  useRealtimeRefresh(
+    ['applications', 'requirement_submissions'],
+    refreshApplicants,
+    Boolean(companyId),
+  )
+  useRealtimeRefresh(['companies'], refreshVerification, Boolean(companyId))
 
   useEffect(() => {
     let cancelled = false

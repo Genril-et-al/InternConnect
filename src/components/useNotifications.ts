@@ -6,6 +6,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../lib/notificationsApi'
+import { useRealtimeRefresh } from '../lib/realtime'
 import type { Notification } from './NotificationBell'
 
 type Row = { id: string; message: string; date: string; read: boolean; navHint: string | null }
@@ -85,6 +86,20 @@ export function useNotifications(onNavHint: (hint: string, notification?: { mess
       cancelled = true
     }
   }, [adapt, commit])
+
+  // Rows are written by database triggers on domain events, so the bell has no
+  // way of knowing one arrived without being told. Refetch as deep as the user
+  // has already paged rather than just the first page, so a notification
+  // landing while the panel is expanded doesn't collapse it back to ten.
+  const refreshNotifications = useCallback(async () => {
+    const depth = Math.max(listRef.current.length, NOTIFICATIONS_PAGE_SIZE)
+    const [page, unread] = await Promise.all([fetchNotifications(0, depth), fetchUnreadCount()])
+    commit(page.items.map(adapt))
+    setHasMore(page.hasMore)
+    setUnreadCount(unread)
+  }, [adapt, commit])
+
+  useRealtimeRefresh(['notifications'], refreshNotifications)
 
   const loadMore = useCallback(() => {
     // Guard against a double tap firing two requests for the same offset.

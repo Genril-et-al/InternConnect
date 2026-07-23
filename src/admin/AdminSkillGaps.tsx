@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, Copy, RefreshCw } from 'lucide-react'
 import { AdSearch } from './components'
 import { fetchSkillGaps } from './adminQueries'
+import { useRealtimeRefresh } from '../lib/realtime'
 import type { AdminSkillGap } from './adminData'
 
 function shortDate(iso: string): string {
@@ -45,6 +46,13 @@ export function AdminSkillGaps() {
     })()
     return () => { cancelled = true }
   }, [reloadKey])
+
+  // Backlog rows are written by students' matchers as they upload resumes —
+  // fold them in as they land rather than waiting for a manual Refresh.
+  const refreshGaps = useCallback(async () => {
+    setGaps(await fetchSkillGaps())
+  }, [])
+  useRealtimeRefresh(['skill_gaps'], refreshGaps)
 
   const filtered = useMemo(
     () => gaps.filter((g) => g.skill.includes(search.trim().toLowerCase())),
