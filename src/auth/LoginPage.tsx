@@ -438,7 +438,13 @@ function SignupFlow({
     try {
       await verifySignupCode(email, code)
       setStep('password')
-    } catch {
+    } catch (err) {
+      // Log the real error. This used to be a bare `catch {}`, which relabelled
+      // every possible failure — network drop, rate limit, hook error — as a bad
+      // code, so a student reporting "it says my code is wrong" told us nothing
+      // about what actually went wrong. The message shown stays friendly; the
+      // console gets the truth.
+      console.error('verifySignupCode failed', err)
       const next = attempts + 1
       setAttempts(next)
       if (next >= MAX_CODE_ATTEMPTS) {
@@ -565,12 +571,19 @@ function SignupFlow({
             {timeLeft > 0 ? (
               <>Expires in {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</>
             ) : (
-              <>Code expired. Please request a new one.</>
+              <>This code may have expired. Try it anyway, or request a new one.</>
             )}
           </div>
         )}
         {error && <p className="auth-error">{error}</p>}
-        <button className="auth-primary" disabled={busy || (expiresAt !== null && timeLeft === 0)} type="submit">
+        {/* Deliberately NOT disabled when the timer hits zero. The countdown
+            starts when signInWithOtp returns, so it measures time since we
+            *asked* for the code — not since the student *received* it. Mail that
+            takes longer than 5 minutes to arrive (@cit.edu has held ours) landed
+            the student on a dead button with a code in hand and no way to submit
+            it, which is invisible in the auth log because no request is ever
+            made. Let the server rule on the token; the timer is a hint. */}
+        <button className="auth-primary" disabled={busy} type="submit">
           {busy ? 'Verifying…' : 'Verify code'}
         </button>
         <button className="auth-link" disabled={busy} onClick={handleResend} type="button">

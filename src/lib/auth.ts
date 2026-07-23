@@ -63,44 +63,30 @@ export async function checkSignupEligibility(
  * (Resend/Postmark) or an institutional allowlist for our sender — not a second
  * delivery address here.
  */
+// Do NOT retry this call on a hook timeout. It was tried, and it makes the
+// symptom worse rather than better: GoTrue stores exactly one confirmation
+// token per user, so a second signInWithOtp overwrites the first code. The hook
+// times out at the 5s mark but the edge function keeps running and finishes its
+// ~5.1s SMTP session, so the first code IS delivered — the retry then sends a
+// second one and silently kills the first. The student opens the earlier email,
+// types a code that was valid when it arrived, and is told it is incorrect.
+// Latency belongs to the transport, not to a retry here.
 export async function requestSignupCode(email: string, name: SignupName) {
-  const send = () =>
-    supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
-      options: {
-        shouldCreateUser: true,
-        data: {
-          first_name: name.firstName.trim(),
-          middle_initial: formatMiddleInitial(name.middleInitial),
-          last_name: name.lastName.trim(),
-          suffix: name.suffix.trim(),
-          address: name.address?.trim() || null,
-          contact_number: name.contactNumber?.trim() || null,
-        },
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim().toLowerCase(),
+    options: {
+      shouldCreateUser: true,
+      data: {
+        first_name: name.firstName.trim(),
+        middle_initial: formatMiddleInitial(name.middleInitial),
+        last_name: name.lastName.trim(),
+        suffix: name.suffix.trim(),
+        address: name.address?.trim() || null,
+        contact_number: name.contactNumber?.trim() || null,
       },
-    })
-
-  const { error } = await send()
-  if (!error) return
-
-  // The send-email-hook has a hard 5s ceiling and the Gmail SMTP path sits right
-  // under it, so a cold start tips some requests over and GoTrue answers 422
-  // hook_timeout. No code is generated and no code is sent — the student just
-  // watches a spinner end in an error for something that works on the next try.
-  // One immediate retry rides out the cold start: the isolate is warm by then,
-  // and the auth log shows exactly this succeeding ~12s after a timeout.
-  // This is a cushion, not the fix — the fix is the Resend transport in
-  // supabase/functions/send-email-hook, which removes the timeout instead of
-  // papering over it. Drop this retry once every send is on that path.
-  if (!isHookTimeout(error)) throw error
-  const retry = await send()
-  if (retry.error) throw retry.error
-}
-
-/** True for the 422 GoTrue returns when send-email-hook overruns its 5s budget. */
-function isHookTimeout(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error ?? '')
-  return /hook/i.test(message) && /timeout|maximum time/i.test(message)
+    },
+  })
+  if (error) throw error
 }
 
 /** Step 2: verify the 6-digit code; on success a session (JWT) is established. */
