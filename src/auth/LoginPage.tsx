@@ -18,10 +18,15 @@ import { useAuth } from './context'
 import './auth.css'
 
 type Mode = 'login' | 'signup'
-// Students and companies now follow the same four steps: the code is mailed to
-// the institutional address they registered with, so there is no separate
-// "where should we send it" step any more.
-type SignupStep = 'role' | 'details' | 'verify' | 'password'
+// Students and companies follow the same five steps: the code is mailed to the
+// institutional address they registered with, so there is no separate "where
+// should we send it" step any more.
+//
+// The password is CHOSEN at step 3 but only APPLIED at step 4, because
+// supabase.auth.updateUser needs a session and the session does not exist until
+// the code is verified. So the flow holds it in state across the verify step
+// and saves it the instant verification succeeds.
+type SignupStep = 'role' | 'details' | 'password' | 'verify' | 'done'
 type AccountType = 'student' | 'company'
 
 const MAX_CODE_ATTEMPTS = 3 // UC-S01 alt flow 4a: limited attempts.
@@ -363,13 +368,17 @@ function SignupFlow({
   const [attempts, setAttempts] = useState(0)
   const [password, setPasswordValue] = useState('')
   const [confirm, setConfirm] = useState('')
+  // True once the code has been accepted. Only matters on the retry path: if
+  // saving the password fails after verification, the flow drops back to step 3
+  // and must save directly rather than mailing a second code.
+  const [verified, setVerified] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
 
-  const totalSteps = 4
+  const totalSteps = 5
 
   // Names, address and contact number come from the roster now — signup no
   // longer asks for what the NLO already recorded.
@@ -395,7 +404,13 @@ function SignupFlow({
   /** Where the student should go looking for the code we just sent. */
   const codeDestination = email
 
-  async function handleRequestCode(event: React.FormEvent) {
+  /**
+   * Step 2 → 3. Clears the email against the roster but sends nothing yet: the
+   * code has a five-minute life, and starting that clock before the user has
+   * even seen the password form burns most of it on a screen they have to fill
+   * in first.
+   */
+  async function handleDetails(event: React.FormEvent) {
     event.preventDefault()
     setError('')
     setInfo('')
@@ -403,7 +418,7 @@ function SignupFlow({
     setBusy(true)
     try {
       // Ask the database whether this email is cleared to register before
-      // sending a code, so non-rostered emails get a clear message (UC-S01).
+      // going any further, so non-rostered emails get a clear message (UC-S01).
       const role = await checkSignupEligibility(email)
       if (!role) {
         setError(
@@ -421,11 +436,7 @@ function SignupFlow({
         )
         return
       }
-      await sendCode()
-      setAttempts(0)
-      setExpiresAt(Date.now() + 5 * 60 * 1000)
-      setInfo(`We sent a 6-digit code to ${codeDestination}.`)
-      setStep('verify')
+      setStep('password')
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -442,11 +453,13 @@ function SignupFlow({
     // provider reacts to it as soon as it lands, so the flag has to already be
     // set or App swaps this form out mid-verification.
     beginPasswordSetup()
+    // Two failures to tell apart here — a bad code and a rejected password — so
+    // they get a try each rather than one catch guessing which call threw.
     try {
       await verifySignupCode(email, code)
-      setStep('password')
     } catch (err) {
       endPasswordSetup()
+      setBusy(false)
       // Log the real error. This used to be a bare `catch {}`, which relabelled
       // every possible failure — network drop, rate limit, hook error — as a bad
       // code, so a student reporting "it says my code is wrong" told us nothing
@@ -456,11 +469,28 @@ function SignupFlow({
       const next = attempts + 1
       setAttempts(next)
       if (next >= MAX_CODE_ATTEMPTS) {
+        // Back to the password step, not all the way to the email: everything
+        // they typed is still in state, so submitting there mails a fresh code
+        // without making them fill the form in again.
         setError('Too many incorrect attempts. Please request a new code.')
-        setStep('details')
+        setStep('password')
       } else {
         setError(`Incorrect or expired code. ${MAX_CODE_ATTEMPTS - next} attempt(s) left.`)
       }
+      return
+    }
+
+    setVerified(true)
+    try {
+      // The session is open — save the password picked at step 3 straight away,
+      // so the account is never left verified but passwordless.
+      await setPassword(password)
+      setStep('done')
+    } catch (err) {
+      // Hold the session and the flag: step 3 can now save directly, no second
+      // code needed.
+      setError(`${errorMessage(err)} Your email is verified — set your password again to finish.`)
+      setStep('password')
     } finally {
       setBusy(false)
     }
@@ -483,9 +513,16 @@ function SignupFlow({
     }
   }
 
-  async function handleSetPassword(event: React.FormEvent) {
+  /**
+   * Step 3 → 4. The password can't be saved yet — there is no session until the
+   * code is verified — so this holds it in state and mails the code. The one
+   * exception is the retry path: if the code was already accepted and only the
+   * save failed, the session exists and the password goes straight in.
+   */
+  async function handleChoosePassword(event: React.FormEvent) {
     event.preventDefault()
     setError('')
+    setInfo('')
     if (password.length < 8) {
       setError('Password must be at least 8 characters.')
       return
@@ -497,12 +534,30 @@ function SignupFlow({
     }
     setBusy(true)
     try {
-      await setPassword(password)
-      // Only now may the app move on — the account can be logged into.
-      endPasswordSetup()
-      await onAuthenticated()
+      if (verified) {
+        await setPassword(password)
+        setStep('done')
+        return
+      }
+      await sendCode()
+      setAttempts(0)
+      setCode('')
+      setExpiresAt(Date.now() + 5 * 60 * 1000)
+      setInfo(`We sent a 6-digit code to ${codeDestination}.`)
+      setStep('verify')
     } catch (err) {
       setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /** Step 5. The account is complete — release the gate and let App take over. */
+  async function handleFinish() {
+    setBusy(true)
+    try {
+      endPasswordSetup()
+      await onAuthenticated()
     } finally {
       setBusy(false)
     }
@@ -561,7 +616,7 @@ function SignupFlow({
     return (
       <form className="auth-form" onSubmit={handleVerify}>
         <p className="auth-step">
-          Step 3 of {totalSteps} · Verify email
+          Step 4 of {totalSteps} · Verify email
         </p>
         <label>
           Verification code
@@ -599,15 +654,44 @@ function SignupFlow({
         <button className="auth-link" disabled={busy} onClick={handleResend} type="button">
           Resend code
         </button>
+        <button
+          className="auth-link"
+          disabled={busy}
+          onClick={() => {
+            setError('')
+            setStep('password')
+          }}
+          type="button"
+        >
+          Back to password
+        </button>
       </form>
+    )
+  }
+
+  if (step === 'done') {
+    return (
+      <div className="auth-form">
+        <p className="auth-step">
+          Step {totalSteps} of {totalSteps} · All set
+        </p>
+        <p className="auth-info">
+          Your account is ready. <strong>{email.trim().toLowerCase()}</strong> is
+          verified, and the password you chose is the one you'll log in with from
+          now on.
+        </p>
+        <button className="auth-primary" disabled={busy} onClick={handleFinish} type="button">
+          {busy ? 'Opening your workspace…' : 'Continue'}
+        </button>
+      </div>
     )
   }
 
   if (step === 'password') {
     return (
-      <form className="auth-form" onSubmit={handleSetPassword}>
+      <form className="auth-form" onSubmit={handleChoosePassword}>
         <p className="auth-step">
-          Step {totalSteps} of {totalSteps} · Create password
+          Step 3 of {totalSteps} · Create password
         </p>
         <PasswordField
           autoComplete="new-password"
@@ -634,6 +718,7 @@ function SignupFlow({
         )}
         <p className="auth-hint auth-hint-left">
           At least 8 characters. Use the eye icon to show or hide both fields.
+          {!verified && ' We’ll email your verification code next.'}
         </p>
         {error && <p className="auth-error">{error}</p>}
         <button
@@ -641,14 +726,35 @@ function SignupFlow({
           disabled={busy || password.length < 8 || password !== confirm}
           type="submit"
         >
-          {busy ? 'Saving…' : 'Create account'}
+          {busy
+            ? verified
+              ? 'Saving…'
+              : 'Sending code…'
+            : verified
+              ? 'Save password'
+              : 'Continue'}
         </button>
+        {/* No way back once the code has been accepted — the account exists at
+            that point and only needs its password. */}
+        {!verified && (
+          <button
+            className="auth-link"
+            disabled={busy}
+            onClick={() => {
+              setError('')
+              setStep('details')
+            }}
+            type="button"
+          >
+            Back to your details
+          </button>
+        )}
       </form>
     )
   }
 
   return (
-    <form className="auth-form" onSubmit={handleRequestCode}>
+    <form className="auth-form" onSubmit={handleDetails}>
       <p className="auth-step">
         Step 2 of {totalSteps} · Your details ·{' '}
         {accountType === 'company' ? 'Company account' : 'Student account'}
@@ -668,12 +774,12 @@ function SignupFlow({
         />
       </label>
       <p className="auth-hint auth-hint-left">
-        We send your 6-digit code to this address, and it is what you log in
-        with afterwards.
+        Your 6-digit code goes to this address, and it is what you log in with
+        afterwards.
       </p>
       {error && <p className="auth-error">{error}</p>}
       <button className="auth-primary" disabled={busy} type="submit">
-        {busy ? 'Sending code…' : 'Send verification code'}
+        {busy ? 'Checking…' : 'Continue'}
       </button>
       <button
         className="auth-link"
