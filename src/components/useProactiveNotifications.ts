@@ -57,11 +57,7 @@ export function useProactiveNotifications(internships: Internship[], application
         return {
           id: `proactive-${internship.id}`,
           message: `New internship matching your skills (${internship.match}%): ${internship.title} at ${internship.company}`,
-<<<<<<< Updated upstream
-          date: new Date().toISOString(),
-=======
           date: dates[id] || new Date().toISOString(), // Keeping raw ISO string for correct sorting
->>>>>>> Stashed changes
           read: readIds.has(id),
         }
       })

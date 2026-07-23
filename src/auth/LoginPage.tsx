@@ -339,14 +339,11 @@ function SignupFlow({
   const [step, setStep] = useState<SignupStep>('role')
   const [accountType, setAccountType] = useState<AccountType | null>(null)
   const [email, setEmail] = useState('')
-<<<<<<< Updated upstream
   // Contact detail stored on the profile — the code goes to `email`, never
   // here.
   const [personalEmail, setPersonalEmail] = useState('')
   const [address, setAddress] = useState('')
   const [contactNumber, setContactNumber] = useState('')
-=======
->>>>>>> Stashed changes
   const [code, setCode] = useState('')
   const [expiresAt, setExpiresAt] = useState<number | null>(null)
   const [timeLeft, setTimeLeft] = useState(0)
@@ -374,13 +371,9 @@ function SignupFlow({
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-<<<<<<< Updated upstream
-  const totalSteps = 4
-=======
   const isStudent = accountType !== 'company'
   const totalSteps = 4
   const deliveryEmail = email
->>>>>>> Stashed changes
 
   const signupName = {
     firstName: '',
@@ -392,14 +385,11 @@ function SignupFlow({
     personalEmail: '',
   }
 
-<<<<<<< Updated upstream
   /**
    * Mail the code to the institutional address — the university email for
    * students, the work email for companies. That is also the address the
    * roster is keyed on and the one they log in with afterwards.
    */
-=======
->>>>>>> Stashed changes
   async function sendCode() {
     await requestSignupCode(email, signupName)
   }
@@ -442,11 +432,7 @@ function SignupFlow({
     }
   }
 
-<<<<<<< Updated upstream
-=======
 
-
->>>>>>> Stashed changes
   async function handleVerify(event: React.FormEvent) {
     event.preventDefault()
     setError('')
@@ -476,12 +462,8 @@ function SignupFlow({
       await sendCode()
       setAttempts(0)
       setCode('')
-<<<<<<< Updated upstream
-      setInfo(`A new code has been sent to ${email}.`)
-=======
       setExpiresAt(Date.now() + 5 * 60 * 1000)
       setInfo(`A new code has been sent to ${deliveryEmail}.`)
->>>>>>> Stashed changes
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -561,21 +543,12 @@ function SignupFlow({
     )
   }
 
-<<<<<<< Updated upstream
-  if (step === 'verify') {
-    return (
-      <form className="auth-form" onSubmit={handleVerify}>
-        <p className="auth-step">Step 3 of {totalSteps} · Verify email</p>
-=======
-
-
   if (step === 'verify') {
     return (
       <form className="auth-form" onSubmit={handleVerify}>
         <p className="auth-step">
           Step 3 of {totalSteps} · Verify email
         </p>
->>>>>>> Stashed changes
         <label>
           Verification code
           <input

@@ -427,8 +427,7 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-<<<<<<< Updated upstream
-    if (!name || !email || !studentNumber || busy) return
+    if (!name || !email || !studentNumber || !course || !yearLevel || busy) return
     // Normalised before both the check and the write, so the roster can't end
     // up holding an address that differs from the sign-up one only by case.
     const institutionalEmail = email.trim().toLowerCase()
@@ -436,19 +435,12 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
       setError(`Enter the student's institutional email — it must end in ${STUDENT_EMAIL_DOMAIN}.`)
       return
     }
-=======
-    if (!name || !email || !studentNumber || !course || !yearLevel || busy) return
->>>>>>> Stashed changes
     setBusy(true)
     setError(null)
     const { firstName, lastName } = splitName(name)
     try {
       // Pre-clears the email so the student can self-register (UC-A03).
-<<<<<<< Updated upstream
-      await addApprovedStudent({ email: institutionalEmail, firstName, lastName, studentNumber })
-=======
-      await addApprovedStudent({ email, firstName, lastName, studentNumber, course, yearLevel })
->>>>>>> Stashed changes
+      await addApprovedStudent({ email: institutionalEmail, firstName, lastName, studentNumber, course, yearLevel })
       await onAdded() // reload from the roster so the new row shows accurately
       onClose()
     } catch (err) {
