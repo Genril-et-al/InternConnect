@@ -342,8 +342,6 @@ function SignupFlow({
   // Contact detail stored on the profile — the code goes to `email`, never
   // here.
   const [personalEmail, setPersonalEmail] = useState('')
-  const [address, setAddress] = useState('')
-  const [contactNumber, setContactNumber] = useState('')
   const [code, setCode] = useState('')
   const [expiresAt, setExpiresAt] = useState<number | null>(null)
   const [timeLeft, setTimeLeft] = useState(0)
@@ -371,7 +369,7 @@ function SignupFlow({
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  const isStudent = accountType !== 'company'
+
   const totalSteps = 4
   const deliveryEmail = email
 

@@ -7,6 +7,7 @@ import { SPECIALIZATION_SUGGESTIONS, COMPANY_SUGGESTIONS } from '../lib/suggesti
 import { useAuth } from '../auth/context'
 import { uploadAvatar, removeAvatar } from '../lib/profile'
 import { supabase } from '../lib/supabase'
+import { fetchCompanyProfile, updateCompanyProfile } from './companyQueries'
 
 /**
  * UC-C01 — company profile with logo, details, verification documents, and
@@ -14,14 +15,16 @@ import { supabase } from '../lib/supabase'
  */
 export function CompanyProfileView() {
   const { profile, updateProfileLocal } = useAuth()
-  const [name, setName] = useState('Arcway Labs')
-  const [industry, setIndustry] = useState('Software')
-  const [contactNumber, setContactNumber] = useState('09123456789')
+  const [companyId, setCompanyId] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [industry, setIndustry] = useState('')
+  const [contactNumber, setContactNumber] = useState('')
   const [logoPreview, setLogoPreview] = useState<string | null>(profile?.photo_url ?? null)
   const [showLogoMenu, setShowLogoMenu] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -36,23 +39,56 @@ export function CompanyProfileView() {
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [showLogoMenu])
-  const [description, setDescription] = useState(
-    'A Cebu-based software studio building internal tools and dashboards for growing companies.',
-  )
-  const [address, setAddress] = useState('IT Park, Lahug, Cebu City')
-  const [website, setWebsite] = useState('https://arcwaylabs.com')
-  const [contact, setContact] = useState('hr@arcwaylabs.com')
+
+  const [description, setDescription] = useState('')
+  const [address, setAddress] = useState('')
+  const [website, setWebsite] = useState('')
+  const [contact, setContact] = useState('')
   // Job specialty / fields the company hires for.
-  const [specialties, setSpecialties] = useState<string[]>([
-    'Frontend',
-    'Backend',
-    'QA Automation',
-  ])
+  const [specialties, setSpecialties] = useState<string[]>([])
   const [saved, setSaved] = useState(false)
 
-  function handleSave() {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const company = await fetchCompanyProfile()
+        if (cancelled || !company) return
+        setCompanyId(company.id)
+        setName(company.name || '')
+        setIndustry(company.industry || '')
+        setAddress(company.location || '')
+        setWebsite(company.website || '')
+        setContact(company.contact_email || '')
+        setContactNumber(company.contact_phone || '')
+        setDescription(company.description || '')
+        setLogoPreview(company.logo_url)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  async function handleSave() {
+    if (!companyId) return
+    try {
+      await updateCompanyProfile(companyId, {
+        name,
+        industry,
+        location: address,
+        website,
+        contact_email: contact,
+        contact_phone: contactNumber,
+        description
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (e) {
+      alert('Failed to save profile: ' + (e as Error).message)
+    }
   }
 
   async function handleLogo(file: File | null) {
@@ -104,7 +140,11 @@ export function CompanyProfileView() {
         />
       )}
 
-      <section className="cp-card">
+      {loading ? (
+        <p>Loading profile...</p>
+      ) : (
+        <>
+          <section className="cp-card">
         <div className="cp-detail-head" style={{ marginBottom: 18 }}>
           <div style={{ position: 'relative', display: 'inline-block' }}>
             <span 
@@ -259,6 +299,8 @@ export function CompanyProfileView() {
       <button className="cp-primary" onClick={handleSave} style={{ alignSelf: 'flex-start' }} type="button">
         Save Changes
       </button>
+      </>
+      )}
     </div>
   )
 }

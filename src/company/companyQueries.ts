@@ -59,6 +59,62 @@ export async function fetchMyCompany(): Promise<{
   return data as { id: string; name: string; verification: 'pending' | 'verified' | 'rejected' } | null
 }
 
+export type CompanyProfile = {
+  id: string
+  name: string
+  industry: string | null
+  location: string | null
+  website: string | null
+  description: string | null
+  logo_url: string | null
+  contact_email: string | null
+  contact_phone: string | null
+}
+
+export async function fetchCompanyProfile(): Promise<CompanyProfile | null> {
+  let { data, error } = await supabase
+    .from('companies')
+    .select('id, name, industry, location, website, description, logo_url, contact_email, contact_phone')
+    .eq('owner_id', (await supabase.auth.getUser()).data.user?.id ?? '')
+    .maybeSingle()
+    
+  if (error) {
+    console.warn("Failed to fetch contact details. Falling back...", error)
+    const fallback = await supabase
+      .from('companies')
+      .select('id, name, industry, location, website, description, logo_url')
+      .eq('owner_id', (await supabase.auth.getUser()).data.user?.id ?? '')
+      .maybeSingle()
+    if (fallback.data) {
+      data = { ...fallback.data, contact_email: null, contact_phone: null } as any
+    }
+    error = fallback.error
+  }
+  
+  if (error) throw new Error(error.message)
+  return data as CompanyProfile | null
+}
+
+export async function updateCompanyProfile(id: string, updates: Partial<CompanyProfile>): Promise<void> {
+  let { error } = await supabase
+    .from('companies')
+    .update(updates)
+    .eq('id', id)
+    
+  if (error) {
+    console.warn("Update with contact details failed. Falling back...", error)
+    const { contact_email, contact_phone, ...baseUpdates } = updates
+    const fallback = await supabase
+      .from('companies')
+      .update(baseUpdates)
+      .eq('id', id)
+    error = fallback.error
+  }
+  
+  if (error) throw new Error(error.message)
+}
+
+
 type CompanyListingRow = {
   id: string
   title: string

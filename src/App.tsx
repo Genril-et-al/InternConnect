@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Briefcase,
   Bookmark,
+  Building2,
   CheckCircle2,
   ChevronLeft,
   Menu,
@@ -22,6 +23,7 @@ import { LoginPage } from './auth/LoginPage'
 import { ResetPasswordPage } from './auth/ResetPasswordPage'
 import { ProfileSetup } from './profile/ProfileSetup'
 import { StudentDashboard } from './dashboard/StudentDashboard'
+import { BrowseCompanies } from './dashboard/BrowseCompanies'
 import { AdminApp } from './admin/AdminApp'
 import { CompanyPortal } from './company/CompanyPortal'
 import type { Internship, Application, ApplicationStatus } from './lib/mockData'
@@ -52,6 +54,7 @@ import { requestLeave } from './lib/unsavedGuard'
 const STUDENT_NAV = [
   { icon: LayoutDashboard, label: 'Dashboard' },
   { icon: Search, label: 'Browse Internships' },
+  { icon: Building2, label: 'Browse Companies' },
   { icon: FileText, label: 'Applications' },
 ]
 
@@ -361,6 +364,18 @@ function StudentPortal({
           />
         )}
         {activeView === 'Applications' && <StudentApplications applications={applications} onOpenProgress={openProgress} filter={applicationFilter} onFilterChange={setApplicationFilter} highlightedAppId={highlightedAppId} />}
+        {activeView === 'Browse Companies' && (
+          <BrowseCompanies
+            internships={internships}
+            onOpenInternship={(id) => {
+              const internship = internships.find(i => i.id === id)
+              if (internship) {
+                setSelectedInternship(internship)
+                onNavigate('Browse Internships')
+              }
+            }}
+          />
+        )}
         {activeView === 'Profile' && <ProfileSetup mode="edit" onDone={() => handleNavigate('Dashboard')} />}
         {activeView === 'Dashboard' && (
           <StudentDashboard

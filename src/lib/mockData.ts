@@ -19,6 +19,7 @@ export type ApplicationStatus =
 export type Internship = {
   id: string
   title: string
+  companyId?: string
   company: string
   companyLogo?: string | null
   industry: string

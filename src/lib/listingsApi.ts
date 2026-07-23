@@ -78,13 +78,14 @@ type ListingRow = {
   slots: number
   deadline: string | null
   skills: string[]
-  companies: { name: string; industry: string | null; logo_url: string | null } | null
+  companies: { id: string; name: string; industry: string | null; logo_url: string | null } | null
 }
 
 function toInternship(row: ListingRow, profileSkills: string[]): Internship {
   return {
     id: row.id,
     title: row.title,
+    companyId: row.companies?.id,
     company: row.companies?.name ?? 'Unknown company',
     companyLogo: row.companies?.logo_url ?? null,
     industry: row.companies?.industry ?? '—',
@@ -136,7 +137,7 @@ export async function fetchOpenListings(
   for (let from = 0; ; from += LISTINGS_PAGE_SIZE) {
     const { data, error } = await supabase
       .from('listings')
-      .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(name, industry, logo_url)')
+      .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(id, name, industry, logo_url)')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
       // id breaks ties so the window is stable: listings sharing a created_at
@@ -442,3 +443,48 @@ export async function updateInterviewResponse(applicationId: string, responseJso
   const { error } = await supabase.from('applications').update({ next_step: responseJson }).eq('id', applicationId)
   if (error) throw new Error(error.message)
 }
+
+export type StudentCompany = {
+  id: string
+  name: string
+  logo_url: string | null
+  industry: string
+  location: string
+  description: string
+  website: string
+  contact_email: string
+  contact_phone: string
+}
+
+export async function fetchAllCompanies(): Promise<StudentCompany[]> {
+  let { data, error } = await supabase
+    .from('companies')
+    .select('id, name, logo_url, industry, location, description, website, contact_email, contact_phone')
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.warn("Failed to fetch with contact details. Migration might be missing. Falling back...", error);
+    const fallback = await supabase
+      .from('companies')
+      .select('id, name, logo_url, industry, location, description, website')
+      .order('name', { ascending: true })
+    if (fallback.data) {
+      data = fallback.data.map(r => ({ ...r, contact_email: null, contact_phone: null })) as any
+    }
+    error = fallback.error
+  }
+
+  if (error) throw new Error(error.message)
+  return (data || []).map(row => ({
+    id: row.id,
+    name: row.name,
+    logo_url: row.logo_url,
+    industry: row.industry || '—',
+    location: row.location || '—',
+    description: row.description || 'No description provided.',
+    website: row.website || '',
+    contact_email: row.contact_email || '',
+    contact_phone: row.contact_phone || ''
+  }))
+}
+
