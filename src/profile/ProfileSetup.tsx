@@ -630,7 +630,7 @@ export function ProfileSetup({
       {/* University, Course & Year */}
       <section className="profile-section">
         <div className="profile-section-head">
-          <h2>University &amp; Programme</h2>
+          <h2>University &amp; Program</h2>
           <span className="profile-optional">Locked</span>
         </div>
         <div className="profile-name-grid">
@@ -639,7 +639,7 @@ export function ProfileSetup({
             <input disabled value={profile?.university ?? 'Cebu Institute of Technology – University'} />
           </label>
           <label>
-            Course / Programme
+            Course / Program
             <input
               disabled
               value={profile?.course ?? '—'}
