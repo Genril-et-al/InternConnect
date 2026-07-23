@@ -77,6 +77,11 @@ export function ProfileSetup({
   const [coverLetter, setCoverLetter] = useState<File | null>(null)
   const [portfolioLink, setPortfolioLink] = useState(profile?.portfolio_link ?? '')
   const [portfolioFile, setPortfolioFile] = useState<File | null>(null)
+  const [portfolioFileRemoved, setPortfolioFileRemoved] = useState(false)
+
+  const hasLink = portfolioLink.trim().length > 0
+  const hasFile = portfolioFile !== null || (!!profile?.portfolio_file_url && !portfolioFileRemoved)
+
   // Personal details — filled here on the profile (not during sign-up).
   const [age, setAge] = useState(profile?.age != null ? String(profile.age) : '')
   const [sex, setSex] = useState(profile?.gender ?? '')
@@ -120,6 +125,7 @@ export function ProfileSetup({
     resume !== null ||
     coverLetter !== null ||
     portfolioFile !== null ||
+    portfolioFileRemoved ||
     photoPreview !== (profile?.photo_url ?? null) ||
     portfolioLink !== (profile?.portfolio_link ?? '') ||
     age !== (profile?.age != null ? String(profile.age) : '') ||
@@ -267,12 +273,15 @@ export function ProfileSetup({
   }
 
   function handlePickPortfolio(file: File | null) {
+    if (hasLink) return
     if (file) {
-      if (!file.name.toLowerCase().endsWith('.pdf')) {
+      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
+      if (!isPdf) {
         setError('Only PDF files are supported for portfolio uploads.')
         return
       }
       setPortfolioFile(file)
+      setPortfolioFileRemoved(false)
       setError('')
     } else {
       setPortfolioFile(null)
@@ -324,8 +333,14 @@ export function ProfileSetup({
         photo_url: photoPreview ?? null,
         resume_url: resume ? resume.name : profile?.resume_url ?? null,
         cover_letter_url: coverLetter ? coverLetter.name : profile?.cover_letter_url ?? null,
-        portfolio_link: portfolioLink.trim() || null,
-        portfolio_file_url: portfolioFile ? portfolioFile.name : profile?.portfolio_file_url ?? null,
+        portfolio_link: hasLink ? portfolioLink.trim() : null,
+        portfolio_file_url: hasLink
+          ? null
+          : portfolioFileRemoved
+            ? null
+            : portfolioFile
+              ? portfolioFile.name
+              : (profile?.portfolio_file_url ?? null),
         age: Number.parseInt(age, 10) || null,
         gender: sex.trim() || null,
         address: address.trim() || null,
@@ -423,9 +438,13 @@ export function ProfileSetup({
         return
       }
 
-      const portfolioFilePath = portfolioFile
-        ? await uploadDocument(userId, 'portfolio', portfolioFile)
-        : profile?.portfolio_file_url ?? null
+      const portfolioFilePath = hasLink
+        ? null
+        : portfolioFileRemoved
+          ? null
+          : portfolioFile
+            ? await uploadDocument(userId, 'portfolio', portfolioFile)
+            : (profile?.portfolio_file_url ?? null)
 
       await completeProfile(userId, {
         skills: mergedSkills,
@@ -435,7 +454,7 @@ export function ProfileSetup({
         photoUrl,
         resumePath,
         coverLetterPath,
-        portfolioLink: portfolioLink.trim() || null,
+        portfolioLink: hasLink ? portfolioLink.trim() : null,
         portfolioFilePath,
         age: age.trim() ? Number(age) : null,
         gender: sex.trim() || null,
@@ -847,12 +866,16 @@ export function ProfileSetup({
       <section className="profile-section">
         <div className="profile-section-head">
           <h2>Portfolio</h2>
-          <span className="profile-optional">Link or file</span>
+          <span className="profile-optional">Link or file (PDF only)</span>
         </div>
         <label className="profile-field-label">
           Portfolio link
           <input
-            onChange={(e) => setPortfolioLink(e.target.value)}
+            disabled={hasFile}
+            onChange={(e) => {
+              setPortfolioLink(e.target.value)
+              if (e.target.value.trim()) setError('')
+            }}
             placeholder="https://your-portfolio.com"
             type="url"
             value={portfolioLink}
@@ -860,35 +883,114 @@ export function ProfileSetup({
         </label>
         <div className="profile-or">or</div>
         <div>
-          {portfolioFile || profile?.portfolio_file_url ? (
-            <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', cursor: 'default' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (portfolioFile) {
-                    window.open(URL.createObjectURL(portfolioFile), '_blank')
-                  } else {
-                    handleViewDocument(profile?.portfolio_file_url)
-                  }
-                }}
-                style={{ background: 'none', border: 'none', color: 'var(--brand-orange)', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
-              >
-                {portfolioFile ? portfolioFile.name : profile?.portfolio_file_url?.split('/').pop()}
-              </button>
-              <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
-                Change
-                <input
-                  accept=".pdf"
-                  hidden
-                  onChange={(e) => handlePickPortfolio(e.target.files?.[0] ?? null)}
-                  type="file"
-                />
-              </label>
+          {hasFile ? (
+            <div
+              className={`profile-upload block${hasLink ? ' disabled' : ''}`}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'default',
+                opacity: hasLink ? 0.5 : 1,
+                pointerEvents: hasLink ? 'none' : 'auto',
+              }}
+            >
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
+                <button
+                  type="button"
+                  disabled={hasLink}
+                  onClick={() => {
+                    if (portfolioFile) {
+                      window.open(URL.createObjectURL(portfolioFile), '_blank')
+                    } else if (profile?.portfolio_file_url) {
+                      handleViewDocument(profile.portfolio_file_url)
+                    }
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--brand-orange)',
+                    textDecoration: 'underline',
+                    padding: 0,
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {portfolioFile ? portfolioFile.name : profile?.portfolio_file_url?.split('/').pop()}
+                </button>
+                {portfolioFile && (
+                  <span style={{ fontSize: '12px', color: 'var(--brand-orange)', fontWeight: 500 }}>
+                    New file selected: {portfolioFile.name} — save to apply
+                  </span>
+                )}
+              </span>
+              <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <label
+                  style={{
+                    cursor: hasLink ? 'not-allowed' : 'pointer',
+                    background: 'var(--surface)',
+                    height: '34px',
+                    padding: '0 12px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: 'var(--text-strong)',
+                    opacity: hasLink ? 0.5 : 1,
+                  }}
+                >
+                  Change
+                  <input
+                    accept=".pdf,application/pdf"
+                    disabled={hasLink}
+                    hidden
+                    onChange={(e) => handlePickPortfolio(e.target.files?.[0] ?? null)}
+                    type="file"
+                  />
+                </label>
+                <button
+                  disabled={hasLink}
+                  onClick={() => {
+                    setPortfolioFile(null)
+                    setPortfolioFileRemoved(true)
+                  }}
+                  style={{
+                    cursor: hasLink ? 'not-allowed' : 'pointer',
+                    background: '#fdece9',
+                    border: '1px solid #f4c7bf',
+                    borderRadius: '8px',
+                    color: 'var(--brand-crimson)',
+                    width: '34px',
+                    height: '34px',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: hasLink ? 0.5 : 1,
+                    flexShrink: 0,
+                  }}
+                  title="Remove portfolio file"
+                  type="button"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </span>
             </div>
           ) : (
-            <label className="profile-upload block">
+            <label
+              className={`profile-upload block${hasLink ? ' disabled' : ''}`}
+              style={{
+                opacity: hasLink ? 0.5 : 1,
+                cursor: hasLink ? 'not-allowed' : 'pointer',
+                pointerEvents: hasLink ? 'none' : 'auto',
+              }}
+            >
               <input
-                accept=".pdf"
+                accept=".pdf,application/pdf"
+                disabled={hasLink}
                 hidden
                 onChange={(e) => handlePickPortfolio(e.target.files?.[0] ?? null)}
                 type="file"
