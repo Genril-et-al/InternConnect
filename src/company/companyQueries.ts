@@ -74,7 +74,7 @@ type CompanyListingRow = {
 export async function fetchCompanyListings(companyId: string): Promise<CompanyListing[]> {
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, status, slots, deadline, department, skills, description, listing_requirements(id, name, kind, is_printable)')
+    .select('id, title, status, slots, deadline, department, skills, description, interview_process, listing_requirements(id, name, kind, is_printable)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
@@ -87,12 +87,13 @@ export async function fetchCompanyListings(companyId: string): Promise<CompanyLi
     department: r.department ?? '—',
     skills: r.skills ?? [],
     description: r.description ?? '',
-    requirements: (r.listing_requirements ?? []).map((q) => ({
+    requirements: (r.listing_requirements ?? []).map((q: any) => ({
       id: q.id,
       name: q.name,
       type: q.kind === 'file' ? ('file' as const) : ('text' as const),
       isPrintable: q.is_printable,
     })),
+    interviewProcess: r.interview_process as { rounds: string[] } | undefined,
   }))
 }
 
@@ -122,6 +123,7 @@ export async function createListing(companyId: string, input: NewListingInput): 
       skills: input.skills,
       description: input.description,
       status: input.publish ? 'open' : 'draft',
+      interview_process: input.interviewProcess,
     })
     .select('id')
     .single()
@@ -139,9 +141,39 @@ export async function createListing(companyId: string, input: NewListingInput): 
         is_printable: r.isPrintable,
       })),
     )
+  }
+}
+
+export async function updateListing(listingId: string, input: NewListingInput): Promise<void> {
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      title: input.title,
+      department: input.department || null,
+      slots: input.slots,
+      deadline: input.deadline || null,
+      skills: input.skills,
+      description: input.description,
+      status: input.publish ? 'open' : 'draft',
+      interview_process: input.interviewProcess,
+    })
+    .eq('id', listingId)
+  if (error) throw new Error(error.message)
+
+  await supabase.from('listing_requirements').delete().eq('listing_id', listingId)
+  if (input.requirements.length) {
+    const { error: reqError } = await supabase.from('listing_requirements').insert(
+      input.requirements.map((r) => ({
+        listing_id: listingId,
+        name: r.name,
+        kind: r.type,
+        is_printable: r.isPrintable,
+      })),
+    )
     if (reqError) throw new Error(reqError.message)
   }
 }
+
 
 export async function setListingStatus(
   listingId: string,

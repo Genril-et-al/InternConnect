@@ -100,10 +100,19 @@ export function CompanyApplicants({
   const selected = applicants.find((a) => a.id === selectedId) ?? null
 
   if (selected) {
+    const listingApplicants = applicants.filter(a => a.role === selected.role)
+    const acceptedCount = listingApplicants.filter(a => {
+      if (a.status !== 'Accepted') return false
+      if (!a.submittedRequirements || a.submittedRequirements.length === 0) return true
+      return a.submittedRequirements.every(req => req.status === 'Approved')
+    }).length
+
     return (
       <ApplicantDetail
         applicant={selected}
         listings={listings}
+        allApplicants={listingApplicants}
+        acceptedCount={acceptedCount}
         onBack={() => setSelectedId(null)}
         onSetStatus={onSetStatus}
         onScheduleInterview={onScheduleInterview}
@@ -220,13 +229,21 @@ function ListingGroupCard({
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false)
   const [closeHiringOpen, setCloseHiringOpen] = useState(false)
 
+  const [finalOfferApplicantId, setFinalOfferApplicantId] = useState<string | null>(null)
+
   const pendingCount = allApplicants.filter(a => a.status === 'Pending').length
   const reviewCount = allApplicants.filter(a => a.status === 'Reviewed').length
   const interviewCount = allApplicants.filter(a => a.status === 'Interview').length
-  const acceptedCount = allApplicants.filter(a => a.status === 'Accepted').length
   const rejectedCount = allApplicants.filter(a => a.status === 'Rejected').length
 
+  const acceptedCount = allApplicants.filter(a => {
+    if (a.status !== 'Accepted') return false
+    if (!a.submittedRequirements || a.submittedRequirements.length === 0) return true
+    return a.submittedRequirements.every(req => req.status === 'Approved')
+  }).length
+
   const isFull = acceptedCount >= listing.slots
+
 
   const handleSelectAllPending = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -369,18 +386,29 @@ function ListingGroupCard({
         />
       )}
 
-      {closeHiringOpen && onBulkReject && (
+      {closeHiringOpen && (
         <AutoRejectModal
-          info={{ listing, count: pendingCount, pendingIds: allApplicants.filter(a => a.status === 'Pending').map(a => a.id) }}
+          info={{ listing, count: pendingCount + reviewCount + interviewCount, pendingIds: [] }}
           onClose={() => setCloseHiringOpen(false)}
-          onSubmit={async (template) => {
-            const pendingApps = allApplicants.filter(a => a.status === 'Pending')
-            const rejections = pendingApps.map(app => ({
-              id: app.id,
-              feedback: template.replace('{Applicant Name}', app.name)
-            }))
-            await onBulkReject(rejections)
+          onSubmit={async (feedback) => {
+            if (!onBulkReject) return
             setCloseHiringOpen(false)
+          }}
+        />
+      )}
+      
+      {finalOfferApplicantId && (
+        <FinalOfferModal
+          listing={listing}
+          onClose={() => setFinalOfferApplicantId(null)}
+          onSubmit={() => {
+            const l = allApplicants.find((a) => a.id === finalOfferApplicantId)
+            const days = listing?.offerDeadlineDays || 3
+            const expiresAt = new Date(Date.now() + days * 86400000).toISOString()
+            if (onSetStatus && finalOfferApplicantId) {
+              onSetStatus(finalOfferApplicantId, 'Offer', undefined, JSON.stringify({ expiresAt }))
+            }
+            setFinalOfferApplicantId(null)
           }}
         />
       )}
@@ -392,6 +420,8 @@ function ListingGroupCard({
 function ApplicantDetail({
   applicant,
   listings,
+  allApplicants,
+  acceptedCount,
   onBack,
   onSetStatus,
   onScheduleInterview,
@@ -399,6 +429,8 @@ function ApplicantDetail({
 }: {
   applicant: CompanyApplicant
   listings: CompanyListing[]
+  allApplicants: CompanyApplicant[]
+  acceptedCount: number
   onBack: () => void
   onSetStatus: (id: string, status: ApplicantStatus, feedback?: string, nextStep?: string) => Promise<void>
   onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
@@ -410,6 +442,7 @@ function ApplicantDetail({
   const [nextRoundName, setNextRoundName] = useState<string>('Interview')
   const [revisionOpen, setRevisionOpen] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [finalOfferApplicantId, setFinalOfferApplicantId] = useState<string | null>(null)
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewDownloadUrl, setPreviewDownloadUrl] = useState<string | null>(null)
@@ -490,7 +523,12 @@ function ApplicantDetail({
                 const listing = listings.find((l) => l.title === applicant.role)
                 const days = listing?.offerDeadlineDays || 3
                 const expiresAt = new Date(Date.now() + days * 86400000).toISOString()
-                run(() => onSetStatus(applicant.id, 'Offer', undefined, JSON.stringify({ expiresAt })))
+                const currentOffers = allApplicants.filter(a => a.status === 'Offer').length
+                if (acceptedCount + currentOffers + 1 >= listing!.slots) {
+                  setFinalOfferApplicantId(applicant.id)
+                } else {
+                  run(() => onSetStatus(applicant.id, 'Offer', undefined, JSON.stringify({ expiresAt })))
+                }
               }}
               type="button"
             >
@@ -550,9 +588,18 @@ function ApplicantDetail({
           <button
             className="cp-accept"
             onClick={() => {
-              const rounds = listings.find((l) => l.title === applicant.role)?.interviewProcess?.rounds ?? ['Interview']
+              const listing = listings.find((l) => l.title === applicant.role)
+              const rounds = listing?.interviewProcess?.rounds ?? ['Interview']
               if (rounds.length === 0) {
-                run(() => onSetStatus(applicant.id, 'Accepted'))
+                if (listing) {
+                  const acceptedCount = allApplicants.filter(a => a.role === listing.title && a.status === 'Accepted').length
+                  const pendingOffers = allApplicants.filter(a => a.role === listing.title && a.status === 'Offer').length
+                  if (acceptedCount + pendingOffers + 1 >= listing.slots) {
+                    setShowFinalOfferWarning(true)
+                  } else {
+                    run(() => onSetStatus(applicant.id, 'Offer'))
+                  }
+                }
               } else {
                 setNextRoundName(rounds[0])
                 setScheduleInterviewOpen(true)
@@ -560,7 +607,7 @@ function ApplicantDetail({
             }}
             type="button"
           >
-            <CheckCircle2 size={13} /> Accept
+            <CheckCircle2 size={13} /> {(listings.find((l) => l.title === applicant.role)?.interviewProcess?.rounds ?? ['Interview']).length === 0 ? 'Send Offer' : 'Accept'}
           </button>
         )}
         {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && applicant.status !== 'Interview' && applicant.status !== 'Offer' && (
@@ -1374,6 +1421,45 @@ function AutoRejectModal({
           </button>
           <button className="cp-danger" onClick={() => onSubmit(feedback)} type="button">
             Reject Pending & Close Hiring
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FinalOfferModal({
+  listing,
+  onClose,
+  onSubmit,
+}: {
+  listing: CompanyListing
+  onClose: () => void
+  onSubmit: () => void
+}) {
+  useScrollLock()
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="modal-panel">
+        <h3 style={{ margin: '0 0 16px', color: 'var(--brand-brown)' }}>Final Available Offer</h3>
+        <p className="cp-muted" style={{ marginBottom: 16 }}>
+          This is the final available internship position for this listing.
+        </p>
+        <p className="cp-muted" style={{ marginBottom: 24 }}>
+          If this applicant successfully completes the hiring process and reaches Accepted status (including pre-employment requirements, if applicable), the listing will automatically be marked as <strong>Hiring Closed</strong>. All remaining applicants in Pending or Interview status will be automatically rejected and notified that the hiring process has been completed.
+        </p>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button className="cp-secondary" onClick={onClose} type="button">
+            Cancel
+          </button>
+          <button className="cp-accept" onClick={onSubmit} type="button">
+            Send Offer
           </button>
         </div>
       </div>

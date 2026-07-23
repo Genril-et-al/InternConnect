@@ -10,10 +10,12 @@ import {
   fetchApplicants,
   fetchCompanyListings,
   fetchMyCompany,
+  proposeInterviewDates,
   reviewSubmission,
+  scheduleInterview,
   setListingStatus,
   updateApplicationStatus,
-  scheduleInterview,
+  updateListing,
 } from './companyQueries'
 import type { InterviewDetails, NewListingInput } from './companyQueries'
 import type { ApplicantStatus } from './companyData'
@@ -85,6 +87,12 @@ export function CompanyPortal({
     },
     [companyId, withRefresh],
   )
+  const handleUpdate = useCallback(
+    (id: string, input: NewListingInput) => {
+      return withRefresh(() => updateListing(id, input))
+    },
+    [withRefresh],
+  )
   const handleSetStatus = useCallback(
     (id: string, status: CompanyListing['status']) => withRefresh(() => setListingStatus(id, status)),
     [withRefresh],
@@ -128,6 +136,7 @@ export function CompanyPortal({
           listings={listings}
           verification={verification}
           onCreate={handleCreate}
+          onUpdate={handleUpdate}
           onSetStatus={handleSetStatus}
           onDelete={handleDelete}
           highlightedListingId={highlightedListingId}

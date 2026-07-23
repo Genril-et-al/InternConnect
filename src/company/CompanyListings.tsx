@@ -21,6 +21,7 @@ export function CompanyListings({
   applicants: CompanyApplicant[]
   verification: 'pending' | 'verified' | 'rejected'
   onCreate: (input: NewListingInput) => Promise<void>
+  onUpdate: (id: string, input: NewListingInput) => Promise<void>
   onSetStatus: (id: string, status: CompanyListing['status']) => Promise<void>
   onDelete: (id: string) => Promise<void>
   highlightedListingId?: string | null
@@ -28,6 +29,7 @@ export function CompanyListings({
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [isPosting, setIsPosting] = useState(false)
+  const [editingListing, setEditingListing] = useState<CompanyListing | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [previewListing, setPreviewListing] = useState<CompanyListing | null>(null)
 
@@ -185,14 +187,29 @@ export function CompanyListings({
         )}
       </div>
 
-      {isPosting && <PostListingModal onClose={() => setIsPosting(false)} onCreate={onCreate} />}
-      {previewListing && !isPosting && (
+      {(isPosting || editingListing) && (
+        <PostListingModal 
+          initialListing={editingListing}
+          onClose={() => {
+            setIsPosting(false)
+            setEditingListing(null)
+          }} 
+          onSave={async (input) => {
+            if (editingListing) {
+              await onUpdate(editingListing.id, input)
+            } else {
+              await onCreate(input)
+            }
+          }} 
+        />
+      )}
+      {previewListing && !isPosting && !editingListing && (
         <PreviewListingView
           listing={previewListing}
           onBack={() => setPreviewListing(null)}
           onEdit={() => {
+            setEditingListing(previewListing)
             setPreviewListing(null)
-            setIsPosting(true)
           }}
         />
       )}
@@ -299,28 +316,39 @@ function newRequirementId(): string {
   return Math.random().toString(36).slice(2)
 }
 
-function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate: (input: NewListingInput) => Promise<void> }) {
+function PostListingModal({ 
+  initialListing,
+  onClose, 
+  onSave 
+}: { 
+  initialListing?: CompanyListing | null;
+  onClose: () => void; 
+  onSave: (input: NewListingInput) => Promise<void> 
+}) {
   useScrollLock()
 
-  const [title, setTitle] = useState('')
-  const [department, setDepartment] = useState('')
-  const [slots, setSlots] = useState('1')
-  const [deadline, setDeadline] = useState('')
-  const [skills, setSkills] = useState<string[]>([])
-  const [description, setDescription] = useState('')
+  const [title, setTitle] = useState(initialListing?.title || '')
+  const [department, setDepartment] = useState(initialListing?.department || '')
+  const [slots, setSlots] = useState(initialListing?.slots.toString() || '1')
+  const [deadline, setDeadline] = useState(initialListing?.deadline || '')
+  const [skills, setSkills] = useState<string[]>(initialListing?.skills || [])
+  const [description, setDescription] = useState(initialListing?.description || '')
   const [hasAllowance, setHasAllowance] = useState(false)
-  const [offerDeadlineDays, setOfferDeadlineDays] = useState('3')
+  const [offerDeadlineDays, setOfferDeadlineDays] = useState(initialListing?.offerDeadlineDays?.toString() || '3')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  const [interviewMode, setInterviewMode] = useState<'none' | 'single' | 'multi'>('single')
-  const [interviewRounds, setInterviewRounds] = useState<string[]>(['HR Screen', 'Technical Interview'])
+  const [interviewMode, setInterviewMode] = useState<'none' | 'single' | 'multi'>(
+    initialListing?.interviewProcess?.rounds.length === 0 ? 'none' : (initialListing?.interviewProcess?.rounds.length === 1 ? 'single' : 'multi')
+  )
+  const [interviewRounds, setInterviewRounds] = useState<string[]>(
+    initialListing?.interviewProcess?.rounds || ['HR Screen', 'Technical Interview']
+  )
 
   const publishImmediately = true
-  // Lazy initializer keeps the impure id generation out of render.
-  const [requirements, setRequirements] = useState<PreEmploymentRequirement[]>(() => [
-    { id: newRequirementId(), name: '', type: 'text', isPrintable: false }
-  ])
+  const [requirements, setRequirements] = useState<PreEmploymentRequirement[]>(() => 
+    initialListing?.requirements?.length ? initialListing.requirements : [{ id: newRequirementId(), name: '', type: 'text', isPrintable: false }]
+  )
 
   const addRequirement = () => {
     setRequirements([
@@ -346,7 +374,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
     setSaving(true)
     setSaveError(null)
     try {
-      await onCreate({
+      await onSave({
         title,
         department,
         slots: parseInt(slots) || 1,
@@ -375,7 +403,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal-panel" style={{ maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--surface)', padding: '0', borderRadius: '12px', border: '1px solid var(--border)' }}>
         <div className="modal-header" style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10, padding: '20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0, color: 'var(--brand-brown)', fontSize: '20px' }}>Post New Listing</h3>
+          <h3 style={{ margin: 0, color: 'var(--brand-brown)', fontSize: '20px' }}>{initialListing ? 'Edit Listing' : 'Post New Listing'}</h3>
           <button aria-label="Close" className="modal-close" onClick={onClose} type="button"><X size={16} /></button>
         </div>
         
@@ -536,7 +564,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
             <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer', fontWeight: 500 }}>Discard</button>
             <button type="submit" disabled={saving} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: 'var(--brand-orange)', color: 'white', fontWeight: 600, cursor: saving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: saving ? 0.7 : 1 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-              Publish
+              {initialListing ? (saving ? 'Saving...' : 'Save Changes') : (saving ? 'Publishing...' : 'Publish')}
             </button>
           </div>
         </form>

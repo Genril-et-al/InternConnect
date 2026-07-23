@@ -36,6 +36,7 @@ import {
   rejectOffer,
   withdrawAcceptance,
   submitRequirementFile,
+  submitRequirementText,
 } from './lib/listingsApi'
 import type { PreEmploymentRequirement } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'
@@ -1105,8 +1106,12 @@ function RequirementSubmitRow({
     setBusy(true)
     setError(null)
     try {
-      if (!file) throw new Error('Choose a file first.')
-      await submitRequirementFile(userId, applicationId, requirement.id, file)
+      if (requirement.isPrintable) {
+        await submitRequirementText(applicationId, requirement.id, 'Hardcopy prepared')
+      } else {
+        if (!file) throw new Error('Choose a file first.')
+        await submitRequirementFile(userId, applicationId, requirement.id, file)
+      }
       setFile(null)
       setIsEditing(false)
       onSubmitted?.()
@@ -1197,6 +1202,13 @@ function RequirementSubmitRow({
 
       {isEditing && (
         <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {requirement.isPrintable ? (
+            <div style={{ padding: '16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', textAlign: 'center' }}>
+              <p style={{ margin: '0 0 12px', fontSize: '14px', color: 'var(--text-light)' }}>
+                This requirement must be submitted as a hardcopy. Please prepare the physical document.
+              </p>
+            </div>
+          ) : (
             <label className={`upload-zone ${file ? 'has-file' : ''}`}>
               <input
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
@@ -1223,16 +1235,17 @@ function RequirementSubmitRow({
                 </div>
               )}
             </label>
+          )}
           {error && <p className="muted" style={{ margin: 0, fontSize: '12px', color: 'var(--brand-crimson)' }}>{error}</p>}
           <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-start' }}>
             <button
               className="primary"
-              disabled={busy || (requirement.type === 'file' ? !file : !text.trim())}
+              disabled={busy || (!requirement.isPrintable && !file)}
               onClick={submit}
               style={{ padding: '6px 14px', fontSize: '13px' }}
               type="button"
             >
-              {busy ? 'Submitting…' : 'Submit'}
+              {busy ? 'Submitting…' : (requirement.isPrintable ? 'Mark as Hardcopy Prepared' : 'Submit')}
             </button>
             {status !== 'not_submitted' && (
               <button
