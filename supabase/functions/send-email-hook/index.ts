@@ -9,16 +9,25 @@
 // Supabase to generate + expire + rate-limit the 6-digit code, and verifyOtp()
 // still validates it. This function only owns *delivery*.
 //
-// Delivery path: Gmail SMTP (smtp.gmail.com:465) using a Gmail App Password.
-// This is why the sending logic lives in code we control while still reaching
-// real @cit.edu inboxes. To move off Gmail later, swap the sendEmail() body for
-// a provider API (e.g. Resend) and drop the SMTP secrets.
+// Delivery path: Resend's HTTP API when RESEND_API_KEY is set, otherwise Gmail
+// SMTP (smtp.gmail.com:465) with a Gmail App Password. Both live in code we
+// control; the transport is chosen at runtime so the SMTP path keeps working
+// until the Resend secrets are in place, and no send is ever lost to a
+// half-finished migration.
+//
+// Prefer Resend. SMTP is the reason this function times out (see below) and the
+// reason @cit.edu can quarantine us — mail sent from a @gmail.com envelope has
+// no sending domain of ours behind it to authenticate.
 //
 // Secrets required (supabase secrets set ...):
 //   SEND_EMAIL_HOOK_SECRET — the hook signing secret Supabase shows when you
 //                            create the Send Email hook (format: "v1,whsec_...")
-//   GMAIL_APP_PASSWORD     — 16-char Google App Password for the sender account
+//   GMAIL_APP_PASSWORD     — 16-char Google App Password (SMTP path only)
 // Optional (have sensible defaults):
+//   RESEND_API_KEY         — enables the HTTP path; requires EMAIL_FROM
+//   EMAIL_FROM             — full From header on the Resend path, e.g.
+//                            "InternConnect <noreply@yourdomain>". The domain
+//                            must be verified in Resend or the API rejects it.
 //   GMAIL_USER             — sender mailbox (default internconnect000@gmail.com)
 //   EMAIL_FROM_NAME        — display name on the From header (default InternConnect)
 //
@@ -38,10 +47,16 @@
 // from both the auth flow and the dashboard. Awaiting costs latency but keeps
 // delivery failures reportable, which is the only reason this is debuggable.
 //
-// Headroom is genuinely tight (measured 4879ms against the 5s budget on a cold
-// start). The real fix is to drop SMTP for an HTTP email API (Resend/Postmark):
-// one fetch settles in ~200-400ms, which fits the budget with room to spare and
-// keeps the error reporting. Until then, expect occasional hook timeouts.
+// On SMTP the headroom is not merely tight, it is regularly blown: warm sends
+// measured 3.45-3.84s against the 5s budget, and cold starts measured 5.12s and
+// 5.14s — those two requests died with error_code "hook_timeout" and the student
+// got nothing. That is a quarter of all signup attempts in one day's auth log.
+// Nothing in this file can shrink an SMTP session enough to make that safe.
+// The Resend path settles in one fetch (~200-400ms), which is what actually
+// removes the timeout rather than narrowing it.
+//
+// Every send logs its transport and elapsed ms, so the next person to ask "did
+// the code go out?" can answer it from the function logs alone.
 //
 // Recipients: the account's institutional address, and nothing else. Codes are
 // no longer CC'd to a personal inbox — signup does not ask for one — so
@@ -50,15 +65,18 @@
 // Watch @cit.edu delivery. Gmail accepts the message, cit.edu accepts it from
 // Gmail, and it has been quarantined on the far side with no bounce: the hook
 // returns 200, the auth log says "Hook ran successfully", and the student still
-// has an empty inbox. Nothing here can detect that. If it recurs, the fix is at
-// the mail layer — an authenticated sending domain (Resend/Postmark) or an
-// institutional allowlist for our sender — not a second recipient.
+// has an empty inbox. Nothing here can detect that — a 200 from this function
+// means "handed off", never "delivered". Moving to Resend on a domain we own and
+// have verified (SPF + DKIM signed as us) is the fix for that too; an
+// institutional allowlist for our sender is the fallback if it persists.
 
 import { Webhook } from 'npm:standardwebhooks@1.0.0'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 
 const GMAIL_USER = Deno.env.get('GMAIL_USER') ?? 'internconnect000@gmail.com'
 const FROM_NAME = Deno.env.get('EMAIL_FROM_NAME') ?? 'InternConnect'
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+const EMAIL_FROM = Deno.env.get('EMAIL_FROM')
 
 type EmailData = {
   token: string
@@ -168,9 +186,53 @@ function emailText(intro: string, what: string, token: string, to: string): stri
   ].join('\n')
 }
 
+/**
+ * Resend's HTTP API: one fetch, no handshake, no AUTH round trip. This is the
+ * path that fits inside the hook's 5s budget with room to spare.
+ *
+ * `from` has to be an address on a domain verified in the Resend dashboard —
+ * Resend rejects anything else outright, which is exactly the property that
+ * makes the mail authenticate as us at the receiving end.
+ */
+async function sendViaResend(
+  to: string[],
+  subject: string,
+  html: string,
+  text: string,
+): Promise<void> {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: EMAIL_FROM,
+      to,
+      reply_to: EMAIL_FROM,
+      subject,
+      html,
+      text,
+      headers: {
+        // Same rationale as the SMTP path below.
+        'Auto-Submitted': 'auto-generated',
+        'X-Auto-Response-Suppress': 'OOF, AutoReply',
+        'X-Entity-Ref-ID': crypto.randomUUID(),
+      },
+    }),
+  })
+
+  if (!res.ok) {
+    // Surface Resend's own message — it names the actual problem (unverified
+    // domain, bad key, invalid recipient) instead of a bare status code.
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Resend rejected the send (${res.status}): ${detail.slice(0, 300)}`)
+  }
+}
+
 /** One message, one SMTP session. `to` is a list, but today it is always the
  * account's institutional address alone — see the delivery note at the top. */
-async function sendEmail(
+async function sendViaSmtp(
   to: string[],
   subject: string,
   html: string,
@@ -210,6 +272,43 @@ async function sendEmail(
     })
   } finally {
     await client.close()
+  }
+}
+
+/**
+ * Pick a transport and send. Resend wins when it is fully configured; anything
+ * short of that falls back to SMTP rather than failing, so a half-applied
+ * migration degrades to the old slow path instead of dropping codes.
+ *
+ * The elapsed-ms log line is the only record of how close a send ran to the 5s
+ * hook ceiling — keep it.
+ */
+async function sendEmail(
+  to: string[],
+  subject: string,
+  html: string,
+  text: string,
+): Promise<void> {
+  const useResend = Boolean(RESEND_API_KEY && EMAIL_FROM)
+  if (RESEND_API_KEY && !EMAIL_FROM) {
+    console.error('RESEND_API_KEY is set but EMAIL_FROM is not — falling back to SMTP')
+  }
+
+  const startedAt = Date.now()
+  try {
+    if (useResend) {
+      await sendViaResend(to, subject, html, text)
+    } else {
+      await sendViaSmtp(to, subject, html, text)
+    }
+  } finally {
+    console.log(
+      JSON.stringify({
+        msg: 'send-email-hook delivery attempt',
+        transport: useResend ? 'resend' : 'smtp',
+        elapsed_ms: Date.now() - startedAt,
+      }),
+    )
   }
 }
 
