@@ -29,6 +29,7 @@ import {
   fetchStudents,
   setListingFlagged,
 } from './adminQueries'
+import { useRealtimeRefresh } from '../lib/realtime'
 import './admin.css'
 
 const NAV = [
@@ -69,6 +70,20 @@ export function AdminApp() {
   const refreshListings = useCallback(async () => {
     setListings(await fetchAdminListings())
   }, [])
+  // Listings carry an applicant count and the stats are pure application data,
+  // so an application change has to move both.
+  const refreshApplicationData = useCallback(async () => {
+    const [l, stats] = await Promise.all([fetchAdminListings(), fetchAppStats()])
+    setListings(l)
+    setAppStats(stats)
+  }, [])
+
+  // Live updates (no reload) — students registering, companies submitting
+  // documents for verification, listings being posted, applications moving.
+  useRealtimeRefresh(['profiles'], refreshStudents)
+  useRealtimeRefresh(['companies'], refreshCompanies)
+  useRealtimeRefresh(['listings'], refreshListings)
+  useRealtimeRefresh(['applications'], refreshApplicationData)
 
   const handleSetFlagged = useCallback(
     async (id: string, flagged: boolean) => {

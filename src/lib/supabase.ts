@@ -59,7 +59,7 @@ export type Profile = {
   ai_skills: string[]
   ai_specializations: string[]
   resume_url: string | null
-  resume_status: 'pending_analysis' | 'analyzed' | 'no_skills_found' | null
+  resume_status: 'pending_analysis' | 'analyzed' | 'no_skills_found' | 'name_mismatch' | null
   resume_analyzed_at: string | null
   resume_ai_suggestion: string | null
   portfolio_link: string | null

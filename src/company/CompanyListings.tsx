@@ -573,7 +573,7 @@ function PostListingModal({
           </div>
           
           <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-            <h4 style={{ marginBottom: '8px', color: 'var(--brand-brown)', fontSize: '16px' }}>Pre-employment Requirements <span style={{color:'var(--brand-crimson)'}}>*</span></h4>
+            <h4 style={{ marginBottom: '8px', color: 'var(--brand-brown)', fontSize: '16px' }}>Pre-employment Requirements <span className="cp-muted" style={{ fontSize: '13px', fontWeight: 400 }}>(optional)</span></h4>
             <p className="cp-muted" style={{ fontSize: '13px', marginBottom: '16px' }}>
               These will only be visible to students after they accept the internship offer. Use this to request medical certificates, NDAs, or other documents.
             </p>
@@ -582,9 +582,8 @@ function PostListingModal({
               {requirements.map((req) => (
                 <div key={req.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', background: 'var(--bg)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <div style={{ flex: 1 }}>
-                    <input 
-                      required
-                      placeholder="Requirement name (e.g., Medical Certificate)" 
+                    <input
+                      placeholder="Requirement name (e.g., Medical Certificate)"
                       value={req.name} 
                       onChange={e => updateRequirement(req.id, { name: e.target.value })}
                       style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', marginBottom: '12px' }}

@@ -9,11 +9,16 @@ import { supabase } from './supabase'
 export type ResumeAnalysis =
   | { status: 'analyzed'; skills: string[]; specializations: string[] }
   | { status: 'no_skills_found'; message: string; suggestion: string | null }
+  | { status: 'name_mismatch'; message: string; suggestion: string | null }
   | { status: 'unsupported_format'; message: string }
 
 /** Shown on the resume card when analysis found nothing to match. */
 export const NO_SKILLS_MESSAGE =
   'Not applicable. No skills/specialization available to be matched.'
+
+/** Shown when the resume names someone other than the account holder. */
+export const NAME_MISMATCH_MESSAGE =
+  'The name on this resume does not match your InternConnect account.'
 
 export async function analyzeResume(path: string): Promise<ResumeAnalysis> {
   // supabase-js only refreshes the access token on a timer, so a tab left open

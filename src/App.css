@@ -435,6 +435,13 @@ button.primary {
   filter: brightness(1.05);
 }
 
+/* Browse Companies puts two label+dropdown pairs in this row. The row's own
+   8px gap is not enough to read them as pairs, so the second label takes a
+   little extra lead-in. */
+.browse-pills-label--gap {
+  margin-left: 8px;
+}
+
 .browse-result-count {
   color: var(--text-muted);
   font-size: 13px;
@@ -1801,6 +1808,20 @@ label {
 
   .browse-pills {
     flex-wrap: wrap;
+  }
+
+  /* The company/location dropdowns each take a full row of their own rather
+     than sizing to the longest company name, which left the stack ragged. */
+  .browse-company-filters {
+    flex: 1 1 100%;
+  }
+
+  .browse-company-filters .ic-dropdown {
+    flex: 1 1 100%;
+  }
+
+  .browse-pills-label--gap {
+    margin-left: 0;
   }
 
   .browse-title {

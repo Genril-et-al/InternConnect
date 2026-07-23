@@ -66,4 +66,10 @@ export type Application = {
   feedback?: string
   requirements?: PreEmploymentRequirement[]
   approvedRequirements?: number
+  /**
+   * Whether the listing has an interview stage. Companies can post a listing
+   * with "no interview", in which case the Interview step is hidden from the
+   * student's progress bar. Defaults to true when unknown.
+   */
+  hasInterview?: boolean
 }

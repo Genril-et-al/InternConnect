@@ -27,6 +27,13 @@ const root = join(here, '..')
 const EDGES = join(root, 'src/lib/skillEdges.generated.json')
 const BACKUP = EDGES + '.bak'
 
+// Read GEMINI_API_KEY (and anything else) from .env.local so it need not be
+// exported into the shell on every run. Node's built-in loader throws when the
+// file is absent, so guard it; a real environment variable still wins because
+// loadEnvFile does not overwrite one that is already set.
+const ENV_FILE = join(root, '.env.local')
+if (existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE)
+
 const MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']
 
 /** A skill name we will not send to the model or store. */
@@ -166,10 +173,15 @@ type CheckResult = { passed: number; total: number; failures: string[] }
  */
 function runCheck(): CheckResult {
   try {
+    // We run under tsResolve.mjs ourselves, so __TS_RESOLVE__ is set in our
+    // environment. The child inherits it, and the loader's guard would then skip
+    // registration in the child — leaving it unable to resolve the app's
+    // extensionless `.ts` imports. Clear the flag so the child registers afresh.
+    const { __TS_RESOLVE__: _drop, ...childEnv } = process.env
     const out = execFileSync(
       'node',
       ['--import', './scripts/tsResolve.mjs', 'scripts/checkSkillMatching.ts', '--json'],
-      { cwd: root, encoding: 'utf8' },
+      { cwd: root, encoding: 'utf8', env: childEnv },
     )
     return JSON.parse(out.trim())
   } catch (err) {

@@ -9,7 +9,7 @@ import {
   uploadDocument,
   signedDocumentUrl,
 } from '../lib/profile'
-import { analyzeResume, NO_SKILLS_MESSAGE } from '../lib/resumeAnalysis'
+import { analyzeResume, NO_SKILLS_MESSAGE, NAME_MISMATCH_MESSAGE } from '../lib/resumeAnalysis'
 import { formatMiddleInitial } from '../lib/name'
 import { setUnsavedGuard } from '../lib/unsavedGuard'
 import { useAuth } from '../auth/context'
@@ -97,10 +97,11 @@ export function ProfileSetup({
     message: string
     suggestion: string | null
   } | null>(
-    profile?.resume_status === 'no_skills_found'
+    profile?.resume_status === 'no_skills_found' || profile?.resume_status === 'name_mismatch'
       ? {
         fileName: 'your current resume',
-        message: NO_SKILLS_MESSAGE,
+        message:
+          profile.resume_status === 'name_mismatch' ? NAME_MISMATCH_MESSAGE : NO_SKILLS_MESSAGE,
         suggestion: profile?.resume_ai_suggestion ?? null,
       }
       : null,
@@ -220,6 +221,16 @@ export function ProfileSetup({
           message: result.message || NO_SKILLS_MESSAGE,
           suggestion: result.suggestion ?? null,
         })
+      } else if (result.status === 'name_mismatch') {
+        // The resume on file belongs to someone else — drop its extracted
+        // skills so a stale match can't linger, and flag it for re-upload.
+        setAiSkills([])
+        setAiSpecializations([])
+        setResumeRejected({
+          fileName: displayResumeName ?? 'your current resume',
+          message: result.message || NAME_MISMATCH_MESSAGE,
+          suggestion: result.suggestion ?? null,
+        })
       } else if (result.status === 'unsupported_format') {
         setError(result.message)
       } else {
@@ -298,11 +309,19 @@ export function ProfileSetup({
     // below may fill these in — so only hard-require them if there's no resume
     // for the AI to read.
     if (!resume) {
-      if (skills.length === 0) {
+      // First-time setup has no tag inputs, so the resume is the only way in:
+      // point at the upload instead of a field that isn't on the page.
+      if (!isEdit && (skills.length === 0 || specializations.length === 0)) {
+        setError(
+          'Please upload your resume so we can fill in your skills and specializations.',
+        )
+        return
+      }
+      if (isEdit && skills.length === 0) {
         setError('Please add at least one skill.')
         return
       }
-      if (specializations.length === 0) {
+      if (isEdit && specializations.length === 0) {
         setError('Please add at least one specialization.')
         return
       }
@@ -384,6 +403,18 @@ export function ProfileSetup({
             setResume(null)
             return
           }
+          if (result.status === 'name_mismatch') {
+            // Resume names someone else — refuse it and require the student's own.
+            setAiSkills([])
+            setAiSpecializations([])
+            setResumeRejected({
+              fileName: resume.name,
+              message: result.message || NAME_MISMATCH_MESSAGE,
+              suggestion: result.suggestion ?? null,
+            })
+            setResume(null)
+            return
+          }
           if (result.status === 'unsupported_format') {
             setError(result.message)
             setResume(null)
@@ -409,7 +440,9 @@ export function ProfileSetup({
           // saving, as long as the student entered skills manually.
           if (skills.length === 0 || specializations.length === 0) {
             setError(
-              'We could not analyze your resume right now. Please add your skills and specializations manually, then save again.',
+              isEdit
+                ? 'We could not analyze your resume right now. Please add your skills and specializations manually, then save again.'
+                : 'We could not analyze your resume right now. Please try saving again in a moment.',
             )
             return
           }
@@ -420,7 +453,9 @@ export function ProfileSetup({
 
       if (mergedSkills.length === 0 || mergedSpecializations.length === 0) {
         setError(
-          'Your resume did not include enough to fill your skills and specializations. Please add them manually.',
+          isEdit
+            ? 'Your resume did not include enough to fill your skills and specializations. Please add them manually.'
+            : 'Your resume did not include enough to fill your skills and specializations. Please upload a more detailed resume.',
         )
         savingRef.current = false
         return
@@ -687,39 +722,46 @@ export function ProfileSetup({
         </div>
       </section>
 
-      {/* Skills — optional */}
-      <section className="profile-section">
-        <div className="profile-section-head">
-          <h2>Skills</h2>
-        </div>
-        <TagInput
-          onChange={setSkills}
-          placeholder="Type a skill and press Enter (e.g. React, SQL, Figma)"
-          tags={skills}
-          lockedTags={aiSkills}
-          suggestions={SKILL_SUGGESTIONS}
-        />
-        <p className="profile-info-subtext" style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
-          Faded tags represent skills automatically extracted from your resume and cannot be removed. You can still manually add additional skills and remove them.
-        </p>
-      </section>
+      {/* Skills and specializations are only editable from the workspace
+          profile. First-time setup takes them from the resume alone, so the
+          student isn't asked to type what the AI is about to extract. */}
+      {isEdit && (
+        <>
+          {/* Skills — optional */}
+          <section className="profile-section">
+            <div className="profile-section-head">
+              <h2>Skills</h2>
+            </div>
+            <TagInput
+              onChange={setSkills}
+              placeholder="Type a skill and press Enter (e.g. React, SQL, Figma)"
+              tags={skills}
+              lockedTags={aiSkills}
+              suggestions={SKILL_SUGGESTIONS}
+            />
+            <p className="profile-info-subtext" style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
+              Faded tags represent skills automatically extracted from your resume and cannot be removed. You can still manually add additional skills and remove them.
+            </p>
+          </section>
 
-      {/* Specializations — optional */}
-      <section className="profile-section">
-        <div className="profile-section-head">
-          <h2>Specializations</h2>
-        </div>
-        <TagInput
-          onChange={setSpecializations}
-          placeholder="e.g. Marketing, Frontend, Backend, Software Dev"
-          tags={specializations}
-          lockedTags={aiSpecializations}
-          suggestions={SPECIALIZATION_SUGGESTIONS}
-        />
-        <p className="profile-info-subtext" style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
-          Faded tags represent specializations automatically extracted from your resume and cannot be removed. You can still manually add additional specializations and remove them.
-        </p>
-      </section>
+          {/* Specializations — optional */}
+          <section className="profile-section">
+            <div className="profile-section-head">
+              <h2>Specializations</h2>
+            </div>
+            <TagInput
+              onChange={setSpecializations}
+              placeholder="e.g. Marketing, Frontend, Backend, Software Dev"
+              tags={specializations}
+              lockedTags={aiSpecializations}
+              suggestions={SPECIALIZATION_SUGGESTIONS}
+            />
+            <p className="profile-info-subtext" style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
+              Faded tags represent specializations automatically extracted from your resume and cannot be removed. You can still manually add additional specializations and remove them.
+            </p>
+          </section>
+        </>
+      )}
 
       {/* Resume — upload */}
       <section className="profile-section">
@@ -728,6 +770,12 @@ export function ProfileSetup({
         </div>
         <div style={{ marginBottom: '24px' }}>
           <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Resume <span className="profile-optional" style={{ fontWeight: 400 }}>PDF</span></h4>
+          {!isEdit && (
+            <p className="profile-subtext" style={{ marginBottom: '8px' }}>
+              Your skills and specializations are read from this resume, so upload
+              it here — there's nothing to type in.
+            </p>
+          )}
           <div>
             {resume || profile?.resume_url ? (
               <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'default' }}>

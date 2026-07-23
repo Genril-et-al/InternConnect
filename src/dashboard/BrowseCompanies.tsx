@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Building2, ChevronLeft, MapPin, Search } from 'lucide-react'
 import { fetchAllCompanies, type StudentCompany } from '../lib/listingsApi'
+import { Dropdown } from '../components/Dropdown'
 import type { Internship } from '../lib/mockData'
 
 export function BrowseCompanies({
@@ -13,6 +14,8 @@ export function BrowseCompanies({
   const [companies, setCompanies] = useState<StudentCompany[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('All')
+  const [locationFilter, setLocationFilter] = useState('All')
   const [selectedCompany, setSelectedCompany] = useState<StudentCompany | null>(null)
 
   useEffect(() => {
@@ -33,8 +36,29 @@ export function BrowseCompanies({
     }
   }, [])
 
-  const filteredCompanies = companies.filter((c) =>
-    (c.name + ' ' + c.location).toLowerCase().includes(query.toLowerCase())
+  // Options come from whatever actually loaded, so the dropdowns never offer a
+  // company or a location that would filter the grid down to nothing.
+  const companyOptions = useMemo(
+    () => ['All', ...Array.from(new Set(companies.map((c) => c.name).filter(Boolean))).sort()],
+    [companies]
+  )
+
+  const locationOptions = useMemo(
+    () => ['All', ...Array.from(new Set(companies.map((c) => c.location).filter(Boolean))).sort()],
+    [companies]
+  )
+
+  const filteredCompanies = useMemo(
+    () =>
+      companies.filter((c) => {
+        const matchesQuery = (c.name + ' ' + c.location)
+          .toLowerCase()
+          .includes(query.toLowerCase())
+        const matchesCompany = companyFilter === 'All' || c.name === companyFilter
+        const matchesLocation = locationFilter === 'All' || c.location === locationFilter
+        return matchesQuery && matchesCompany && matchesLocation
+      }),
+    [companies, query, companyFilter, locationFilter]
   )
 
   if (selectedCompany) {
@@ -161,10 +185,33 @@ export function BrowseCompanies({
         </div>
       </div>
 
+      {/* Company + location filters, with the result count on the right */}
+      <div className="browse-filters-row">
+        <div className="browse-pills browse-company-filters">
+          <span className="browse-pills-label">Filter by company:</span>
+          <Dropdown
+            ariaLabel="Filter by company"
+            onChange={setCompanyFilter}
+            options={companyOptions}
+            value={companyFilter}
+          />
+          <span className="browse-pills-label browse-pills-label--gap">Filter by location:</span>
+          <Dropdown
+            ariaLabel="Filter by location"
+            onChange={setLocationFilter}
+            options={locationOptions}
+            value={locationFilter}
+          />
+        </div>
+        <span className="browse-result-count">
+          {filteredCompanies.length} result{filteredCompanies.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--muted)' }}>Loading companies...</div>
       ) : (
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
           {filteredCompanies.length === 0 ? (
             <p className="muted" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '32px 0' }}>
               No companies match your search.

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { Profile } from '../lib/supabase'
+import { useRealtimeRefresh } from '../lib/realtime'
 import { fetchProfile, logout as authLogout } from '../lib/auth'
 import { AuthContext } from './context'
 import type { AuthState } from './context'
@@ -75,6 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe()
     }
   }, [])
+
+  // The user's own profile row, watched live: an admin deactivating the
+  // account, a company being verified, or the resume analyser writing back its
+  // extracted skills all reach the open session without a reload. Filtered to
+  // this one row server-side, so the client is not told about anyone else.
+  const userId = session?.user.id
+  useRealtimeRefresh(
+    userId ? [`profiles:id=eq.${userId}`] : [],
+    () => loadProfile(userId),
+    Boolean(userId) && !demoProfile,
+  )
 
   const value = useMemo<AuthState>(() => {
     // A demo profile takes precedence and provides a mock session so the app's

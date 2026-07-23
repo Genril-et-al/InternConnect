@@ -118,7 +118,6 @@ export async function updateCompanyProfile(id: string, updates: Partial<CompanyP
 
 
 
-
 export async function fetchCompanyListings(companyId: string): Promise<CompanyListing[]> {
   let data: any[] | null = null
   let error: any = null
@@ -156,8 +155,8 @@ export async function fetchCompanyListings(companyId: string): Promise<CompanyLi
       id: q.id,
       name: q.name,
       type: q.kind === 'file' ? ('file' as const) : ('text' as const),
-      isPrintable: q.is_printable,
       description: q.description ?? undefined,
+      isPrintable: q.is_printable,
       templateFileUrl: q.template_file_url ?? null,
     })),
     interviewProcess: r.interview_process as { rounds: string[] } | undefined,
@@ -206,8 +205,8 @@ export async function createListing(companyId: string, input: NewListingInput): 
         listing_id: data.id,
         name: r.name,
         kind: r.type,
+        description: r.description ?? null,
         is_printable: r.isPrintable,
-        description: r.description || null,
         template_file_url: r.templateFileUrl || null,
       })),
     )
@@ -238,8 +237,8 @@ export async function updateListing(listingId: string, input: NewListingInput): 
         listing_id: listingId,
         name: r.name,
         kind: r.type,
+        description: r.description ?? null,
         is_printable: r.isPrintable,
-        description: r.description || null,
         template_file_url: r.templateFileUrl || null,
       })),
     )
