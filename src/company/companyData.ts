@@ -43,6 +43,7 @@ export type SubmittedRequirement = {
   /** Set once the student has submitted — required to review. */
   submissionId?: string
   fileUrl?: string
+  isPrintable?: boolean
   /**
    * Why the submission was sent back, shown to the student on 'Needs Revision'.
    * Stored per-requirement in the applications.feedback JSON blob (keyed by

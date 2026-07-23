@@ -156,6 +156,7 @@ export function CompanyPortal({
           }}
           onScheduleInterview={handleScheduleInterview}
           onReviewSubmission={handleReviewSubmission}
+          onSetListingStatus={handleSetStatus}
           highlightedApplicantId={highlightedApplicantId}
         />
       )

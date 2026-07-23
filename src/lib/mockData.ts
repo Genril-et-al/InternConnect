@@ -61,6 +61,7 @@ export type Application = {
   dateApplied: string
   status: ApplicationStatus
   nextStep: string
+  feedback?: string
   requirements?: PreEmploymentRequirement[]
   approvedRequirements?: number
 }

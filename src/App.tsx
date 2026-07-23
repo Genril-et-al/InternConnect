@@ -873,6 +873,13 @@ function ProgressModal({
           </div>
         )}
 
+        {application.status === 'Rejected' && application.feedback && (
+          <div style={{ marginBottom: 24, padding: 16, background: 'var(--bg-subtle)', borderRadius: 8, border: '1px solid var(--border)' }}>
+            <h4 style={{ margin: '0 0 8px 0', color: 'var(--brand-crimson)' }}>Rejection Feedback</h4>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{application.feedback}</p>
+          </div>
+        )}
+
         <div className="progress-stepper-card">
           <h3>Your Progress</h3>
           <div className="progress-stepper">
@@ -1016,14 +1023,14 @@ function ProgressModal({
                 <div className="progress-reqs-header">
                   <div>
                     <h3>Pre-Employment Progress</h3>
-                    <p className="muted">{application.approvedRequirements || 0} of {application.requirements.length} requirements approved</p>
+                    <p className="muted">{application.approvedRequirements || 0} of {application.requirements.filter(r => !r.isPrintable).length} requirements approved</p>
                   </div>
                   <strong className="progress-pct">
-                    {Math.round(((application.approvedRequirements || 0) / application.requirements.length) * 100)}%
+                    {application.requirements.filter(r => !r.isPrintable).length === 0 ? 100 : Math.round(((application.approvedRequirements || 0) / application.requirements.filter(r => !r.isPrintable).length) * 100)}%
                   </strong>
                 </div>
                 <div className="strip-match-track" style={{ width: '100%', marginTop: '12px' }}>
-                  <div className="strip-match-progress" style={{ width: `${Math.round(((application.approvedRequirements || 0) / application.requirements.length) * 100)}%` }} />
+                  <div className="strip-match-progress" style={{ width: `${application.requirements.filter(r => !r.isPrintable).length === 0 ? 100 : Math.round(((application.approvedRequirements || 0) / application.requirements.filter(r => !r.isPrintable).length) * 100)}%` }} />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
@@ -1126,6 +1133,29 @@ function RequirementSubmitRow({
           ? 'var(--brand-orange)'
           : 'var(--text-light)'
 
+  if (requirement.isPrintable) {
+    return (
+      <div
+        style={{
+          background: 'var(--bg-subtle)',
+          border: '1px solid var(--border)',
+          borderRadius: '12px',
+          padding: '12px 16px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontWeight: 500, fontSize: '14px' }}>{requirement.name}</p>
+            {requirement.description && <p style={{ margin: '4px 0', fontSize: '13px', color: 'var(--text)' }}>{requirement.description}</p>}
+            <p className="muted" style={{ margin: '2px 0 0 0', fontSize: '12px' }}>
+              Hardcopy required · Submit in person
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
 
   const submit = async () => {
     if (!userId) return
@@ -1134,6 +1164,9 @@ function RequirementSubmitRow({
     try {
       if (requirement.isPrintable) {
         await submitRequirementText(applicationId, requirement.id, 'Hardcopy prepared')
+      } else if (requirement.type === 'text') {
+        if (!text.trim()) throw new Error('Enter your text response first.')
+        await submitRequirementText(applicationId, requirement.id, text.trim())
       } else {
         if (!file) throw new Error('Choose a file first.')
         await submitRequirementFile(userId, applicationId, requirement.id, file)
@@ -1162,7 +1195,7 @@ function RequirementSubmitRow({
           <p style={{ margin: 0, fontWeight: 500, fontSize: '14px' }}>{requirement.name}</p>
           {requirement.description && <p style={{ margin: '4px 0', fontSize: '13px', color: 'var(--text)' }}>{requirement.description}</p>}
           <p className="muted" style={{ margin: '2px 0 0 0', fontSize: '12px' }}>
-            File upload
+            {requirement.type === 'file' ? 'File upload' : 'Text instruction'}
             {requirement.isPrintable && ' · Needs to be printed'}
           </p>
         </div>
@@ -1178,6 +1211,7 @@ function RequirementSubmitRow({
               <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-light)', marginBottom: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
                 Your Submission
               </span>
+              {requirement.type === 'file' ? (
                 <button
                   className="sd-link"
                   disabled={busy}
@@ -1185,8 +1219,6 @@ function RequirementSubmitRow({
                     if (!requirement.submittedFilePath) return
                     try {
                       setBusy(true)
-                      // No download name: "View submitted document" should render
-                      // the file, not save it.
                       const url = await signedDocumentUrl(requirement.submittedFilePath)
                       window.open(url, '_blank', 'noopener,noreferrer')
                     } catch {
@@ -1200,6 +1232,11 @@ function RequirementSubmitRow({
                 >
                   {busy ? 'Loading document...' : 'View submitted document'}
                 </button>
+              ) : (
+                <p style={{ margin: 0, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+                  {requirement.isPrintable ? 'Hardcopy prepared' : requirement.submittedText}
+                </p>
+              )}
               {error && !isEditing && <p className="muted" style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--brand-crimson)' }}>{error}</p>}
             </div>
             
@@ -1234,6 +1271,15 @@ function RequirementSubmitRow({
                 This requirement must be submitted as a hardcopy. Please prepare the physical document.
               </p>
             </div>
+          ) : requirement.type === 'text' ? (
+            <textarea
+              className="sd-input"
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Enter your response here..."
+              rows={4}
+              value={text}
+              style={{ resize: 'vertical' }}
+            />
           ) : (
             <label className={`upload-zone ${file ? 'has-file' : ''}`}>
               <input
@@ -1266,7 +1312,7 @@ function RequirementSubmitRow({
           <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-start' }}>
             <button
               className="primary"
-              disabled={busy || (!requirement.isPrintable && !file)}
+              disabled={busy || (!requirement.isPrintable && requirement.type === 'file' && !file) || (!requirement.isPrintable && requirement.type === 'text' && !text.trim())}
               onClick={submit}
               style={{ padding: '6px 14px', fontSize: '13px' }}
               type="button"
@@ -1516,7 +1562,7 @@ function InternshipDetailView({
       <div className="detail-body">
         <section className="detail-section">
           <h4>Description</h4>
-          <p>{internship.summary}</p>
+          <p style={{ whiteSpace: 'pre-wrap' }}>{internship.summary}</p>
         </section>
 
         <div className="detail-info-grid">

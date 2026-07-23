@@ -35,6 +35,7 @@ export function CompanyApplicants({
   onBulkReject,
   onScheduleInterview,
   onReviewSubmission,
+  onSetListingStatus,
   highlightedApplicantId,
 }: {
   applicants: CompanyApplicant[]
@@ -43,6 +44,7 @@ export function CompanyApplicants({
   onBulkReject?: (rejections: { id: string; feedback: string }[]) => Promise<void>
   onScheduleInterview: (id: string, details: InterviewDetails) => Promise<void>
   onReviewSubmission: (submissionId: string, applicationId: string, approve: boolean, feedback?: string) => Promise<void>
+  onSetListingStatus?: (id: string, status: 'Open' | 'Closed' | 'Draft') => Promise<void>
   highlightedApplicantId?: string | null
 }) {
   const [search, setSearch] = useState('')
@@ -194,7 +196,7 @@ export function CompanyApplicants({
                 onSelectApplicant={setSelectedId}
                 highlightedApplicantId={highlightedApplicantId}
                 onBulkReject={onBulkReject}
-                onSetStatus={onSetStatus}
+                onSetListingStatus={onSetListingStatus}
               />
             )
           })
@@ -213,7 +215,7 @@ function ListingGroupCard({
   onSelectApplicant,
   highlightedApplicantId,
   onBulkReject,
-  onSetStatus
+  onSetListingStatus
 }: {
   listing: CompanyListing
   applicants: CompanyApplicant[]
@@ -224,12 +226,11 @@ function ListingGroupCard({
   highlightedApplicantId?: string | null
   onBulkReject?: (rejections: { id: string; feedback: string }[]) => Promise<void>
   onSetStatus?: (id: string, status: ApplicantStatus, feedback?: string, nextStep?: string) => Promise<void>
+  onSetListingStatus?: (id: string, status: 'Open' | 'Closed' | 'Draft') => Promise<void>
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false)
   const [closeHiringOpen, setCloseHiringOpen] = useState(false)
-
-  const [finalOfferApplicantId, setFinalOfferApplicantId] = useState<string | null>(null)
 
   const pendingCount = allApplicants.filter(a => a.status === 'Pending').length
   const reviewCount = allApplicants.filter(a => a.status === 'Reviewed').length
@@ -239,37 +240,33 @@ function ListingGroupCard({
   const acceptedCount = allApplicants.filter(a => {
     if (a.status !== 'Accepted') return false
     if (!a.submittedRequirements || a.submittedRequirements.length === 0) return true
-    return a.submittedRequirements.every(req => req.status === 'Approved')
+    const nonPrintable = a.submittedRequirements.filter(req => !req.isPrintable)
+    if (nonPrintable.length === 0) return true
+    return nonPrintable.every(req => req.status === 'Approved')
+  }).length
+
+  const currentOffers = allApplicants.filter(a => a.status === 'Offer').length
+  const pendingAcceptanceCount = allApplicants.filter(a => {
+    if (a.status === 'Offer') return true;
+    if (a.status === 'Accepted') {
+      if (!a.submittedRequirements || a.submittedRequirements.length === 0) return false
+      const nonPrintable = a.submittedRequirements.filter(req => !req.isPrintable)
+      if (nonPrintable.length === 0) return false
+      return !nonPrintable.every(req => req.status === 'Approved')
+    }
+    return false;
   }).length
 
   const isFull = acceptedCount >= listing.slots
+  const isWaiting = acceptedCount + pendingAcceptanceCount >= listing.slots && acceptedCount < listing.slots
+  const isClosed = listing.status?.toLowerCase() === 'closed'
 
-
-  const handleSelectAllPending = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setSelectedIds(new Set(applicants.filter(a => a.status === 'Pending').map(a => a.id)))
-    if (!isExpanded) onToggleExpand()
-  }
-  const handleSelectInterviewed = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setSelectedIds(new Set(applicants.filter(a => a.status === 'Interview').map(a => a.id)))
-    if (!isExpanded) onToggleExpand()
-  }
   const handleSelectAll = (e: React.MouseEvent) => {
     e.stopPropagation()
     setSelectedIds(new Set(applicants.map(a => a.id)))
     if (!isExpanded) onToggleExpand()
   }
-  
-  const handleMoveToInterview = async () => {
-    if (onSetStatus) {
-      // Loop over and update status
-      for (const id of Array.from(selectedIds)) {
-        await onSetStatus(id, 'Interview')
-      }
-    }
-    setSelectedIds(new Set())
-  }
+
 
   return (
     <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(113,66,54,0.06)' }}>
@@ -277,6 +274,11 @@ function ListingGroupCard({
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
              <h3 style={{ margin: 0, color: 'var(--text-strong)', fontSize: '18px' }}>{listing.title}</h3>
+             {isClosed && (
+               <span style={{ background: '#E0E0E0', color: '#616161', padding: '4px 10px', borderRadius: '12px', fontWeight: 600, fontSize: '12px' }}>
+                 Hiring Closed
+               </span>
+             )}
              <span style={{ color: 'var(--text-light)', fontSize: '13px' }}>
                {acceptedCount} of {listing.slots} positions filled
              </span>
@@ -295,11 +297,15 @@ function ListingGroupCard({
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {isFull && pendingCount > 0 && (
+          {isClosed ? (
+            <button disabled style={{ background: '#F5F5F5', color: '#9E9E9E', border: '1px solid #E0E0E0', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'not-allowed' }}>
+              Hiring Closed
+            </button>
+          ) : isFull && pendingCount > 0 ? (
             <button onClick={(e) => { e.stopPropagation(); setCloseHiringOpen(true) }} style={{ background: 'white', color: 'var(--brand-crimson)', border: '1px solid var(--brand-crimson)', padding: '6px 16px', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
               Close Hiring
             </button>
-          )}
+          ) : null}
           <div style={{ color: 'var(--text-light)', display: 'flex', alignItems: 'center' }}>
             {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
           </div>
@@ -308,9 +314,12 @@ function ListingGroupCard({
 
       {isExpanded && (
         <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border)' }}>
+          {isWaiting && !isClosed && (
+            <div style={{ background: '#FFF3E0', border: '1px solid #FFE0B2', color: '#E65100', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', fontWeight: 500 }}>
+              Waiting for the applicant(s) to complete the hiring process to fill the final position(s).
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', fontSize: '13px' }}>
-            <button type="button" onClick={handleSelectAllPending} style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '16px', padding: '4px 12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-strong)' }}>Select Pending</button>
-            <button type="button" onClick={handleSelectInterviewed} style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '16px', padding: '4px 12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-strong)' }}>Select Interviewed</button>
             <button type="button" onClick={handleSelectAll} style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', borderRadius: '16px', padding: '4px 12px', fontWeight: 600, cursor: 'pointer', color: 'var(--text-strong)' }}>Select All</button>
           </div>
 
@@ -357,8 +366,6 @@ function ListingGroupCard({
               <span style={{ fontWeight: 600, color: 'var(--brand-brown)' }}>{selectedIds.size} applicant{selectedIds.size > 1 ? 's' : ''} selected</span>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" onClick={() => setSelectedIds(new Set())} style={{ background: 'transparent', border: 'none', color: 'var(--text-light)', cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-                <button type="button" onClick={handleMoveToInterview} style={{ background: 'white', color: 'var(--text-strong)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 12px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Move to Interview</button>
-                <button type="button" onClick={() => alert('Send Bulk Feedback is not yet configured.')} style={{ background: 'white', color: 'var(--text-strong)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 12px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Send Bulk Feedback</button>
                 <button type="button" onClick={() => setBulkRejectOpen(true)} style={{ background: 'var(--brand-crimson)', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 16px', fontWeight: 600, cursor: 'pointer', fontSize: '13px' }}>Reject Selected</button>
               </div>
             </div>
@@ -376,7 +383,9 @@ function ListingGroupCard({
               const app = applicants.find(a => a.id === id)
               return {
                 id,
-                feedback: template.replace('{Applicant Name}', app?.name ?? 'Applicant')
+                feedback: template
+                  .replace(/\{Student Name\}/g, app?.name ?? 'Applicant')
+                  .replace(/\{Internship Title\}/g, listing.title)
               }
             })
             await onBulkReject(rejections)
@@ -390,9 +399,28 @@ function ListingGroupCard({
         <AutoRejectModal
           info={{ listing, count: pendingCount + reviewCount + interviewCount, pendingIds: [] }}
           onClose={() => setCloseHiringOpen(false)}
-          onSubmit={async () => {
-            if (!onBulkReject) return
-            setCloseHiringOpen(false)
+          onSubmit={async (template) => {
+            if (!onSetListingStatus) return
+            try {
+              const pendingIds = applicants.filter(a => ['Pending', 'Reviewed', 'Interview'].includes(a.status)).map(a => a.id)
+              const rejections = pendingIds.map(id => {
+                const app = applicants.find(a => a.id === id)
+                return {
+                  id,
+                  feedback: template
+                    .replace(/\{Student Name\}/g, app?.name ?? 'Applicant')
+                    .replace(/\{Internship Title\}/g, listing.title)
+                }
+              })
+              if (onBulkReject && rejections.length > 0) {
+                await onBulkReject(rejections)
+              }
+              await onSetListingStatus(listing.id, 'Closed')
+              setCloseHiringOpen(false)
+            } catch (err) {
+              console.error(err)
+              alert(err instanceof Error ? err.message : 'An error occurred while closing the listing.')
+            }
           }}
         />
       )}
@@ -450,6 +478,9 @@ function ApplicantDetail({
   // This view isn't itself a modal — it's the applicant page — so the lock
   // belongs to the document preview it can open over itself.
   useScrollLock(previewUrl !== null)
+
+  const listing = listings.find((l) => l.title === applicant.role)
+  const isClosed = listing?.status?.toLowerCase() === 'closed'
 
   const handleOpenDocument = async (path: string, name?: string) => {
     try {
@@ -515,8 +546,8 @@ function ApplicantDetail({
             {errorMsg && <div style={{width: '100%', fontSize: '13px', color: 'var(--brand-orange)', marginBottom: '8px', fontWeight: 500}}>⚠️ {errorMsg}</div>}
             <button
               className="cp-primary"
-              disabled={!interviewConcluded}
-              title={errorMsg || ''}
+              disabled={!interviewConcluded || isClosed}
+              title={isClosed ? 'Listing closed' : errorMsg || ''}
               onClick={() => {
                 const listing = listings.find((l) => l.title === applicant.role)
                 const days = listing?.offerDeadlineDays || 3
@@ -534,8 +565,8 @@ function ApplicantDetail({
             </button>
             <button
               className="cp-accept"
-              disabled={!interviewConcluded}
-              title={errorMsg || ''}
+              disabled={!interviewConcluded || isClosed}
+              title={isClosed ? 'Listing closed' : errorMsg || ''}
               onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
               type="button"
             >
@@ -556,8 +587,8 @@ function ApplicantDetail({
                 return (
                   <button
                     className="cp-secondary"
-                    disabled={!interviewConcluded}
-                    title={errorMsg || ''}
+                    disabled={!interviewConcluded || isClosed}
+                    title={isClosed ? 'Listing closed' : errorMsg || ''}
                     onClick={() => {
                       setNextRoundName(rounds[currentRoundIdx + 1])
                       setScheduleInterviewOpen(true)
@@ -570,7 +601,7 @@ function ApplicantDetail({
               }
               return null
             })()}
-            <button className="cp-danger" disabled={!interviewConcluded} title={errorMsg || ''} onClick={() => setRejectOpen(true)} type="button">
+            <button className="cp-danger" disabled={!interviewConcluded || isClosed} title={isClosed ? 'Listing closed' : errorMsg || ''} onClick={() => setRejectOpen(true)} type="button">
               <XCircle size={13} /> Fail Interview
             </button>
           </>
@@ -585,6 +616,8 @@ function ApplicantDetail({
         {applicant.status !== 'Accepted' && applicant.status !== 'Rejected' && applicant.status !== 'Interview' && applicant.status !== 'Offer' && (
           <button
             className="cp-accept"
+            disabled={isClosed}
+            title={isClosed ? 'Listing closed' : ''}
             onClick={() => {
               const listing = listings.find((l) => l.title === applicant.role)
               const rounds = listing?.interviewProcess?.rounds ?? ['Interview']
@@ -593,7 +626,7 @@ function ApplicantDetail({
                   const acceptedCount = allApplicants.filter(a => a.role === listing.title && a.status === 'Accepted').length
                   const pendingOffers = allApplicants.filter(a => a.role === listing.title && a.status === 'Offer').length
                   if (acceptedCount + pendingOffers + 1 >= listing.slots) {
-                    setShowFinalOfferWarning(true)
+                    setFinalOfferApplicantId(applicant.id)
                   } else {
                     run(() => onSetStatus(applicant.id, 'Offer'))
                   }
@@ -609,13 +642,15 @@ function ApplicantDetail({
           </button>
         )}
         {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && applicant.status !== 'Interview' && applicant.status !== 'Offer' && (
-          <button className="cp-danger" onClick={() => setRejectOpen(true)} type="button">
+          <button className="cp-danger" disabled={isClosed} title={isClosed ? 'Listing closed' : ''} onClick={() => setRejectOpen(true)} type="button">
             <XCircle size={13} /> Reject
           </button>
         )}
         {applicant.status === 'Pending' && (
           <button
             className="cp-secondary"
+            disabled={isClosed}
+            title={isClosed ? 'Listing closed' : ''}
             onClick={() => run(() => onSetStatus(applicant.id, 'Reviewed'))}
             type="button"
           >
@@ -735,17 +770,25 @@ function ApplicantDetail({
                 <div>
                   <p style={{ margin: '0 0 4px 0', fontWeight: 500, fontSize: '14px', color: 'var(--text)' }}>{req.name}</p>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ 
-                      fontSize: '12px', padding: '2px 8px', borderRadius: '12px', fontWeight: 500,
-                      background: req.status === 'Approved' ? 'rgba(46, 160, 67, 0.15)' : req.status === 'Needs Revision' ? 'var(--brand-crimson)' : 'var(--bg)',
-                      color: req.status === 'Approved' ? '#3fb950' : req.status === 'Needs Revision' ? 'white' : 'var(--text-light)'
-                    }}>
-                      {req.status}
-                    </span>
-                    {req.fileUrl && (
-                      <button type="button" disabled={previewLoading} onClick={() => handleOpenDocument(req.fileUrl!, req.name)} style={{ background: 'transparent', border: 'none', color: 'var(--brand-orange)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Download size={12} /> {previewLoading ? 'Loading...' : 'View Submission'}
-                      </button>
+                    {req.isPrintable ? (
+                      <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', fontWeight: 500, background: 'var(--bg)', color: 'var(--text-light)' }}>
+                        To be submitted in person
+                      </span>
+                    ) : (
+                      <>
+                        <span style={{ 
+                          fontSize: '12px', padding: '2px 8px', borderRadius: '12px', fontWeight: 500,
+                          background: req.status === 'Approved' ? 'rgba(46, 160, 67, 0.15)' : req.status === 'Needs Revision' ? 'var(--brand-crimson)' : 'var(--bg)',
+                          color: req.status === 'Approved' ? '#3fb950' : req.status === 'Needs Revision' ? 'white' : 'var(--text-light)'
+                        }}>
+                          {req.status}
+                        </span>
+                        {req.fileUrl && (
+                          <button type="button" disabled={previewLoading} onClick={() => handleOpenDocument(req.fileUrl!, req.name)} style={{ background: 'transparent', border: 'none', color: 'var(--brand-orange)', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Download size={12} /> {previewLoading ? 'Loading...' : 'View Submission'}
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                   {req.status === 'Needs Revision' && req.feedback && (
@@ -756,29 +799,31 @@ function ApplicantDetail({
                 </div>
                 
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {req.submissionId ? (
-                    <>
-                      {req.status !== 'Approved' && (
-                        <button
-                          type="button"
-                          onClick={() => run(() => onReviewSubmission(req.submissionId!, applicant.id, true))}
-                          style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
-                        >
-                          Approve
-                        </button>
-                      )}
-                      {req.status !== 'Needs Revision' && (
-                        <button
-                          type="button"
-                          onClick={() => setRevisionOpen(req.submissionId!)}
-                          style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
-                        >
-                          Needs Revision
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <span className="cp-muted" style={{ fontSize: '12px' }}>Awaiting submission</span>
+                  {!req.isPrintable && (
+                    req.submissionId ? (
+                      <>
+                        {req.status !== 'Approved' && (
+                          <button
+                            type="button"
+                            onClick={() => run(() => onReviewSubmission(req.submissionId!, applicant.id, true))}
+                            style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: 'var(--brand-orange)', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {req.status !== 'Needs Revision' && (
+                          <button
+                            type="button"
+                            onClick={() => setRevisionOpen(req.submissionId!)}
+                            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}
+                          >
+                            Needs Revision
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <span style={{ fontSize: '12px', color: 'var(--text-light)' }}>Waiting for student</span>
+                    )
                   )}
                 </div>
               </div>
@@ -972,6 +1017,19 @@ function ApplicantDetail({
             setPreviewUrl(null)
             setPreviewDownloadUrl(null)
             setPreviewName('')
+          }}
+        />
+      )}
+      
+      {finalOfferApplicantId && (
+        <FinalOfferModal
+          onClose={() => setFinalOfferApplicantId(null)}
+          onSubmit={() => {
+            const listing = listings.find(l => l.title === applicant.role)
+            const days = listing?.offerDeadlineDays || 3
+            const expiresAt = new Date(Date.now() + days * 86400000).toISOString()
+            run(() => onSetStatus(applicant.id, 'Offer', undefined, JSON.stringify({ expiresAt })))
+            setFinalOfferApplicantId(null)
           }}
         />
       )}
@@ -1358,7 +1416,18 @@ function BulkRejectModal({
   onSubmit: (template: string) => void
 }) {
   useScrollLock()
-  const [feedback, setFeedback] = useState('Thank you for applying. Unfortunately, we have decided to move forward with other candidates at this time.')
+  const [feedback, setFeedback] = useState(`Dear {Student Name},
+
+Thank you for your interest in the {Internship Title} position at {Company Name}.
+
+The hiring process for this internship has now been completed, and all available internship positions have been filled. As a result, your application will no longer be considered for this listing.
+
+We truly appreciate your interest in joining our organization and encourage you to explore other internship opportunities available through InternConnect.
+
+We wish you all the best in your future endeavors.
+
+Regards,
+{Company Name}`)
 
   return (
     <div
@@ -1371,12 +1440,12 @@ function BulkRejectModal({
         <h3 style={{ margin: '0 0 16px', color: 'var(--brand-brown)' }}>Reject {count} Applicants</h3>
         <p className="cp-muted" style={{ marginBottom: 16 }}>
           Send a standard rejection message to all {count} selected candidates. 
-          Use <code>{'{Applicant Name}'}</code> to automatically insert their name.
+          Use <code>{'{Student Name}'}</code> to automatically insert their name.
         </p>
         <textarea
           onChange={(e) => setFeedback(e.target.value)}
           placeholder="Feedback (optional)"
-          style={{ width: '100%', minHeight: 100, marginBottom: 16, fontFamily: 'inherit', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}
+          style={{ width: '100%', minHeight: 250, marginBottom: 16, fontFamily: 'inherit', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}
           value={feedback}
         />
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
@@ -1399,10 +1468,20 @@ function AutoRejectModal({
 }: {
   info: { listing: CompanyListing; count: number; pendingIds: string[] }
   onClose: () => void
-  onSubmit: (template: string) => void
+  onSubmit: (template: string) => Promise<void> | void
 }) {
   useScrollLock()
   const [feedback, setFeedback] = useState('Thank you for your interest in the ' + info.listing.title + ' position. Unfortunately, we have already filled all available slots for this role and are no longer accepting candidates. We wish you the best in your internship search!')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true)
+    try {
+      await onSubmit(feedback)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div
@@ -1426,11 +1505,11 @@ function AutoRejectModal({
           value={feedback}
         />
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-          <button className="cp-secondary" onClick={onClose} type="button">
+          <button className="cp-secondary" onClick={onClose} type="button" disabled={isSubmitting}>
             Cancel
           </button>
-          <button className="cp-danger" onClick={() => onSubmit(feedback)} type="button">
-            Reject Pending & Close Hiring
+          <button className="cp-danger" onClick={handleSubmit} type="button" disabled={isSubmitting}>
+            {isSubmitting ? 'Closing...' : 'Reject Pending & Close Hiring'}
           </button>
         </div>
       </div>

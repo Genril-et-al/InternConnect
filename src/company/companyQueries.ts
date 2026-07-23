@@ -198,6 +198,7 @@ export async function createListing(companyId: string, input: NewListingInput): 
         is_printable: r.isPrintable,
       })),
     )
+    if (reqError) throw new Error(reqError.message)
   }
 }
 
@@ -230,6 +231,32 @@ export async function updateListing(listingId: string, input: NewListingInput): 
     if (reqError) throw new Error(reqError.message)
   }
 }
+
+export async function checkAndCloseHiring(listingId: string): Promise<void> {
+  const { data: listing } = await supabase.from('listings').select('slots').eq('id', listingId).single()
+  if (!listing) return
+  
+  const { data: accepted } = await supabase.from('applications').select('id').eq('listing_id', listingId).eq('status', 'accepted')
+  if (accepted && accepted.length >= listing.slots) {
+    await supabase.from('listings').update({ status: 'closed' }).eq('id', listingId)
+    
+    const { data: pending } = await supabase.from('applications')
+      .select('id')
+      .eq('listing_id', listingId)
+      .in('status', ['pending', 'interview_scheduled'])
+      
+    if (pending && pending.length > 0) {
+      const pendingIds = pending.map(p => p.id)
+      const rejectionReason = "Thank you for your interest. However, this position has been filled."
+      
+      const promises = pendingIds.map(id => 
+        supabase.from('applications').update({ status: 'rejected', feedback: rejectionReason }).eq('id', id)
+      )
+      await Promise.all(promises)
+    }
+  }
+}
+
 
 
 export async function setListingStatus(
@@ -281,7 +308,7 @@ type ApplicantRow = {
   listings: {
     title: string
     skills: string[]
-    listing_requirements: { id: string; name: string }[]
+    listing_requirements: { id: string; name: string; is_printable: boolean }[]
   } | null
   requirement_submissions: {
     id: string
@@ -297,7 +324,7 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
     .from('applications')
     .select(
       'id, listing_id, student_id, status, feedback, next_step, created_at, ' +
-        'listings!inner(title, skills, company_id, listing_requirements(id, name)), ' +
+        'listings!inner(title, skills, company_id, listing_requirements(id, name, is_printable)), ' +
         'requirement_submissions(id, requirement_id, status, file_path, text_value)',
     )
     .eq('listings.company_id', companyId)
@@ -345,6 +372,7 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
               : 'Pending',
         fileUrl: sub?.file_path ?? undefined,
         feedback: sub?.status === 'rejected' ? (parsedFeedback[q.id] ?? undefined) : undefined,
+        isPrintable: q.is_printable,
       }
     })
     return {
@@ -489,6 +517,17 @@ export async function reviewSubmission(
         .update({ feedback: JSON.stringify(parsedFeedback) })
         .eq('id', applicationId)
       if (appErr) throw new Error(appErr.message)
+    }
+  }
+
+  if (approve) {
+    const { data: appData } = await supabase
+      .from('applications')
+      .select('listing_id')
+      .eq('id', applicationId)
+      .single()
+    if (appData) {
+      await checkAndCloseHiring(appData.listing_id)
     }
   }
 }

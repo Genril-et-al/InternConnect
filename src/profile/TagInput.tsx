@@ -84,13 +84,22 @@ export function TagInput({
   }, [highlightIndex])
 
   function add(raw: string) {
-    const value = raw.trim().replace(/,$/, '').trim()
-    if (!value) return
-    if (tags.some((t) => t.toLowerCase() === value.toLowerCase())) {
-      setDraft('')
-      return
+    const rawValues = raw.split(',').map(v => v.trim()).filter(Boolean)
+    if (rawValues.length === 0) return
+
+    const nextTags = [...tags]
+    let changed = false
+    
+    for (const value of rawValues) {
+      if (!nextTags.some((t) => t.toLowerCase() === value.toLowerCase())) {
+        nextTags.push(value)
+        changed = true
+      }
     }
-    onChange([...tags, value])
+    
+    if (changed) {
+      onChange(nextTags)
+    }
     setDraft('')
     setShowDropdown(false)
     setHighlightIndex(-1)
@@ -185,6 +194,13 @@ export function TagInput({
               onBlur={handleBlur}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={(e) => {
+                const pastedText = e.clipboardData.getData('Text')
+                if (pastedText.includes(',')) {
+                  e.preventDefault()
+                  add(pastedText)
+                }
+              }}
               placeholder={tags.length ? 'Add a skill…' : placeholder}
               ref={inputRef}
               value={draft}

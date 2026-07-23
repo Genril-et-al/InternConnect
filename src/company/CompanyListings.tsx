@@ -145,7 +145,7 @@ export function CompanyListings({
                   ))}
                 </div>
                 
-                <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-light)' }}>
+                <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-light)', whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {l.description}
                 </p>
               </div>
@@ -260,10 +260,10 @@ function PreviewListingView({
           <span className={`status ${statusVariant}`}>{listing.status}</span>
         </div>
 
-        <section className="listing-preview-card">
-          <h4>Description</h4>
-          <p className="listing-preview-description">{listing.description}</p>
-        </section>
+        <div className="listing-preview-card">
+          <h4 style={{ margin: '0 0 12px 0', color: 'var(--brand-brown)' }}>Description</h4>
+          <p className="listing-preview-description" style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{listing.description}</p>
+        </div>
 
         <div className="listing-preview-card listing-preview-grid">
           <div>
@@ -297,12 +297,17 @@ function PreviewListingView({
             </p>
             <div className="listing-preview-reqs">
               {listing.requirements.map(req => (
-                <div key={req.id}>
+                <div key={req.id} style={{ marginBottom: '12px' }}>
                   <span className="listing-preview-req-name">{req.name}</span>
                   <span className="listing-preview-req-meta">
                     {req.type === 'file' ? 'File upload' : 'Text instruction'}
                     {req.isPrintable && ' · Needs to be printed'}
                   </span>
+                  {req.description && (
+                    <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-light)', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                      {req.description}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -332,7 +337,16 @@ function PostListingModal({
   const [department, setDepartment] = useState(initialListing?.department || '')
   const [slots, setSlots] = useState(initialListing?.slots.toString() || '1')
   const [deadline, setDeadline] = useState(initialListing?.deadline || '')
-  const [skills, setSkills] = useState<string[]>(initialListing?.skills || [])
+  const [skills, setSkills] = useState<string[]>(() => {
+    const initial = initialListing?.skills || []
+    const splitTags = new Set<string>()
+    for (const skill of initial) {
+      for (const part of skill.split(',')) {
+        if (part.trim()) splitTags.add(part.trim())
+      }
+    }
+    return Array.from(splitTags)
+  })
   const [description, setDescription] = useState(initialListing?.description || '')
   const [hasAllowance, setHasAllowance] = useState(false)
   const [offerDeadlineDays, setOfferDeadlineDays] = useState(initialListing?.offerDeadlineDays?.toString() || '3')
@@ -387,7 +401,7 @@ function PostListingModal({
         publish: publishImmediately,
         requirements: requirements
           .filter(r => r.name.trim() !== '')
-          .map(r => ({ name: r.name.trim(), type: r.type, isPrintable: r.isPrintable })),
+          .map(r => ({ name: r.name.trim(), type: r.type, isPrintable: r.isPrintable, description: r.description?.trim() })),
         interviewProcess: {
           rounds: interviewMode === 'none' ? [] : interviewMode === 'single' ? ['Interview'] : interviewRounds.filter(r => r.trim() !== '')
         }

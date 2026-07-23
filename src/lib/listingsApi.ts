@@ -186,12 +186,14 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
   if (error) throw new Error(error.message)
   return ((data ?? []) as unknown as ApplicationRow[]).map((r) => {
     let parsedFeedback: Record<string, string> = {}
+    let generalFeedback: string | undefined = undefined
     if (r.feedback) {
       try {
         parsedFeedback = JSON.parse(r.feedback)
       } catch {
         // Not a JSON object — a legacy plain-text rejection reason. Leave the
         // per-requirement map empty.
+        generalFeedback = r.feedback
       }
     }
 
@@ -226,6 +228,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
       dateApplied: formatDate(r.created_at),
       status: STATUS_LABELS[r.status] ?? 'Pending',
       nextStep: r.next_step ?? '',
+      feedback: generalFeedback,
       requirements: reqs,
       approvedRequirements: approved,
     }
@@ -359,10 +362,12 @@ export async function rejectOffer(applicationId: string) {
 /** Accept an internship offer (UC-S04). All other pending applications will be discarded. */
 export async function acceptOffer(studentId: string, applicationId: string) {
   // Update the accepted application
-  const { error: acceptError } = await supabase
+  const { data: acceptedApp, error: acceptError } = await supabase
     .from('applications')
     .update({ status: 'accepted' })
     .eq('id', applicationId)
+    .select('listing_id')
+    .single()
   
   if (acceptError) throw new Error(acceptError.message)
 
@@ -391,7 +396,7 @@ export async function acceptOffer(studentId: string, applicationId: string) {
 
   const { data: appData } = await supabase.from('applications').select('listing_id').eq('id', applicationId).single()
   if (appData) {
-    await checkAndCloseHiring(appData.listing_id)
+    await supabase.rpc('check_and_close_listing', { p_listing_id: appData.listing_id })
   }
 }
 
