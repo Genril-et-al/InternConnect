@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { CheckCircle2, FileText, Upload, Pencil } from 'lucide-react'
 import { PhotoLightbox } from '../components/PhotoLightbox'
+import { AutocompleteInput } from '../components/AutocompleteInput'
 import { TagInput } from '../profile/TagInput'
+import { SPECIALIZATION_SUGGESTIONS, COMPANY_SUGGESTIONS } from '../lib/suggestions'
 import { useAuth } from '../auth/context'
 import { uploadAvatar, removeAvatar } from '../lib/profile'
 import { supabase } from '../lib/supabase'
@@ -191,7 +193,11 @@ export function CompanyProfileView() {
         <div className="cp-form-grid">
           <label>
             Company Name
-            <input onChange={(e) => setName(e.target.value)} value={name} />
+            <AutocompleteInput
+              onChange={setName}
+              suggestions={COMPANY_SUGGESTIONS}
+              value={name}
+            />
           </label>
           <label>
             Industry
@@ -231,6 +237,7 @@ export function CompanyProfileView() {
           onChange={setSpecialties}
           placeholder="Type a field and press Enter (e.g. Frontend, Marketing)"
           tags={specialties}
+          suggestions={SPECIALIZATION_SUGGESTIONS}
         />
       </section>
 

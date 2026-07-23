@@ -16,6 +16,7 @@ import { useAuth } from '../auth/context'
 import { SignOutButton } from '../components/SignOutButton'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { TagInput } from './TagInput'
+import { SKILL_SUGGESTIONS, SPECIALIZATION_SUGGESTIONS } from '../lib/suggestions'
 import { PhotoLightbox } from '../components/PhotoLightbox'
 import { Pencil, Trash2 } from 'lucide-react'
 import './profile.css'
@@ -225,8 +226,14 @@ export function ProfileSetup({
       } else {
         setAiSkills(result.skills)
         setAiSpecializations(result.specializations)
-        setSkills((prev) => [...result.skills, ...prev.filter(s => !result.skills.some(rs => rs.toLowerCase() === s.toLowerCase()))])
-        setSpecializations((prev) => [...result.specializations, ...prev.filter(s => !result.specializations.some(rs => rs.toLowerCase() === s.toLowerCase()))])
+        setSkills((prev) => {
+          const oldManualSkills = prev.filter(s => !aiSkills.some(oldAi => oldAi.toLowerCase() === s.toLowerCase()))
+          return [...result.skills, ...oldManualSkills.filter(s => !result.skills.some(rs => rs.toLowerCase() === s.toLowerCase()))]
+        })
+        setSpecializations((prev) => {
+          const oldManualSpecializations = prev.filter(s => !aiSpecializations.some(oldAi => oldAi.toLowerCase() === s.toLowerCase()))
+          return [...result.specializations, ...oldManualSpecializations.filter(s => !result.specializations.some(rs => rs.toLowerCase() === s.toLowerCase()))]
+        })
         setResumeRejected(null)
       }
       // Deliberately no refreshProfile() here. The extracted skills live in
@@ -246,17 +253,44 @@ export function ProfileSetup({
    * rejected before it has even been analyzed.
    */
   function handlePickResume(file: File | null) {
-    setResume(file)
     if (file) {
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        setError('Only PDF files are supported for resume uploads.')
+        return
+      }
+      setResume(file)
       setResumeRejected(null)
       setError('')
+    } else {
+      setResume(null)
     }
+  }
 
+  function handlePickPortfolio(file: File | null) {
+    if (file) {
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        setError('Only PDF files are supported for portfolio uploads.')
+        return
+      }
+      setPortfolioFile(file)
+      setError('')
+    } else {
+      setPortfolioFile(null)
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
     setError('')
+
+    if (!address.trim()) {
+      setError('Please provide your address.')
+      return
+    }
+    if (!contactNumber.trim()) {
+      setError('Please provide your contact number.')
+      return
+    }
 
     // Required fields (UC-S02). When a new resume is attached, the AI analysis
     // below may fill these in — so only hard-require them if there's no resume
@@ -356,8 +390,12 @@ export function ProfileSetup({
           // student sees the combined list and can edit it afterwards.
           finalAiSkills = result.skills
           finalAiSpecializations = result.specializations
-          mergedSkills = [...result.skills, ...skills.filter(s => !result.skills.some(rs => rs.toLowerCase() === s.toLowerCase()))]
-          mergedSpecializations = [...result.specializations, ...specializations.filter(s => !result.specializations.some(rs => rs.toLowerCase() === s.toLowerCase()))]
+          
+          const oldManualSkills = skills.filter(s => !aiSkills.some(oldAi => oldAi.toLowerCase() === s.toLowerCase()))
+          mergedSkills = [...result.skills, ...oldManualSkills.filter(s => !result.skills.some(rs => rs.toLowerCase() === s.toLowerCase()))]
+          
+          const oldManualSpecializations = specializations.filter(s => !aiSpecializations.some(oldAi => oldAi.toLowerCase() === s.toLowerCase()))
+          mergedSpecializations = [...result.specializations, ...oldManualSpecializations.filter(s => !result.specializations.some(rs => rs.toLowerCase() === s.toLowerCase()))]
           setAiSkills(finalAiSkills)
           setAiSpecializations(finalAiSpecializations)
           setSkills(mergedSkills)
@@ -549,11 +587,25 @@ export function ProfileSetup({
         </div>
       </section>
 
+      {/* University */}
+      <section className="profile-section">
+        <div className="profile-section-head">
+          <h2>University</h2>
+          <span className="profile-optional">Locked</span>
+        </div>
+        <div className="profile-name-grid">
+          <label className="profile-field-span">
+            University
+            <input disabled value="Cebu Institute of Technology – University" />
+          </label>
+        </div>
+      </section>
+
       {/* Personal Information */}
       <section className="profile-section">
         <div className="profile-section-head">
           <h2>Personal Information</h2>
-          <span className="profile-optional">Optional · editable anytime</span>
+          <span className="profile-required">Required</span>
         </div>
         <div className="profile-personal-grid">
           <label>
@@ -581,10 +633,11 @@ export function ProfileSetup({
             </div>
           </label>
           <label className="profile-field-span">
-            Address
+            Address <span style={{ color: 'var(--brand-crimson)' }}>*</span>
             <input
               onChange={(e) => setAddress(e.target.value)}
               placeholder="City, Province"
+              required
               value={address}
             />
           </label>
@@ -598,10 +651,11 @@ export function ProfileSetup({
             />
           </label>
           <label>
-            Contact Number
+            Contact Number <span style={{ color: 'var(--brand-crimson)' }}>*</span>
             <input
               onChange={(e) => setContactNumber(e.target.value)}
               placeholder="09..."
+              required
               type="tel"
               value={contactNumber}
             />
@@ -619,6 +673,7 @@ export function ProfileSetup({
           placeholder="Type a skill and press Enter (e.g. React, SQL, Figma)"
           tags={skills}
           lockedTags={aiSkills}
+          suggestions={SKILL_SUGGESTIONS}
         />
         <p className="profile-info-subtext" style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
           Faded tags represent skills automatically extracted from your resume and cannot be removed. You can still manually add additional skills and remove them.
@@ -635,6 +690,7 @@ export function ProfileSetup({
           placeholder="e.g. Marketing, Frontend, Backend, Software Dev"
           tags={specializations}
           lockedTags={aiSpecializations}
+          suggestions={SPECIALIZATION_SUGGESTIONS}
         />
         <p className="profile-info-subtext" style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
           Faded tags represent specializations automatically extracted from your resume and cannot be removed. You can still manually add additional specializations and remove them.
@@ -647,7 +703,7 @@ export function ProfileSetup({
           <h2>Resume & Cover Letter</h2>
         </div>
         <div style={{ marginBottom: '24px' }}>
-          <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Resume <span className="profile-optional" style={{ fontWeight: 400 }}>PDF or DOCX</span></h4>
+          <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Resume <span className="profile-optional" style={{ fontWeight: 400 }}>PDF</span></h4>
           <div>
             {resume || profile?.resume_url ? (
               <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'default' }}>
@@ -686,7 +742,7 @@ export function ProfileSetup({
                   <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
                     Change
                     <input
-                      accept=".pdf,.doc,.docx"
+                      accept=".pdf"
                       hidden
                       onChange={(e) => {
                         handlePickResume(e.target.files?.[0] ?? null)
@@ -700,7 +756,7 @@ export function ProfileSetup({
             ) : (
               <label className="profile-upload block">
                 <input
-                  accept=".pdf,.doc,.docx"
+                  accept=".pdf"
                   hidden
                   onChange={(e) => {
                     handlePickResume(e.target.files?.[0] ?? null)
@@ -708,7 +764,7 @@ export function ProfileSetup({
                   }}
                   type="file"
                 />
-                {resumeRejected ? 'Upload a new resume' : 'Upload resume'}
+                {resumeRejected ? 'Upload a new PDF resume' : 'Upload PDF resume'}
               </label>
             )}
           </div>
@@ -822,9 +878,9 @@ export function ProfileSetup({
               <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
                 Change
                 <input
-                  accept=".pdf,.zip,.doc,.docx"
+                  accept=".pdf"
                   hidden
-                  onChange={(e) => setPortfolioFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => handlePickPortfolio(e.target.files?.[0] ?? null)}
                   type="file"
                 />
               </label>
@@ -832,9 +888,9 @@ export function ProfileSetup({
           ) : (
             <label className="profile-upload block">
               <input
-                accept=".pdf,.zip,.doc,.docx"
+                accept=".pdf"
                 hidden
-                onChange={(e) => setPortfolioFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => handlePickPortfolio(e.target.files?.[0] ?? null)}
                 type="file"
               />
               Upload portfolio file
