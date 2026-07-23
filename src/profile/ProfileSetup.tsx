@@ -650,7 +650,18 @@ export function ProfileSetup({
         <div className="profile-name-grid">
           <label className="profile-field-span">
             University
-            <input disabled value="Cebu Institute of Technology – University" />
+            <input
+              disabled
+              value={profile?.university ?? 'Cebu Institute of Technology – University'}
+            />
+          </label>
+          <label className="profile-field-span">
+            Course / Programme
+            <input disabled value={profile?.course ?? '—'} />
+          </label>
+          <label className="profile-field-span">
+            Year Level
+            <input disabled value={profile?.year_level ?? '—'} />
           </label>
         </div>
       </section>

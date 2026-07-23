@@ -48,6 +48,9 @@ export type Profile = {
   middle_initial: string | null
   last_name: string | null
   suffix: string | null
+  course: string | null
+  year_level: string | null
+  university: string | null
   age: number | null
   gender: string | null
   address: string | null
