@@ -1,5 +1,475 @@
 {
   "_readme": "AI-generated skill edges. DO NOT EDIT BY HAND. Written by `npm run skills:learn`. Seed edges in skillTaxonomy.ts always win over anything here. Safe to reset to {} — the app falls back to the seed taxonomy alone.",
-  "generatedAt": null,
-  "edges": {}
+  "generatedAt": "2026-07-23T19:05:27.130Z",
+  "edges": {
+    "network troubleshooting": [
+      "networking",
+      "network engineering"
+    ],
+    "switching": [
+      "networking",
+      "network engineering"
+    ],
+    "windows server": [
+      "infrastructure"
+    ],
+    "basic electronics": [
+      "electronics design",
+      "hardware engineering"
+    ],
+    "basic pcb design": [
+      "pcb design",
+      "electronics design"
+    ],
+    "circuit analysis": [
+      "electronics design",
+      "hardware engineering"
+    ],
+    "microcontrollers": [
+      "microcontroller"
+    ],
+    "wi fi networking": [
+      "networking",
+      "telecommunications"
+    ],
+    "3d printing": [
+      "hardware engineering"
+    ],
+    "actuators": [
+      "robotics",
+      "hardware engineering"
+    ],
+    "ansible": [
+      "devops",
+      "automation engineering"
+    ],
+    "antenna theory": [
+      "rf engineering",
+      "telecommunications"
+    ],
+    "arduino ide": [
+      "arduino",
+      "embedded software"
+    ],
+    "assembly": [
+      "computer organization",
+      "software development"
+    ],
+    "ate": [
+      "hardware engineering"
+    ],
+    "atoll": [
+      "rf engineering",
+      "telecommunications"
+    ],
+    "auditing": [
+      "root cause analysis"
+    ],
+    "autocad": [
+      "hardware engineering"
+    ],
+    "avr": [
+      "microcontroller"
+    ],
+    "bom management": [
+      "hardware engineering",
+      "dfm"
+    ],
+    "cabling": [
+      "networking",
+      "infrastructure"
+    ],
+    "cad": [
+      "hardware engineering"
+    ],
+    "calibration": [
+      "hardware engineering"
+    ],
+    "cisco packet tracer": [
+      "networking",
+      "ccna"
+    ],
+    "cryptography": [
+      "network security",
+      "software development"
+    ],
+    "data labeling": [
+      "data",
+      "machine learning"
+    ],
+    "datasheets": [
+      "electronics design",
+      "hardware engineering"
+    ],
+    "debugging": [
+      "software development",
+      "embedded software"
+    ],
+    "deep learning": [
+      "machine learning",
+      "artificial intelligence"
+    ],
+    "device drivers": [
+      "embedded software"
+    ],
+    "diagramming": [
+      "ui/ux design"
+    ],
+    "digital logic design": [
+      "hardware engineering",
+      "computer organization"
+    ],
+    "drive testing": [
+      "rf engineering",
+      "telecommunications"
+    ],
+    "ekahau": [
+      "networking",
+      "rf engineering"
+    ],
+    "electrical characterization": [
+      "electronics design",
+      "hardware engineering"
+    ],
+    "electronics": [
+      "electronics design",
+      "hardware engineering"
+    ],
+    "esd control": [
+      "electronics design",
+      "hardware engineering"
+    ],
+    "fastapi": [
+      "backend development",
+      "python",
+      "api development"
+    ],
+    "fiber optics": [
+      "telecommunications",
+      "networking"
+    ],
+    "firewalls": [
+      "network security",
+      "networking"
+    ],
+    "firmware engineering": [
+      "firmware development",
+      "embedded software"
+    ],
+    "gazebo": [
+      "robotics software",
+      "ros"
+    ],
+    "gis": [
+      "data analytics",
+      "data"
+    ],
+    "hardware design": [
+      "hardware engineering",
+      "electronics design"
+    ],
+    "hfss": [
+      "rf engineering"
+    ],
+    "high speed design": [
+      "pcb design",
+      "electronics design"
+    ],
+    "impedance control": [
+      "pcb design",
+      "electronics design"
+    ],
+    "internet of things (iot)": [
+      "iot",
+      "internet of things"
+    ],
+    "iot development": [
+      "iot"
+    ],
+    "iso 9001": [
+      "dfm"
+    ],
+    "kinematics": [
+      "robotics"
+    ],
+    "lean manufacturing": [
+      "automation engineering",
+      "dfm"
+    ],
+    "lorawan": [
+      "iot",
+      "telecommunications"
+    ],
+    "ltspice": [
+      "electronics design",
+      "schematic capture"
+    ],
+    "markdown": [
+      "software development"
+    ],
+    "materials science": [
+      "hardware engineering"
+    ],
+    "measurement": [
+      "electronics design",
+      "hardware engineering"
+    ],
+    "mechanical design": [
+      "hardware engineering"
+    ],
+    "microscopy": [
+      "hardware engineering"
+    ],
+    "mlflow": [
+      "machine learning",
+      "devops"
+    ],
+    "monitoring": [
+      "devops",
+      "infrastructure"
+    ],
+    "multimeter": [
+      "electronics design",
+      "hardware engineering"
+    ],
+    "netmiko": [
+      "network engineering",
+      "python",
+      "automation engineering"
+    ],
+    "oscilloscope": [
+      "electronics design",
+      "hardware engineering"
+    ],
+    "otdr": [
+      "telecommunications",
+      "networking"
+    ],
+    "path planning": [
+      "robotics software",
+      "algorithms"
+    ],
+    "penetration testing": [
+      "network security"
+    ],
+    "physics simulation": [
+      "robotics",
+      "matlab"
+    ],
+    "pic microcontrollers": [
+      "microcontroller"
+    ],
+    "pneumatics": [
+      "automation engineering"
+    ],
+    "postgresql": [
+      "databases",
+      "sql"
+    ],
+    "preventive maintenance": [
+      "automation engineering",
+      "infrastructure"
+    ],
+    "process control": [
+      "automation engineering"
+    ],
+    "proteus": [
+      "electronics design",
+      "schematic capture"
+    ],
+    "pytorch": [
+      "machine learning",
+      "artificial intelligence",
+      "python"
+    ],
+    "quality control": [
+      "dfm",
+      "root cause analysis"
+    ],
+    "quantization": [
+      "model optimization",
+      "edge ai",
+      "machine learning"
+    ],
+    "react native": [
+      "react",
+      "frontend development"
+    ],
+    "rest api": [
+      "api development",
+      "backend development"
+    ],
+    "rest apis": [
+      "api development",
+      "backend development"
+    ],
+    "rework": [
+      "soldering",
+      "hardware engineering"
+    ],
+    "rf planning": [
+      "rf engineering",
+      "telecommunications"
+    ],
+    "robot programming": [
+      "robotics software",
+      "robotics"
+    ],
+    "routing": [
+      "networking",
+      "network engineering"
+    ],
+    "safety": [
+      "automation engineering"
+    ],
+    "sem": [
+      "hardware engineering"
+    ],
+    "semiconductor test": [
+      "hardware engineering",
+      "electronics design"
+    ],
+    "sensors": [
+      "iot"
+    ],
+    "siemens tia": [
+      "plc",
+      "automation engineering"
+    ],
+    "signal integrity": [
+      "pcb design",
+      "electronics design"
+    ],
+    "simulation": [
+      "matlab"
+    ],
+    "splicing": [
+      "telecommunications",
+      "networking"
+    ],
+    "standards compliance": [
+      "dfm"
+    ],
+    "stm32": [
+      "arm cortex m",
+      "microcontroller"
+    ],
+    "technical writing": [
+      "software development"
+    ],
+    "tems": [
+      "rf engineering",
+      "telecommunications"
+    ],
+    "test automation": [
+      "devops",
+      "ci/cd"
+    ],
+    "testing": [
+      "software development",
+      "hardware engineering"
+    ],
+    "thermal analysis": [
+      "pcb design",
+      "hardware engineering"
+    ],
+    "ticketing": [
+      "jira"
+    ],
+    "troubleshooting": [
+      "root cause analysis"
+    ],
+    "uart/spi/i2c": [
+      "uart",
+      "spi",
+      "i2c"
+    ],
+    "ubuntu": [
+      "linux"
+    ],
+    "vendor research": [
+      "hardware engineering"
+    ],
+    "verilog": [
+      "hardware engineering"
+    ],
+    "wi fi": [
+      "networking",
+      "telecommunications"
+    ],
+    "wiring": [
+      "hardware engineering",
+      "electronics design"
+    ],
+    "yocto": [
+      "embedded software",
+      "linux"
+    ],
+    "zigbee": [
+      "iot",
+      "telecommunications"
+    ],
+    "chart js": [
+      "frontend development"
+    ],
+    "cypress": [
+      "frontend development",
+      "web development"
+    ],
+    "eagle": [
+      "pcb design",
+      "schematic capture"
+    ],
+    "jest": [
+      "frontend development"
+    ],
+    "keil uvision": [
+      "embedded software",
+      "c/c++"
+    ],
+    "logisim": [
+      "computer organization",
+      "electronics design"
+    ],
+    "mplab x": [
+      "embedded software",
+      "microcontroller programming"
+    ],
+    "npm": [
+      "node js"
+    ],
+    "redux": [
+      "react",
+      "frontend development"
+    ],
+    "software engineering": [
+      "software development"
+    ],
+    "team collaboration": [
+      "agile"
+    ],
+    "technical documentation": [
+      "software development"
+    ],
+    "vercel": [
+      "frontend development",
+      "devops"
+    ],
+    "vhdl": [
+      "hardware engineering"
+    ],
+    "vite": [
+      "frontend development"
+    ],
+    "web accessibility": [
+      "frontend development",
+      "web development"
+    ],
+    "webpack": [
+      "frontend development"
+    ],
+    "yarn": [
+      "node js"
+    ]
+  }
 }
