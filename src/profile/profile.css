@@ -184,6 +184,15 @@
   grid-template-columns: 1fr 72px 1fr 1fr;
 }
 
+/* University & Program: full-width university, then course/year side by side.
+   A dedicated grid so the year field doesn't inherit the narrow 72px M.I.
+   column from .profile-name-grid and clip "3rd Year". */
+.profile-programme-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+}
+
 /* Personal information grid */
 .profile-personal-grid {
   display: grid;
@@ -552,6 +561,10 @@
   .profile-name-grid label:nth-child(3),
   .profile-name-grid label:nth-child(4) {
     grid-column: 1 / -1;
+  }
+
+  .profile-programme-grid {
+    grid-template-columns: 1fr;
   }
 
   .profile-personal-grid {
