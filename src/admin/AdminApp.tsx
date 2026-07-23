@@ -105,7 +105,7 @@ export function AdminApp() {
     return () => { cancelled = true }
   }, [])
 
-  const name = profile?.full_name?.trim() || profile?.email || 'NLO Admin'
+  const name = profile?.full_name?.trim() || profile?.email || 'Admin'
 
   return (
     <div className={`ic-shell${collapsed ? ' sb-collapsed' : ''}`}>
@@ -153,7 +153,7 @@ export function AdminApp() {
           />
           <div className="ic-user-main">
             <p className="ic-user-name">{name}</p>
-            <p className="ic-user-role">NLO Admin</p>
+            <p className="ic-user-role">Admin</p>
           </div>
           <SignOutButton ariaLabel="Sign out" className="ic-signout">
             <LogOut size={15} />

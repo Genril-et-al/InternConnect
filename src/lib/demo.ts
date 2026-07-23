@@ -24,7 +24,6 @@ export const DEMO_STUDENT: Profile = {
   ai_skills: ['React', 'TypeScript'],
   ai_specializations: ['Frontend Development'],
   resume_url: 'chielsea_resume.pdf',
-  cover_letter_url: null,
   resume_status: 'analyzed',
   resume_analyzed_at: new Date().toISOString(),
   resume_ai_suggestion: null,
@@ -32,12 +31,16 @@ export const DEMO_STUDENT: Profile = {
   portfolio_file_url: null,
   profile_completed: true,
   is_active: true,
+  deactivation_reason: null,
+  course: 'BSIT',
+  year_level: '3rd Year',
+  university: 'Cebu Institute of Technology – University',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }
 
 /**
- * Demo NLO admin for temporary offline access to the admin portal.
+ * Demo admin for temporary offline access to the admin portal.
  * In the real backend, admins are seeded manually (never self-registered).
  */
 /** Demo company representative for offline access to the company portal. */
@@ -61,7 +64,6 @@ export const DEMO_COMPANY: Profile = {
   ai_skills: [],
   ai_specializations: [],
   resume_url: null,
-  cover_letter_url: null,
   resume_status: null,
   resume_analyzed_at: null,
   resume_ai_suggestion: null,
@@ -69,6 +71,10 @@ export const DEMO_COMPANY: Profile = {
   portfolio_file_url: null,
   profile_completed: true,
   is_active: true,
+  deactivation_reason: null,
+  course: null,
+  year_level: null,
+  university: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }
@@ -93,7 +99,6 @@ export const DEMO_ADMIN: Profile = {
   ai_skills: [],
   ai_specializations: [],
   resume_url: null,
-  cover_letter_url: null,
   resume_status: null,
   resume_analyzed_at: null,
   resume_ai_suggestion: null,
@@ -101,6 +106,10 @@ export const DEMO_ADMIN: Profile = {
   portfolio_file_url: null,
   profile_completed: true,
   is_active: true,
+  deactivation_reason: null,
+  course: null,
+  year_level: null,
+  university: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }

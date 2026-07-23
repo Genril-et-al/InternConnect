@@ -141,7 +141,7 @@ export function AdminReports({
           c.verification.charAt(0).toUpperCase() + c.verification.slice(1),
           c.submitted,
           c.verification === 'verified' ? c.submitted : '—',
-          c.verification === 'verified' ? 'NLO Admin' : '—',
+          c.verification === 'verified' ? 'Admin' : '—',
         ])
       return { headers, dataRows }
     }

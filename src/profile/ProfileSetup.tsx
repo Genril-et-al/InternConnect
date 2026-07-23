@@ -74,7 +74,6 @@ export function ProfileSetup({
   const [photoPreview, setPhotoPreview] = useState<string | null>(profile?.photo_url ?? null)
   const [showPhotoModal, setShowPhotoModal] = useState(false)
   const [resume, setResume] = useState<File | null>(null)
-  const [coverLetter, setCoverLetter] = useState<File | null>(null)
   const [portfolioLink, setPortfolioLink] = useState(profile?.portfolio_link ?? '')
   const [portfolioFile, setPortfolioFile] = useState<File | null>(null)
   const [portfolioFileRemoved, setPortfolioFileRemoved] = useState(false)
@@ -123,7 +122,6 @@ export function ProfileSetup({
     !sameTags(aiSpecializations, fallbackAiSpecializations) ||
     photo !== null ||
     resume !== null ||
-    coverLetter !== null ||
     portfolioFile !== null ||
     portfolioFileRemoved ||
     photoPreview !== (profile?.photo_url ?? null) ||
@@ -177,11 +175,6 @@ export function ProfileSetup({
       ? (last ? `${last}_resume.${profile.resume_url.split('.').pop()}` : profile.resume_url.split('/').pop())
       : null
 
-  const displayCoverLetterName = coverLetter
-    ? (last ? `${last}_cover_letter.${coverLetter.name.split('.').pop()}` : coverLetter.name)
-    : profile?.cover_letter_url
-      ? (last ? `${last}_cover_letter.${profile.cover_letter_url.split('.').pop()}` : profile.cover_letter_url.split('/').pop())
-      : null
 
   function handlePhoto(file: File | null) {
     setPhoto(file)
@@ -332,7 +325,6 @@ export function ProfileSetup({
         ai_specializations: aiSpecializations,
         photo_url: photoPreview ?? null,
         resume_url: resume ? resume.name : profile?.resume_url ?? null,
-        cover_letter_url: coverLetter ? coverLetter.name : profile?.cover_letter_url ?? null,
         portfolio_link: hasLink ? portfolioLink.trim() : null,
         portfolio_file_url: hasLink
           ? null
@@ -357,7 +349,6 @@ export function ProfileSetup({
     // the profile row commits, never before.
     const prevPhotoUrl = profile?.photo_url ?? null
     const prevResumePath = profile?.resume_url ?? null
-    const prevCoverLetterPath = profile?.cover_letter_url ?? null
     const prevPortfolioPath = profile?.portfolio_file_url ?? null
     try {
       const photoUrl = photo
@@ -366,9 +357,6 @@ export function ProfileSetup({
       const resumePath = resume
         ? await uploadDocument(userId, 'resume', resume)
         : profile?.resume_url ?? null
-      const coverLetterPath = coverLetter
-        ? await uploadDocument(userId, 'cover_letter', coverLetter)
-        : profile?.cover_letter_url ?? null
 
       // A new resume invalidates the previous AI verdict immediately, so a
       // stale rejection can't outlive the file it was about.
@@ -453,7 +441,6 @@ export function ProfileSetup({
         aiSpecializations: finalAiSpecializations,
         photoUrl,
         resumePath,
-        coverLetterPath,
         portfolioLink: hasLink ? portfolioLink.trim() : null,
         portfolioFilePath,
         age: age.trim() ? Number(age) : null,
@@ -468,7 +455,6 @@ export function ProfileSetup({
       // drop. Best-effort: an orphaned file is harmless, a missing one is not.
       try {
         if (resumePath !== prevResumePath) await removeDocument(userId, prevResumePath)
-        if (coverLetterPath !== prevCoverLetterPath) await removeDocument(userId, prevCoverLetterPath)
         if (portfolioFilePath !== prevPortfolioPath) await removeDocument(userId, prevPortfolioPath)
         if (photoUrl !== prevPhotoUrl) await removeAvatar(userId, prevPhotoUrl)
       } catch {
@@ -606,18 +592,37 @@ export function ProfileSetup({
         </div>
       </section>
 
-      {/* University */}
+      {/* University, Course & Year */}
       <section className="profile-section">
         <div className="profile-section-head">
-          <h2>University</h2>
+          <h2>University &amp; Programme</h2>
           <span className="profile-optional">Locked</span>
         </div>
         <div className="profile-name-grid">
           <label className="profile-field-span">
             University
-            <input disabled value="Cebu Institute of Technology – University" />
+            <input disabled value={profile?.university ?? 'Cebu Institute of Technology – University'} />
+          </label>
+          <label>
+            Course / Programme
+            <input
+              disabled
+              value={profile?.course ?? '—'}
+              title="Set by the admin when you were added to the roster. Contact the admin to correct it."
+            />
+          </label>
+          <label>
+            Year Level
+            <input
+              disabled
+              value={profile?.year_level ?? '—'}
+              title="Set by the admin when you were added to the roster. Contact the admin to correct it."
+            />
           </label>
         </div>
+        <p className="profile-info" style={{ marginTop: '8px', fontSize: '13px' }}>
+          Course and year level come from your registration record. If they don’t match your resume, contact the admin to have them corrected.
+        </p>
       </section>
 
       {/* Personal Information */}
@@ -716,10 +721,10 @@ export function ProfileSetup({
         </p>
       </section>
 
-      {/* Resume & Cover Letter — upload */}
+      {/* Resume — upload */}
       <section className="profile-section">
         <div className="profile-section-head">
-          <h2>Resume & Cover Letter</h2>
+          <h2>Resume</h2>
         </div>
         <div style={{ marginBottom: '24px' }}>
           <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Resume <span className="profile-optional" style={{ fontWeight: 400 }}>PDF</span></h4>
@@ -806,60 +811,7 @@ export function ProfileSetup({
           </p>
         </div>
 
-        <div>
-          <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>Cover Letter <span className="profile-optional" style={{ fontWeight: 400 }}>Optional · PDF only</span></h4>
-          {coverLetter || profile?.cover_letter_url ? (
-            <div className="profile-upload block" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'default' }}>
-              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (coverLetter) {
-                    window.open(URL.createObjectURL(coverLetter), '_blank')
-                  } else {
-                    handleViewDocument(profile?.cover_letter_url)
-                  }
-                }}
-                style={{ background: 'none', border: 'none', color: 'var(--brand-orange)', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}
-              >
-                {displayCoverLetterName}
-              </button>
-              {coverLetter && (
-                <span style={{ fontSize: '12px', color: 'var(--brand-orange)', fontWeight: 500 }}>
-                  New file selected: {coverLetter.name} — save to apply
-                </span>
-              )}
-              </span>
-              <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <label style={{ cursor: 'pointer', background: 'var(--surface)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-strong)' }}>
-                  Change
-                  <input
-                    accept=".pdf"
-                    hidden
-                    onChange={(e) => {
-                      setCoverLetter(e.target.files?.[0] ?? null)
-                      e.target.value = ''
-                    }}
-                    type="file"
-                  />
-                </label>
-              </span>
-            </div>
-          ) : (
-            <label className="profile-upload block">
-              <input
-                accept=".pdf"
-                hidden
-                onChange={(e) => {
-                  setCoverLetter(e.target.files?.[0] ?? null)
-                  e.target.value = ''
-                }}
-                type="file"
-              />
-              Upload cover letter
-            </label>
-          )}
-        </div>
+
       </section>
 
       {/* Portfolio — link OR file */}

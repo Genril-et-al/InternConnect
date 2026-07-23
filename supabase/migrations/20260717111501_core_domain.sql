@@ -200,7 +200,7 @@ set search_path = public
 as $$
 begin
   if new.verification is distinct from old.verification and not public.is_admin() then
-    raise exception 'Only the NLO admin can change company verification status';
+    raise exception 'Only the admin can change company verification status';
   end if;
   return new;
 end;
@@ -218,7 +218,7 @@ set search_path = public
 as $$
 begin
   if new.is_flagged is distinct from old.is_flagged and not public.is_admin() then
-    raise exception 'Only the NLO admin can flag or unflag a listing';
+    raise exception 'Only the admin can flag or unflag a listing';
   end if;
   return new;
 end;

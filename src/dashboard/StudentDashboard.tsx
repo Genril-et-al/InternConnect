@@ -7,6 +7,7 @@ import {
   Search,
   Send,
   XCircle,
+  MinusCircle,
 } from 'lucide-react'
 import { useAuth } from '../auth/context'
 import type { Application, Internship } from '../lib/mockData'
@@ -139,8 +140,9 @@ export function StudentDashboard({
   const visibleNotifications = combinedNotifications.slice(0, displayLimit)
   const combinedHasMore = hasMore || displayLimit < combinedNotifications.length
   const combinedCanCollapse = displayLimit > 10 || canCollapse
+  const withdrawn = applications.filter((a) => a.status === 'Withdrawn').length
   const rejected = applications.filter((a) => a.status === 'Rejected').length
-  const pending = applications.length - accepted - rejected
+  const pending = applications.length - accepted - rejected - withdrawn
 
   const firstName = profile?.first_name?.trim() || 'there'
 
@@ -208,6 +210,7 @@ export function StudentDashboard({
         <StatCard color="var(--brand-orange)" icon={CheckCircle2} label="Accepted" value={accepted} onClick={() => onFilterApplications?.('Accepted')} />
         <StatCard color="var(--brand-orange-soft)" icon={Clock} label="Pending" value={pending} onClick={() => onFilterApplications?.('Pending')} />
         <StatCard color="var(--brand-crimson)" icon={XCircle} label="Rejected" value={rejected} onClick={() => onFilterApplications?.('Rejected')} />
+        <StatCard color="var(--text-muted)" icon={MinusCircle} label="Withdrawn" value={withdrawn} onClick={() => onFilterApplications?.('Withdrawn')} />
       </div>
 
       {/* Profile completion */}

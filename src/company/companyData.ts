@@ -10,6 +10,7 @@ export type PreEmploymentRequirement = {
   /** Free-text instruction shown to the student alongside the requirement. */
   description?: string
   isPrintable: boolean
+  templateFileUrl?: string | null
 }
 
 export type CompanyListing = {
@@ -25,9 +26,10 @@ export type CompanyListing = {
   interviewProcess?: { rounds: string[] }
   /** Days an offer stays open before it expires; falls back to 3 when unset. */
   offerDeadlineDays?: number
+  hasAllowance?: boolean
 }
 
-export type ApplicantStatus = 'Pending' | 'Reviewed' | 'Interview' | 'Offer' | 'Accepted' | 'Rejected'
+export type ApplicantStatus = 'Pending' | 'Reviewed' | 'Interview' | 'Offer' | 'Accepted' | 'Rejected' | 'Withdrawn'
 
 /** A file the company sends to an accepted applicant (UC-C05 extension). */
 export type RequirementFile = {
@@ -44,6 +46,8 @@ export type SubmittedRequirement = {
   submissionId?: string
   fileUrl?: string
   isPrintable?: boolean
+  description?: string
+  templateFileUrl?: string | null
   /**
    * Why the submission was sent back, shown to the student on 'Needs Revision'.
    * Stored per-requirement in the applications.feedback JSON blob (keyed by
@@ -78,6 +82,11 @@ export type CompanyApplicant = {
   /** Additional requirement files sent when accepted (student can download). */
   requirements?: RequirementFile[]
   submittedRequirements?: SubmittedRequirement[]
+  photoUrl?: string | null
+  /** Course / programme from the student's registration record (e.g. "BSIT"). */
+  course?: string | null
+  /** Year level from the student's registration record (e.g. "3rd Year"). */
+  yearLevel?: string | null
 }
 
 export const MATCH_FILTERS: Record<string, number> = {

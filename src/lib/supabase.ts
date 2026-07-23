@@ -59,7 +59,6 @@ export type Profile = {
   ai_skills: string[]
   ai_specializations: string[]
   resume_url: string | null
-  cover_letter_url: string | null
   resume_status: 'pending_analysis' | 'analyzed' | 'no_skills_found' | null
   resume_analyzed_at: string | null
   resume_ai_suggestion: string | null
@@ -67,6 +66,13 @@ export type Profile = {
   portfolio_file_url: string | null
   profile_completed: boolean
   is_active: boolean
+  deactivation_reason: string | null
+  /** Course / programme copied from the approved_students roster at sign-up (e.g. "BSIT"). */
+  course: string | null
+  /** Year level copied from the approved_students roster at sign-up (e.g. "3rd Year"). */
+  year_level: string | null
+  /** University name — defaults to "Cebu Institute of Technology – University". */
+  university: string | null
   created_at: string
   updated_at: string
 }

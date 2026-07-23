@@ -46,7 +46,7 @@ begin
      and (new.role is distinct from old.role
           or new.is_active is distinct from old.is_active
           or new.email is distinct from old.email) then
-    raise exception 'Only the NLO admin can change role, active status, or email';
+    raise exception 'Only the admin can change role, active status, or email';
   end if;
   return new;
 end;
@@ -74,7 +74,7 @@ begin
   if auth.uid() is not null
      and not public.is_admin()
      and new.verification is distinct from old.verification then
-    raise exception 'Only the NLO admin can change company verification status';
+    raise exception 'Only the admin can change company verification status';
   end if;
   return new;
 end;
@@ -89,7 +89,7 @@ begin
   if auth.uid() is not null
      and not public.is_admin()
      and new.is_flagged is distinct from old.is_flagged then
-    raise exception 'Only the NLO admin can flag or unflag a listing';
+    raise exception 'Only the admin can flag or unflag a listing';
   end if;
   return new;
 end;

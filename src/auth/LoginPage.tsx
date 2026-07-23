@@ -134,7 +134,7 @@ export function LoginPage() {
               onClick={() => enterDemo(DEMO_ADMIN)}
               type="button"
             >
-              Continue as {DEMO_ADMIN.full_name} · NLO Admin
+              Continue as {DEMO_ADMIN.full_name} · Admin
             </button>
           </div>
         )}

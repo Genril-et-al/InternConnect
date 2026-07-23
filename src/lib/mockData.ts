@@ -33,6 +33,7 @@ export type Internship = {
   status: 'Open' | 'Closing soon' | 'Closed'
   skills: string[]
   summary: string
+  hasAllowance?: boolean
 }
 
 export type SubmissionStatus = 'not_submitted' | 'pending' | 'approved' | 'rejected'
@@ -43,6 +44,7 @@ export type PreEmploymentRequirement = {
   type: 'file' | 'text'
   description?: string
   isPrintable: boolean
+  templateFileUrl?: string | null
   /** Review state of the student's submission for this requirement. */
   submissionStatus?: 'pending' | 'approved' | 'rejected' | 'not_submitted'
   submittedText?: string
