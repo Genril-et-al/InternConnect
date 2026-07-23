@@ -13,6 +13,7 @@ import { analyzeResume, NO_SKILLS_MESSAGE, NAME_MISMATCH_MESSAGE } from '../lib/
 import { formatMiddleInitial } from '../lib/name'
 import { setUnsavedGuard } from '../lib/unsavedGuard'
 import { useAuth } from '../auth/context'
+import { ADMIN_EMAIL } from '../lib/constants'
 import { SignOutButton } from '../components/SignOutButton'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { TagInput } from './TagInput'
@@ -639,11 +640,11 @@ export function ProfileSetup({
             <input disabled value={profile?.university ?? 'Cebu Institute of Technology – University'} />
           </label>
           <label>
-            Course / Program
+            Course / Programme
             <input
               disabled
               value={profile?.course ?? '—'}
-              title="Set by the admin when you were added to the roster. Contact the admin to correct it."
+              title={`Set by the admin from your registration record. Email ${ADMIN_EMAIL} to request a correction.`}
             />
           </label>
           <label>
@@ -651,12 +652,15 @@ export function ProfileSetup({
             <input
               disabled
               value={profile?.year_level ?? '—'}
-              title="Set by the admin when you were added to the roster. Contact the admin to correct it."
+              title={`Set by the admin from your registration record. Email ${ADMIN_EMAIL} to request a correction.`}
             />
           </label>
         </div>
         <p className="profile-info" style={{ marginTop: '8px', fontSize: '13px' }}>
-          Course and year level come from your registration record. If they don’t match your resume, contact the admin to have them corrected.
+          Course and year level come from your registration record. If they don't match your resume,
+          email the admin at{' '}
+          <a href={`mailto:${ADMIN_EMAIL}`} style={{ color: 'var(--brand-orange)' }}>{ADMIN_EMAIL}</a>{' '}
+          to have them corrected.
         </p>
       </section>
 

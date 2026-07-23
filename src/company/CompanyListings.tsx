@@ -7,6 +7,7 @@ import { TagInput } from '../profile/TagInput'
 import { SKILL_SUGGESTIONS } from '../lib/suggestions'
 import { supabase } from '../lib/supabase'
 import { signedDocumentUrl } from '../lib/profile'
+import { ADMIN_EMAIL } from '../lib/constants'
 import '../profile/profile.css'
 
 /** UC-C03 — view and search the company's listings with applicant counts. */
@@ -87,8 +88,10 @@ export function CompanyListings({
 
       {verification !== 'verified' && (
         <p className="cp-notice rejected">
-          Your company is not yet verified by the NLO — new listings cannot be posted until
-          verification is approved.
+          Your company is not yet verified — new listings cannot be posted until verification is approved.
+          Contact the admin at{' '}
+          <a href={`mailto:${ADMIN_EMAIL}`} style={{ color: 'inherit', fontWeight: 600 }}>{ADMIN_EMAIL}</a>{' '}
+          to follow up.
         </p>
       )}
       {actionError && <p className="cp-notice rejected">{actionError}</p>}

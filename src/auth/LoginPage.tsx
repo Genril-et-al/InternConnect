@@ -12,6 +12,7 @@ import {
 import { HeroCarousel, hasHeroSlides } from './HeroCarousel'
 import { HeroTagline } from './HeroTagline'
 import { PasswordField } from './PasswordField'
+import { ADMIN_EMAIL } from '../lib/constants'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { DEMO_ADMIN, DEMO_COMPANY, DEMO_STUDENT } from '../lib/demo'
 import { useAuth } from './context'
@@ -422,7 +423,7 @@ function SignupFlow({
       const role = await checkSignupEligibility(email)
       if (!role) {
         setError(
-          'Institutional Email Not Found. Please use your registered institutional email.',
+          `Institutional email not found. Please use your registered institutional email, or contact the admin at ${ADMIN_EMAIL}.`,
         )
         return
       }
@@ -430,9 +431,9 @@ function SignupFlow({
       // the account silently register as the other account type.
       if (role !== accountType) {
         setError(
-          `This email is registered with the NLO as ${
+          `This email is registered as ${
             role === 'student' ? 'a student' : 'a company'
-          }, not as ${accountType === 'student' ? 'a student' : 'a company'}. Go back and pick the matching account type.`,
+          }, not as ${accountType === 'student' ? 'a student' : 'a company'}. Go back and pick the matching account type, or contact ${ADMIN_EMAIL} if you believe this is an error.`,
         )
         return
       }

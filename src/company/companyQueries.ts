@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { ADMIN_EMAIL } from '../lib/constants'
 import { computeMatch, formatDate, matchPool } from '../lib/listingsApi'
 import type {
   ApplicantStatus,
@@ -196,7 +197,7 @@ export async function createListing(companyId: string, input: NewListingInput): 
     .single()
   if (error) {
     if (error.code === '42501')
-      throw new Error('Your company must be verified by the NLO before posting listings.')
+      throw new Error(`Your company must be verified before posting listings. Contact the admin at ${ADMIN_EMAIL} to follow up.`)
     throw new Error(error.message)
   }
   if (input.requirements.length) {

@@ -49,6 +49,7 @@ import { Avatar } from './components/Avatar'
 import { Dropdown } from './components/Dropdown'
 import { signedDocumentUrl } from './lib/profile'
 import { requestLeave } from './lib/unsavedGuard'
+import { ADMIN_EMAIL } from './lib/constants'
 
 // Admins have their own separate portal (src/admin/AdminApp.tsx).
 // Profile isn't a nav item — users open their own profile from the account
@@ -133,7 +134,9 @@ function App() {
   if (!profile.is_active) {
     return (
       <div className="auth-loading">
-        <p>Your account has been deactivated. Please contact the NLO office.</p>
+        <p>Your account has been deactivated. Please contact the admin at{' '}
+          <a href={`mailto:${ADMIN_EMAIL}`} style={{ color: 'var(--brand-orange)' }}>{ADMIN_EMAIL}</a>.
+        </p>
         {profile.deactivation_reason && (
           <p className="auth-error" style={{ maxWidth: '400px' }}>
             Reason: {profile.deactivation_reason}
