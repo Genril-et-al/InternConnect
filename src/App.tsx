@@ -1092,7 +1092,6 @@ function RequirementSubmitRow({
   userId?: string
   onSubmitted?: () => void
 }) {
-  const [text, setText] = useState(requirement.submittedText ?? '')
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -1268,7 +1267,6 @@ function RequirementSubmitRow({
                 disabled={busy}
                 onClick={() => {
                   setIsEditing(false)
-                  setText(requirement.submittedText ?? '')
                   setFile(null)
                   setError(null)
                 }}

@@ -10,7 +10,6 @@ import {
   fetchApplicants,
   fetchCompanyListings,
   fetchMyCompany,
-  proposeInterviewDates,
   reviewSubmission,
   scheduleInterview,
   setListingStatus,

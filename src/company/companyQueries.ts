@@ -125,6 +125,7 @@ type CompanyListingRow = {
   skills: string[]
   description: string | null
   listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
+  interview_process: { rounds: string[] } | null
 }
 
 export async function fetchCompanyListings(companyId: string): Promise<CompanyListing[]> {
@@ -189,7 +190,7 @@ export async function createListing(companyId: string, input: NewListingInput): 
     throw new Error(error.message)
   }
   if (input.requirements.length) {
-    const { error: reqError } = await supabase.from('listing_requirements').insert(
+    await supabase.from('listing_requirements').insert(
       input.requirements.map((r) => ({
         listing_id: data.id,
         name: r.name,
@@ -489,5 +490,21 @@ export async function reviewSubmission(
         .eq('id', applicationId)
       if (appErr) throw new Error(appErr.message)
     }
+  }
+}
+
+export async function checkAndCloseHiring(listingId: string): Promise<void> {
+  const { data: listing } = await supabase.from('listings').select('slots').eq('id', listingId).single()
+  if (!listing) return
+  
+  const { count } = await supabase
+    .from('applications')
+    .select('*', { count: 'exact', head: true })
+    .eq('listing_id', listingId)
+    .eq('status', 'accepted')
+    
+  if (count !== null && count >= listing.slots) {
+    await supabase.from('listings').update({ status: 'closed' }).eq('id', listingId)
+    await supabase.from('applications').update({ status: 'expired' }).eq('listing_id', listingId).in('status', ['pending', 'under_review', 'shortlisted', 'interview_scheduled'])
   }
 }

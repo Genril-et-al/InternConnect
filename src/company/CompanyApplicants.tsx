@@ -223,7 +223,7 @@ function ListingGroupCard({
   onSelectApplicant: (id: string) => void
   highlightedApplicantId?: string | null
   onBulkReject?: (rejections: { id: string; feedback: string }[]) => Promise<void>
-  onSetStatus?: (id: string, status: ApplicantStatus, feedback?: string) => Promise<void>
+  onSetStatus?: (id: string, status: ApplicantStatus, feedback?: string, nextStep?: string) => Promise<void>
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkRejectOpen, setBulkRejectOpen] = useState(false)
@@ -390,7 +390,7 @@ function ListingGroupCard({
         <AutoRejectModal
           info={{ listing, count: pendingCount + reviewCount + interviewCount, pendingIds: [] }}
           onClose={() => setCloseHiringOpen(false)}
-          onSubmit={async (feedback) => {
+          onSubmit={async () => {
             if (!onBulkReject) return
             setCloseHiringOpen(false)
           }}
@@ -399,10 +399,8 @@ function ListingGroupCard({
       
       {finalOfferApplicantId && (
         <FinalOfferModal
-          listing={listing}
           onClose={() => setFinalOfferApplicantId(null)}
           onSubmit={() => {
-            const l = allApplicants.find((a) => a.id === finalOfferApplicantId)
             const days = listing?.offerDeadlineDays || 3
             const expiresAt = new Date(Date.now() + days * 86400000).toISOString()
             if (onSetStatus && finalOfferApplicantId) {
@@ -442,7 +440,7 @@ function ApplicantDetail({
   const [nextRoundName, setNextRoundName] = useState<string>('Interview')
   const [revisionOpen, setRevisionOpen] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [finalOfferApplicantId, setFinalOfferApplicantId] = useState<string | null>(null)
+  const [showFinalOfferWarning, setShowFinalOfferWarning] = useState(false)
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewDownloadUrl, setPreviewDownloadUrl] = useState<string | null>(null)
@@ -525,7 +523,7 @@ function ApplicantDetail({
                 const expiresAt = new Date(Date.now() + days * 86400000).toISOString()
                 const currentOffers = allApplicants.filter(a => a.status === 'Offer').length
                 if (acceptedCount + currentOffers + 1 >= listing!.slots) {
-                  setFinalOfferApplicantId(applicant.id)
+                  setShowFinalOfferWarning(true)
                 } else {
                   run(() => onSetStatus(applicant.id, 'Offer', undefined, JSON.stringify({ expiresAt })))
                 }
@@ -626,6 +624,18 @@ function ApplicantDetail({
         )}
       </div>
       {actionError && <p className="cp-notice rejected" style={{ marginTop: 12 }}>{actionError}</p>}
+      {showFinalOfferWarning && (
+        <FinalOfferModal
+          onClose={() => setShowFinalOfferWarning(false)}
+          onSubmit={() => {
+            const listing = listings.find((l) => l.title === applicant.role)
+            const days = listing?.offerDeadlineDays || 3
+            const expiresAt = new Date(Date.now() + days * 86400000).toISOString()
+            run(() => onSetStatus(applicant.id, 'Offer', undefined, JSON.stringify({ expiresAt })))
+            setShowFinalOfferWarning(false)
+          }}
+        />
+      )}
     </section>
 
     {applicant.status === 'Rejected' && applicant.feedback && (
@@ -1429,11 +1439,9 @@ function AutoRejectModal({
 }
 
 function FinalOfferModal({
-  listing,
   onClose,
   onSubmit,
 }: {
-  listing: CompanyListing
   onClose: () => void
   onSubmit: () => void
 }) {
