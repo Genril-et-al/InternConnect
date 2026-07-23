@@ -4,6 +4,7 @@ import { AdSearch } from './components'
 import { fetchSkillGaps } from './adminQueries'
 import { useRealtimeRefresh } from '../lib/realtime'
 import type { AdminSkillGap } from './adminData'
+import { isKnownSkill } from '../lib/skillTaxonomy'
 
 function shortDate(iso: string): string {
   const d = new Date(iso)
@@ -35,7 +36,7 @@ export function AdminSkillGaps() {
       setLoadError(null)
       try {
         const rows = await fetchSkillGaps()
-        if (!cancelled) setGaps(rows)
+        if (!cancelled) setGaps(rows.filter((r) => !isKnownSkill(r.skill)))
       } catch (err) {
         if (!cancelled) {
           setLoadError(err instanceof Error ? err.message : 'Failed to load the skill backlog.')
@@ -50,7 +51,8 @@ export function AdminSkillGaps() {
   // Backlog rows are written by students' matchers as they upload resumes —
   // fold them in as they land rather than waiting for a manual Refresh.
   const refreshGaps = useCallback(async () => {
-    setGaps(await fetchSkillGaps())
+    const rows = await fetchSkillGaps()
+    setGaps(rows.filter((r) => !isKnownSkill(r.skill)))
   }, [])
   useRealtimeRefresh(['skill_gaps'], refreshGaps)
 
