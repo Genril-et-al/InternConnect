@@ -66,7 +66,7 @@ const COMPANY_NAV = [
 ]
 
 function App() {
-  const { session, profile, loading, recovery, signOut } = useAuth()
+  const { session, profile, loading, recovery, settingUpPassword, signOut } = useAuth()
   const [activeView, setActiveView] = useState('Dashboard')
   const [collapsed, toggleCollapsed] = useSidebarCollapsed()
 
@@ -101,7 +101,11 @@ function App() {
     )
   }
 
-  if (!session) {
+  // No session yet, or the sign-up flow is still on its last step. Verifying the
+  // e-mail code opens a real session, so without the second condition the login
+  // screen unmounts the moment the code is accepted and the "Create password"
+  // step never renders — leaving the account with no password to log in with.
+  if (!session || settingUpPassword) {
     return <LoginPage />
   }
 

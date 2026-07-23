@@ -78,6 +78,7 @@ export function ResetPasswordPage() {
             onToggle={() => setVisible((v) => !v)}
             value={password}
             visible={visible}
+            showStrengthIndicator
           />
           <PasswordField
             autoComplete="new-password"
@@ -87,6 +88,9 @@ export function ResetPasswordPage() {
             value={confirm}
             visible={visible}
           />
+          {confirm && password !== confirm && (
+            <p className="auth-hint auth-hint-left auth-hint-warn">Passwords do not match yet.</p>
+          )}
           <p className="auth-hint auth-hint-left">
             At least 8 characters. Use the eye icon to show or hide both fields.
           </p>

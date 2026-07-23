@@ -424,11 +424,27 @@
   outline: 3px solid rgba(231, 104, 20, 0.16);
 }
 
+.auth-strength {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.auth-strength-label {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-strength-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .auth-strength-bar-container {
   height: 4px;
   background: var(--surface-strong);
   border-radius: 2px;
-  margin-top: 6px;
   overflow: hidden;
   width: 100%;
 }
@@ -491,6 +507,11 @@
 
 .auth-hint-left {
   text-align: left;
+}
+
+.auth-hint-warn {
+  color: var(--brand-crimson);
+  font-weight: 600;
 }
 
 /* Sits inside a field label, so it has to read as secondary to the label text

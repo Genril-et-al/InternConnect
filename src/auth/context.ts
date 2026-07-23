@@ -21,6 +21,17 @@ export type AuthState = {
   beginRecovery: () => void
   /** Leave recovery mode (password changed, or the user cancelled). */
   endRecovery: () => void
+  /**
+   * True between "the sign-up code was accepted" and "the password was saved".
+   * Verifying the code opens a real session, which would otherwise drop the new
+   * user straight into the app — with no password set, so they could never log
+   * in again. While this is set the app keeps showing the sign-up flow.
+   */
+  settingUpPassword: boolean
+  /** Called just before the sign-up code is verified. */
+  beginPasswordSetup: () => void
+  /** Called once the password is saved (or the verification failed). */
+  endPasswordSetup: () => void
   refreshProfile: () => Promise<void>
   signOut: () => Promise<void>
   /**

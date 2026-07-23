@@ -336,6 +336,7 @@ function SignupFlow({
   onAuthenticated: () => Promise<void>
   onSwitchToLogin: () => void
 }) {
+  const { beginPasswordSetup, endPasswordSetup } = useAuth()
   const [step, setStep] = useState<SignupStep>('role')
   const [accountType, setAccountType] = useState<AccountType | null>(null)
   const [email, setEmail] = useState('')
@@ -437,10 +438,15 @@ function SignupFlow({
     event.preventDefault()
     setError('')
     setBusy(true)
+    // Raised BEFORE the call, not after: verifyOtp opens a session and the
+    // provider reacts to it as soon as it lands, so the flag has to already be
+    // set or App swaps this form out mid-verification.
+    beginPasswordSetup()
     try {
       await verifySignupCode(email, code)
       setStep('password')
     } catch (err) {
+      endPasswordSetup()
       // Log the real error. This used to be a bare `catch {}`, which relabelled
       // every possible failure — network drop, rate limit, hook error — as a bad
       // code, so a student reporting "it says my code is wrong" told us nothing
@@ -492,6 +498,8 @@ function SignupFlow({
     setBusy(true)
     try {
       await setPassword(password)
+      // Only now may the app move on — the account can be logged into.
+      endPasswordSetup()
       await onAuthenticated()
     } catch (err) {
       setError(errorMessage(err))
@@ -618,11 +626,21 @@ function SignupFlow({
           value={confirm}
           visible={showPassword}
         />
+        {/* Called out while they type rather than only on submit — retyping a
+            long password to be told it never matched is the worst moment to
+            find out. */}
+        {confirm && password !== confirm && (
+          <p className="auth-hint auth-hint-left auth-hint-warn">Passwords do not match yet.</p>
+        )}
         <p className="auth-hint auth-hint-left">
           At least 8 characters. Use the eye icon to show or hide both fields.
         </p>
         {error && <p className="auth-error">{error}</p>}
-        <button className="auth-primary" disabled={busy} type="submit">
+        <button
+          className="auth-primary"
+          disabled={busy || password.length < 8 || password !== confirm}
+          type="submit"
+        >
           {busy ? 'Saving…' : 'Create account'}
         </button>
       </form>

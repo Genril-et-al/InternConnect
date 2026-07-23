@@ -21,6 +21,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [demoProfile, setDemoProfile] = useState<Profile | null>(null)
   // Set once a recovery code is verified (see beginRecovery below).
   const [recovery, setRecovery] = useState(false)
+  // Set while a new sign-up is choosing its password (see beginPasswordSetup).
+  const [settingUpPassword, setSettingUpPassword] = useState(false)
   // Sign-out veil: 'out' covers the workspace while the session is torn down,
   // 'fading' holds it over the freshly mounted login screen for one fade so the
   // two never swap in a single frame. See signOut below.
@@ -59,7 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // A recovery link opens a real session — flag it so the app routes to
       // the reset screen rather than dropping the user into the workspace.
       if (event === 'PASSWORD_RECOVERY') setRecovery(true)
-      if (event === 'SIGNED_OUT') setRecovery(false)
+      if (event === 'SIGNED_OUT') {
+        setRecovery(false)
+        setSettingUpPassword(false)
+      }
       setTimeout(() => {
         if (active) loadProfile(next?.user.id)
       }, 0)
@@ -87,6 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       recovery,
       beginRecovery: () => setRecovery(true),
       endRecovery: () => setRecovery(false),
+      settingUpPassword,
+      beginPasswordSetup: () => setSettingUpPassword(true),
+      endPasswordSetup: () => setSettingUpPassword(false),
       refreshProfile: () => loadProfile(session?.user.id),
       signingOut: signOutPhase !== 'idle',
       signOut: async () => {
@@ -123,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateProfileLocal: (patch: Partial<Profile>) =>
         setDemoProfile((prev) => (prev ? { ...prev, ...patch } : prev)),
     }
-  }, [session, profile, loading, demoProfile, recovery, signOutPhase])
+  }, [session, profile, loading, demoProfile, recovery, settingUpPassword, signOutPhase])
 
   return (
     <AuthContext.Provider value={value}>
