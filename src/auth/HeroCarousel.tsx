@@ -25,7 +25,7 @@ const SLIDES = Object.keys(modules)
 /** Lets the panel keep its headline until real images exist (see LoginPage). */
 export const hasHeroSlides = SLIDES.length > 0
 
-const AUTOPLAY_MS = 1750
+const AUTOPLAY_MS = 3500
 /** Slots either side of centre that stay visible; the rest park off-stage. */
 const VISIBLE = 2
 
