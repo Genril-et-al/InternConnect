@@ -437,10 +437,13 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
     }
     setBusy(true)
     setError(null)
-    const { firstName, lastName } = splitName(name)
+    // A middle initial typed into the name is pulled out into its own column
+    // and given its period, so "Juan S Dela Cruz" is stored the same as
+    // "Juan S. Dela Cruz".
+    const { firstName, middleInitial, lastName } = splitName(name)
     try {
       // Pre-clears the email so the student can self-register (UC-A03).
-      await addApprovedStudent({ email: institutionalEmail, firstName, lastName, studentNumber, course, yearLevel })
+      await addApprovedStudent({ email: institutionalEmail, firstName, middleInitial, lastName, studentNumber, course, yearLevel })
       await onAdded() // reload from the roster so the new row shows accurately
       onClose()
     } catch (err) {
@@ -463,7 +466,10 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
           </p>
           <label className="cp-modal-label">
             Full Name *
-            <input className="ic-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Juan Dela Cruz" required />
+            <input className="ic-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Juan S. Dela Cruz" required />
+            <span className="ic-muted" style={{ fontSize: '12px', fontWeight: 400 }}>
+              A middle initial is optional, and the period is added for you.
+            </span>
           </label>
           <label className="cp-modal-label">
             Institutional Email *

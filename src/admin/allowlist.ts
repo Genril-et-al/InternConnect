@@ -37,11 +37,47 @@ function clean(v?: string): string | null {
   return t.length ? t : null
 }
 
-/** Split a single "Full Name" into first / last for the roster columns. */
-export function splitName(full: string): { firstName: string; lastName: string } {
+/**
+ * Split a single "Full Name" into first / middle initial / last for the roster
+ * columns.
+ *
+ * A middle initial is a lone letter sitting between the first name and the
+ * surname, with or without its period — "Juan S Dela Cruz" and "Juan S. Dela
+ * Cruz" both give first "Juan", middle "S.", last "Dela Cruz". The period comes
+ * from formatMiddleInitial, so an admin who forgets to type it still gets the
+ * canonical form on the roster.
+ *
+ * Everything after the initials is the surname, so compound names survive
+ * intact ("Dela Cruz" is not mistaken for a middle name). A trailing lone
+ * letter is read as the surname rather than an initial, since "Juan S" has no
+ * surname to put after it.
+ */
+export function splitName(full: string): {
+  firstName: string
+  middleInitial: string
+  lastName: string
+} {
   const parts = full.trim().split(/\s+/).filter(Boolean)
-  if (parts.length <= 1) return { firstName: parts[0] ?? '', lastName: '' }
-  return { firstName: parts[0], lastName: parts.slice(1).join(' ') }
+  if (parts.length <= 1) {
+    return { firstName: parts[0] ?? '', middleInitial: '', lastName: '' }
+  }
+
+  const rest = parts.slice(1)
+  // Take leading initials, but never the final token — that one is the
+  // surname. An initial is a lone letter ("S", "S.") or letters that are
+  // period-separated ("S.J."); the period is what distinguishes those from an
+  // ordinary short name, so "Clara" and "Al" are left as part of the surname.
+  const INITIALS = /^[A-Za-z]\.?$|^(?:[A-Za-z]\.)+[A-Za-z]?\.?$/
+  const initials: string[] = []
+  while (rest.length > 1 && INITIALS.test(rest[0])) {
+    initials.push(rest.shift() as string)
+  }
+
+  return {
+    firstName: parts[0],
+    middleInitial: formatMiddleInitial(initials.join(' ')),
+    lastName: rest.join(' '),
+  }
 }
 
 function studentRow(s: NewApprovedStudent) {
@@ -204,9 +240,16 @@ export function parseStudentRows(rows: string[][]): NewApprovedStudent[] {
     if (!email) continue
     let firstName = at(r, ['firstname', 'first'])
     let lastName = at(r, ['lastname', 'last', 'surname'])
-    const middleInitial = at(r, ['middleinitial', 'mi', 'middle'])
+    let middleInitial = at(r, ['middleinitial', 'mi', 'middle'])
     const fullName = at(r, ['name', 'fullname'])
-    if (!firstName && !lastName && fullName) ({ firstName, lastName } = splitName(fullName))
+    if (!firstName && !lastName && fullName) {
+      const parsed = splitName(fullName)
+      firstName = parsed.firstName
+      lastName = parsed.lastName
+      // A dedicated middle column still wins; this only rescues the initial
+      // from rosters that spell the whole name out in one cell.
+      if (!middleInitial) middleInitial = parsed.middleInitial
+    }
     out.push({
       email,
       firstName,

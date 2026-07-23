@@ -68,17 +68,42 @@ configuring Supabase's SMTP settings directly, we deliver the code from an **edg
 function we control** — the [`send-email-hook`](../supabase/functions/send-email-hook/index.ts)
 **Send Email hook**. Supabase still generates, expires, and rate-limits the
 6-digit code (no change to `src/lib/auth.ts`); the hook only owns *delivery*, and
-sends over Gmail SMTP (`smtp.gmail.com:465`) using a Gmail App Password.
+sends over **Brevo**.
 
 > Why this instead of the built-in SMTP settings? The sending logic lives in
-> versioned code, is easy to swap to a provider API (e.g. Resend) later — replace
-> `sendEmail()` in the function and drop the Gmail secrets — and reaches real
-> `@cit.edu` inboxes today.
+> versioned code, picks its transport from whichever secrets are set, and reaches
+> real `@cit.edu` inboxes today.
 
-**Step 1 — Gmail App Password.** On `internconnect000@gmail.com`, turn on
-**2-Step Verification** (myaccount.google.com → Security), then create an **App
-Password** at myaccount.google.com/apppasswords (16 characters). Gmail rejects
-normal-password SMTP — the App Password is required.
+The hook uses the first transport whose secrets exist, and **raises if neither is
+configured** rather than falling back to another provider:
+
+| Order | Transport | Secrets |
+| --- | --- | --- |
+| 1 | `brevo-api` (recommended) | `BREVO_API_KEY` |
+| 2 | `brevo-smtp` (what prod runs today) | `BREVO_SMTP_USER` + `BREVO_SMTP_KEY` |
+
+Prefer the API. Auth hooks have a hard 5s timeout and a full SMTP session
+(connect → TLS → AUTH → send → close) has measured 3.4–5.1s here, which already
+cost real signups; an API send is a single ~300ms POST.
+
+> There is no fallback provider on purpose. A Gmail fallback used to sit under
+> these and it hid a live misconfiguration for days — the Gmail OAuth secrets were
+> never set in production, so sends quietly took the slow path while the commit
+> message said otherwise. A silent downgrade is indistinguishable from success.
+
+**Step 1 — Brevo credentials.** In Brevo go to **SMTP & API**:
+
+- **API Keys → Generate a new API key** → this is `BREVO_API_KEY` (starts
+  `xkeysib-`). This is the one you want. Pasting the SMTP key here fails with
+  `401 {"message":"Key not found"}`.
+- The **SMTP** tab shows a login (like `b30c3b001@smtp-brevo.com`) and an SMTP key
+  (starts `xsmtpsib-`) — only needed for the SMTP path. **Copy the login, don't
+  retype it:** it is an opaque generated id, and one transposed character fails
+  with `535 5.7.8 Authentication failed`, which reads like a wrong password.
+
+Then under **Senders, Domains & Dedicated IPs**, verify the address you intend to
+send from. Brevo rejects a send whose `From` is not a verified sender with
+`400 sender not valid`.
 
 **Step 2 — Deploy the function** (JWT verification OFF — it is called by the auth
 server, not a logged-in user):
@@ -101,21 +126,44 @@ Supabase generates a **hook secret** (`v1,whsec_…`) here — copy it for the n
 
 ```
 supabase secrets set SEND_EMAIL_HOOK_SECRET="v1,whsec_..."   # from step 3
-supabase secrets set GMAIL_APP_PASSWORD="the-16-char-app-password"
+supabase secrets set BREVO_API_KEY="xkeysib-..."
+supabase secrets set EMAIL_FROM="the-verified-brevo-sender@example.com"
+# SMTP instead of the API key (slower — see the 5s note above):
+# supabase secrets set BREVO_SMTP_USER="b30c3b001@smtp-brevo.com"
+# supabase secrets set BREVO_SMTP_KEY="xsmtpsib-..."
 # optional overrides (defaults shown):
-# supabase secrets set GMAIL_USER="internconnect000@gmail.com"
+# supabase secrets set BREVO_SMTP_HOST="smtp-relay.brevo.com"
+# supabase secrets set BREVO_SMTP_PORT="465"
 # supabase secrets set EMAIL_FROM_NAME="InternConnect"
 ```
 
-**Step 5 — (optional) turn off Supabase's own SMTP.** With the hook enabled, the
-old **Custom SMTP** settings are no longer used for these emails; you can leave
-them blank. Raise **Authentication → Rate Limits → emails per hour** if you expect
-more than the default (Gmail allows ~500/day).
+`BREVO_API_KEY` is checked **first**, so a stale or wrong value there shadows
+working SMTP credentials. Unset it rather than leaving it around:
 
-> **No custom domain yet?** Gmail SMTP is exactly why this works without one —
-> you send *from* the Gmail account. To later send from `no-reply@yourdomain.com`
-> and drop the Gmail dependency, verify a domain in Resend and swap the
-> `sendEmail()` body in the function for a Resend API call.
+```
+supabase secrets unset BREVO_API_KEY
+```
+
+The old `GMAIL_*` secrets are no longer read by anything and can be deleted.
+
+**Step 5 — (optional) turn off Supabase's own SMTP.** With the hook enabled, the
+dashboard's **Custom SMTP** settings are never used for these emails — even if
+you configured Brevo there, delivery goes through this function's secrets
+instead. You can leave the dashboard fields blank. Raise **Authentication → Rate
+Limits → emails per hour** if you expect more than the default (Brevo's free tier
+allows 300/day).
+
+**Step 6 — Confirm which transport ran.** Every send logs its transport and
+elapsed ms. In the dashboard, **Edge Functions → send-email-hook → Logs** should
+show `"transport":"brevo-api"` (or `brevo-smtp`) with the `elapsed_ms` for that
+send. That log, plus **Brevo → Transactional → Logs**, is how you tell "never
+sent" apart from "sent and filtered" — the auth log alone cannot.
+
+> **Deliverability:** Brevo signs with its own DKIM, so a `From` on a domain you
+> do not control in Brevo (e.g. a plain `@gmail.com` address) fails DMARC
+> alignment. Verify a domain you own in Brevo and set `EMAIL_FROM` to an address
+> on it — that, not the provider swap by itself, is what improves the `@cit.edu`
+> quarantine problem.
 
 ## 5. Seed an admin and approve a company
 

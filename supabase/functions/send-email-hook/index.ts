@@ -9,45 +9,70 @@
 // Supabase to generate + expire + rate-limit the 6-digit code, and verifyOtp()
 // still validates it. This function only owns *delivery*.
 //
-// Delivery path: the Gmail HTTP API when the OAuth secrets are set, otherwise
-// Gmail SMTP (smtp.gmail.com:465) with an App Password. Both send as the same
-// mailbox from the same Google account — the only thing that changes is how the
-// message gets handed to Google. The transport is chosen at runtime so SMTP
-// keeps working until the OAuth secrets are in place, and no send is lost to a
-// half-finished migration.
+// Delivery is Brevo, by one of two transports — the first whose secrets exist:
 //
-// Prefer the API. SMTP is the reason this function times out: a session is
-// connect → TLS → AUTH → send → close, five round trips before Google has the
-// message, measured at 2.9-5.1s against a hard 5s ceiling. The API is one POST
-// (~300ms) because the auth rides along in a header. Same sender, same inbox,
-// no new provider, no domain of our own required — a plain @gmail.com account
-// can issue the refresh token.
+//   1. brevo-api   BREVO_API_KEY                      — one POST, ~200-400ms
+//   2. brevo-smtp  BREVO_SMTP_USER + BREVO_SMTP_KEY   — smtp-relay.brevo.com
 //
-// Secrets required (supabase secrets set ...):
+// If neither is configured the function raises rather than sending. There is no
+// fallback provider on purpose. A Gmail fallback used to sit underneath these,
+// and it hid a live misconfiguration for days: the Gmail OAuth secrets were never
+// actually set in production, so every send quietly took the slow SMTP path while
+// the deploy log and the commit message both said otherwise. Nobody could tell,
+// because a silent downgrade looks exactly like success. A loud failure is worth
+// more than a fallback that lies.
+//
+// Prefer the API over SMTP. SMTP is the reason this function times out: a session
+// is connect → TLS → AUTH → send → close, five round trips before the provider
+// has the message, measured at 2.9-5.1s against a hard 5s ceiling. An API send is
+// one POST because the credential rides in a header. "Brevo SMTP" and "Brevo API"
+// are the same service reached two ways; only one fits the budget comfortably.
+//
+// Secrets (supabase secrets set ...). Required:
 //   SEND_EMAIL_HOOK_SECRET — the hook signing secret Supabase shows when you
 //                            create the Send Email hook (format: "v1,whsec_...")
-//   GMAIL_APP_PASSWORD     — 16-char Google App Password (SMTP path only)
-// Optional — set all three together to enable the API path:
-//   GMAIL_CLIENT_ID        — OAuth client ID from Google Cloud Console
-//   GMAIL_CLIENT_SECRET    — that client's secret
-//   GMAIL_REFRESH_TOKEN    — one-time consent for scope gmail.send, issued for
-//                            the GMAIL_USER mailbox. Does not expire on its own.
+// Brevo — BREVO_API_KEY alone is enough, and is the recommended setup:
+//   BREVO_API_KEY          — a v3 API key from Brevo → SMTP & API → **API Keys**.
+//                            Starts "xkeysib-". This is NOT the SMTP key, and
+//                            pasting the SMTP key here fails with
+//                            401 {"message":"Key not found"}.
+//   BREVO_SMTP_USER        — SMTP login from Brevo → SMTP & API → **SMTP**. Looks
+//                            like b30c3b001@smtp-brevo.com — an opaque generated
+//                            id, NOT the sender address, and worth copying rather
+//                            than retyping: a transposed character here fails with
+//                            535 5.7.8 Authentication failed, which reads like a
+//                            bad password and costs hours to find.
+//   BREVO_SMTP_KEY         — the SMTP key for that login (starts "xsmtpsib-")
+//   BREVO_SMTP_HOST/_PORT  — optional (default smtp-relay.brevo.com:465). Brevo's
+//                            dashboard advertises 587; 465 also works and is one
+//                            round trip cheaper, so it is the default here.
 // Optional (have sensible defaults):
-//   GMAIL_USER             — sender mailbox (default internconnect000@gmail.com)
+//   EMAIL_FROM             — sender address on the From header. MUST be a sender
+//                            Brevo has verified, or Brevo rejects the send with
+//                            400 "sender not valid".
 //   EMAIL_FROM_NAME        — display name on the From header (default InternConnect)
 //
-// Note on deliverability: this changes speed, not reputation. Mail still leaves
-// as @gmail.com, so the @cit.edu quarantine risk is exactly what it is today —
-// neither improved nor worsened. Only sending from a domain we control would
-// move that, and that is a separate decision, not a prerequisite for this.
+// Note on deliverability: Brevo is a dedicated transactional sender with its own
+// warmed IP pool and DKIM, which is a better reputation than a plain @gmail.com
+// mailbox — but only if EMAIL_FROM is an address whose domain is authenticated in
+// Brevo. Sending "from" a @gmail.com address through Brevo means the DKIM
+// signature belongs to brevo, not gmail.com, and gmail.com's own DMARC policy
+// then applies to a message Google did not send. Verify a domain we control in
+// Brevo and point EMAIL_FROM at it; until then, expect the @cit.edu quarantine
+// risk to be no better than it was, and possibly worse.
+//
+// If Brevo was also configured as Custom SMTP in the Supabase dashboard, that
+// setting is now dead weight: an enabled Send Email hook takes delivery over
+// completely and the dashboard's SMTP settings and templates are never used.
+// Configuring it there is harmless, but it is this file that does the sending.
 //
 // This function must be deployed with JWT verification DISABLED — it is called
 // by Supabase's auth server (authenticated by the hook signature above), not by
 // a logged-in user:  supabase functions deploy send-email-hook --no-verify-jwt
 //
 // Timeout note: Supabase auth hooks have a hard, non-configurable 5s timeout,
-// and a full Gmail SMTP session (connect → TLS → AUTH → send → close) uses most
-// of it. This function AWAITS the send.
+// and a full SMTP session (connect → TLS → AUTH → send → close) uses most of it
+// against any provider. This function AWAITS the send.
 //
 // Do NOT move delivery back into EdgeRuntime.waitUntil() to buy headroom. That
 // was tried, and it silently dropped every outgoing code: the hook returned 200
@@ -61,9 +86,14 @@
 // measured 3.45-3.84s against the 5s budget, and cold starts measured 5.12s and
 // 5.14s — those two requests died with error_code "hook_timeout" and the student
 // got nothing. That is a quarter of all signup attempts in one day's auth log.
-// Nothing in this file can shrink an SMTP session enough to make that safe.
-// The Gmail API path settles in one POST (~300ms), which is what actually
-// removes the timeout rather than narrowing it.
+// Nothing in this file can shrink an SMTP session enough to make that safe, and
+// nothing about it was specific to Google — Brevo's relay inherits the same
+// problem. An API send settles in one POST (~300ms), which is what actually
+// removes the timeout rather than narrowing it. That is the whole reason
+// BREVO_API_KEY outranks the SMTP credentials.
+//
+// Production currently runs brevo-smtp, so that timeout risk is still live.
+// Setting BREVO_API_KEY is the fix and needs no code change.
 //
 // Every send logs its transport and elapsed ms, so the next person to ask "did
 // the code go out?" can answer it from the function logs alone.
@@ -72,32 +102,39 @@
 // no longer CC'd to a personal inbox — signup does not ask for one — so
 // receiving a code proves control of the institutional mailbox.
 //
-// Watch @cit.edu delivery. Gmail accepts the message, cit.edu accepts it from
-// Gmail, and it has been quarantined on the far side with no bounce: the hook
-// returns 200, the auth log says "Hook ran successfully", and the student still
-// has an empty inbox. Nothing here can detect that — a 200 from this function
-// means "handed off", never "delivered". Switching SMTP for the Gmail API does
-// not change this either way: both leave as @gmail.com and carry the same
-// reputation. If quarantining recurs, the levers are an institutional allowlist
-// for our sender, or sending from a domain we control — a separate decision
-// from the timeout, and not a prerequisite for fixing it.
+// A 200 from this function means "handed off", never "delivered" — it cannot see
+// what a recipient's mail server does afterwards. Brevo → Transactional → Logs
+// can: it reports delivered/blocked/bounced per message. Check there, not here,
+// when a student says no code arrived.
+//
+// @cit.edu delivery works. It was quarantining our Gmail-sent mail earlier (which
+// is why migration 0013 briefly moved codes to personal addresses), but a later
+// round of "cit.edu is eating our mail" turned out to be a mistyped
+// BREVO_SMTP_USER — the mail never left. Confirm with Brevo's log before assuming
+// a filtering problem; the expensive failures here have all been credential typos
+// wearing a deliverability costume.
+//
+// If a genuine quarantine does return, the lever is a domain we control,
+// authenticated in Brevo (SPF + DKIM + DMARC), set as EMAIL_FROM. A @gmail.com
+// EMAIL_FROM sent through Brevo is signed by Brevo's DKIM and fails DMARC
+// alignment for gmail.com, which is worse than not switching at all.
 
 import { Webhook } from 'npm:standardwebhooks@1.0.0'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 
-const GMAIL_USER = Deno.env.get('GMAIL_USER') ?? 'internconnect000@gmail.com'
-const FROM_NAME = Deno.env.get('EMAIL_FROM_NAME') ?? 'InternConnect'
-const GMAIL_CLIENT_ID = Deno.env.get('GMAIL_CLIENT_ID')
-const GMAIL_CLIENT_SECRET = Deno.env.get('GMAIL_CLIENT_SECRET')
-const GMAIL_REFRESH_TOKEN = Deno.env.get('GMAIL_REFRESH_TOKEN')
+const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY')
+const BREVO_SMTP_USER = Deno.env.get('BREVO_SMTP_USER')
+const BREVO_SMTP_KEY = Deno.env.get('BREVO_SMTP_KEY')
+const BREVO_SMTP_HOST = Deno.env.get('BREVO_SMTP_HOST') ?? 'smtp-relay.brevo.com'
+const BREVO_SMTP_PORT = Number(Deno.env.get('BREVO_SMTP_PORT') ?? '465')
 
 /**
- * Access tokens last an hour, so cache one per isolate. A warm invocation then
- * spends a single round trip on the actual send; only a cold start pays for the
- * refresh. Module scope is the right lifetime here — it dies with the isolate,
- * which is exactly when the cached token stops being useful anyway.
+ * The address on the From header, and the one quoted in the footer so a student
+ * can see who mailed them. Must be a sender Brevo has verified — the default is
+ * only a sensible starting point, not a guarantee Brevo will accept it.
  */
-let cachedToken: { value: string; expiresAt: number } | null = null
+const FROM_EMAIL = Deno.env.get('EMAIL_FROM') ?? 'internconnect000@gmail.com'
+const FROM_NAME = Deno.env.get('EMAIL_FROM_NAME') ?? 'InternConnect'
 
 type EmailData = {
   token: string
@@ -179,7 +216,7 @@ function emailHtml(intro: string, what: string, token: string, to: string): stri
     <p style="margin:20px 0 0;padding-top:14px;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af">
       InternConnect — internship listings and applications for Cebu Institute of
       Technology – University students and partner companies. This is an automated
-      message sent from ${GMAIL_USER}; replies reach the InternConnect team.
+      message sent from ${FROM_EMAIL}; replies reach the InternConnect team.
     </p>
   </div>`
 }
@@ -203,156 +240,88 @@ function emailText(intro: string, what: string, token: string, to: string): stri
     '',
     'InternConnect - internship listings and applications for Cebu Institute of',
     'Technology - University students and partner companies. This is an automated',
-    `message sent from ${GMAIL_USER}; replies reach the InternConnect team.`,
+    `message sent from ${FROM_EMAIL}; replies reach the InternConnect team.`,
   ].join('\n')
 }
 
-/** base64 of arbitrary UTF-8 text. btoa() only accepts latin-1, so the string
- * has to be encoded to bytes first or anything non-ASCII throws — the email copy
- * has em-dashes in it. */
-function base64Utf8(value: string): string {
-  const bytes = new TextEncoder().encode(value)
-  let binary = ''
-  for (const byte of bytes) binary += String.fromCharCode(byte)
-  return btoa(binary)
-}
-
-/** RFC 2047 encoded-word. The subject is ASCII today, but encoding it
- * unconditionally means a future copy change cannot quietly mangle it. */
-function encodeHeader(value: string): string {
-  return `=?UTF-8?B?${base64Utf8(value)}?=`
-}
-
-/** Exchange the long-lived refresh token for an access token, reusing the
- * cached one whenever it has more than a minute left. The minute of slack keeps
- * a token from expiring mid-flight on a slow send. */
-async function gmailAccessToken(): Promise<string> {
-  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
-    return cachedToken.value
-  }
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+/**
+ * Brevo's transactional API: one POST, credential in the `api-key` header, no
+ * handshake. This is the preferred transport — it is the only Brevo path that
+ * reliably fits inside the hook's 5s budget.
+ *
+ * Brevo will reject the send with 400 if `sender.email` is not a sender it has
+ * verified, so FROM_EMAIL and the Brevo account have to agree. That error is
+ * surfaced verbatim below because "sender not valid" is the single most likely
+ * first-run failure and guessing at it from a status code wastes an afternoon.
+ */
+async function sendViaBrevoApi(
+  to: string[],
+  subject: string,
+  html: string,
+  text: string,
+): Promise<void> {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: GMAIL_CLIENT_ID!,
-      client_secret: GMAIL_CLIENT_SECRET!,
-      refresh_token: GMAIL_REFRESH_TOKEN!,
-      grant_type: 'refresh_token',
+    headers: {
+      'api-key': BREVO_API_KEY!,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: FROM_NAME, email: FROM_EMAIL },
+      to: to.map((email) => ({ email })),
+      replyTo: { name: FROM_NAME, email: FROM_EMAIL },
+      subject,
+      // Brevo builds the multipart/alternative itself and orders the parts
+      // correctly, so clients still render the HTML and fall back to the text.
+      textContent: text,
+      htmlContent: html,
+      // Same headers, and the same reasons, as the SMTP path below.
+      headers: {
+        'Auto-Submitted': 'auto-generated',
+        'X-Auto-Response-Suppress': 'OOF, AutoReply',
+        'X-Entity-Ref-ID': crypto.randomUUID(),
+      },
     }),
   })
 
-  const body = await res.json().catch(() => null)
-  if (!res.ok || !body?.access_token) {
-    // Google names the real problem here (invalid_grant when the token was
-    // revoked, invalid_client for a bad ID/secret). Pass it through rather than
-    // collapsing it to a status code.
-    throw new Error(
-      `Gmail token refresh failed (${res.status}): ${JSON.stringify(body ?? {}).slice(0, 300)}`,
-    )
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Brevo API rejected the send (${res.status}): ${detail.slice(0, 300)}`)
   }
-
-  cachedToken = {
-    value: body.access_token,
-    expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
-  }
-  return cachedToken.value
 }
 
 /**
- * Gmail's HTTP API: one POST carrying the whole message, no handshake and no
- * AUTH round trip, because the credential rides in a header. This is the path
- * that fits inside the hook's 5s budget with room to spare.
+ * Brevo's SMTP relay, and what production runs today. Kept because Brevo hands
+ * out SMTP credentials by default and you have those before you have an API key
+ * — but it pays the five round trips described at the top of this file, so treat
+ * it as a stopgap and move to BREVO_API_KEY.
  *
- * Sends as GMAIL_USER — the same mailbox SMTP uses, so recipients see no
- * difference. The API wants the raw RFC 5322 message base64url-encoded, which
- * is why the MIME is assembled by hand instead of by the SMTP client.
+ * `to` is a list, but today it is always the account's institutional address
+ * alone — see the recipients note at the top.
  */
-async function sendViaGmailApi(
+async function sendViaBrevoSmtp(
   to: string[],
   subject: string,
   html: string,
   text: string,
 ): Promise<void> {
-  const token = await gmailAccessToken()
-  const boundary = `ic_${crypto.randomUUID().replace(/-/g, '')}`
-
-  // multipart/alternative: text first, HTML second. Order matters — clients
-  // render the last part they understand, so HTML has to come last.
-  const mime = [
-    `From: ${FROM_NAME} <${GMAIL_USER}>`,
-    `To: ${to.join(', ')}`,
-    `Reply-To: ${FROM_NAME} <${GMAIL_USER}>`,
-    `Subject: ${encodeHeader(subject)}`,
-    'MIME-Version: 1.0',
-    // Same headers, and the same reasons, as the SMTP path below.
-    'Auto-Submitted: auto-generated',
-    'X-Auto-Response-Suppress: OOF, AutoReply',
-    `X-Entity-Ref-ID: ${crypto.randomUUID()}`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/plain; charset="UTF-8"',
-    'Content-Transfer-Encoding: base64',
-    '',
-    base64Utf8(text).replace(/(.{76})/g, '$1\r\n'),
-    `--${boundary}`,
-    'Content-Type: text/html; charset="UTF-8"',
-    'Content-Transfer-Encoding: base64',
-    '',
-    base64Utf8(html).replace(/(.{76})/g, '$1\r\n'),
-    `--${boundary}--`,
-    '',
-  ].join('\r\n')
-
-  const res = await fetch(
-    'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        // base64url, unpadded — the plain base64 alphabet is rejected.
-        raw: base64Utf8(mime).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
-      }),
-    },
-  )
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new Error(`Gmail API rejected the send (${res.status}): ${detail.slice(0, 300)}`)
-  }
-}
-
-/** One message, one SMTP session. `to` is a list, but today it is always the
- * account's institutional address alone — see the delivery note at the top. */
-async function sendViaSmtp(
-  to: string[],
-  subject: string,
-  html: string,
-  text: string,
-): Promise<void> {
-  const appPassword = Deno.env.get('GMAIL_APP_PASSWORD')
-  if (!appPassword) throw new Error('GMAIL_APP_PASSWORD is not configured')
-
   const client = new SMTPClient({
     connection: {
-      hostname: 'smtp.gmail.com',
-      port: 465,
-      tls: true,
-      auth: { username: GMAIL_USER, password: appPassword },
+      hostname: BREVO_SMTP_HOST,
+      port: BREVO_SMTP_PORT,
+      // 465 is implicit TLS; 587 starts plain and upgrades via STARTTLS, which
+      // denomailer negotiates on its own. Anything else is the caller's problem.
+      tls: BREVO_SMTP_PORT === 465,
+      auth: { username: BREVO_SMTP_USER!, password: BREVO_SMTP_KEY! },
     },
   })
 
   try {
     await client.send({
-      from: `${FROM_NAME} <${GMAIL_USER}>`,
+      from: `${FROM_NAME} <${FROM_EMAIL}>`,
       to,
-      // A reachable Reply-To on a transactional message is a legitimacy signal;
-      // phishing runs usually have no working reply path.
-      replyTo: `${FROM_NAME} <${GMAIL_USER}>`,
+      replyTo: `${FROM_NAME} <${FROM_EMAIL}>`,
       subject,
       content: text, // plain-text fallback for clients that ignore HTML
       html,
@@ -371,11 +340,36 @@ async function sendViaSmtp(
   }
 }
 
+type Transport = 'brevo-api' | 'brevo-smtp'
+
 /**
- * Pick a transport and send. The Gmail API wins when all three OAuth secrets
- * are present; anything short of that falls back to SMTP rather than failing,
- * so a half-applied migration degrades to the old slow path instead of dropping
- * codes.
+ * Decide which transport this isolate can use, best first, and throw if neither
+ * is configured.
+ *
+ * Throwing is the point. This used to fall through to a Gmail transport, which
+ * meant a missing or misspelled Brevo secret produced a working-looking send over
+ * the wrong provider — invisible in the auth log, invisible in Brevo's log, and
+ * only discoverable by reading this function's own output. Refusing to send is
+ * louder and cheaper to diagnose than silently sending the slow way.
+ */
+function pickTransport(): Transport {
+  if (BREVO_API_KEY) return 'brevo-api'
+  if (BREVO_SMTP_USER && BREVO_SMTP_KEY) return 'brevo-smtp'
+
+  // Name the half-configured case explicitly — it is almost always one typo'd
+  // secret name, and "no transport" alone would not point at which.
+  if (BREVO_SMTP_USER || BREVO_SMTP_KEY) {
+    throw new Error(
+      'Brevo SMTP is half-configured: BREVO_SMTP_USER and BREVO_SMTP_KEY must both be set',
+    )
+  }
+  throw new Error(
+    'No email transport configured — set BREVO_API_KEY, or both BREVO_SMTP_USER and BREVO_SMTP_KEY',
+  )
+}
+
+/**
+ * Pick a transport and send.
  *
  * The elapsed-ms log line is the only record of how close a send ran to the 5s
  * hook ceiling — keep it.
@@ -386,29 +380,22 @@ async function sendEmail(
   html: string,
   text: string,
 ): Promise<void> {
-  const oauthParts = [GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN]
-  const useApi = oauthParts.every(Boolean)
-  if (!useApi && oauthParts.some(Boolean)) {
-    // Partial config is almost always a typo in one secret name. Say so rather
-    // than silently running the slow path forever.
-    console.error(
-      'Gmail OAuth secrets are incomplete (need GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET ' +
-        'and GMAIL_REFRESH_TOKEN) — falling back to SMTP',
-    )
-  }
+  // Throws when nothing is configured, before the timer starts — that failure is
+  // a config error, not a delivery attempt, and does not belong in the timing log.
+  const transport = pickTransport()
 
   const startedAt = Date.now()
   try {
-    if (useApi) {
-      await sendViaGmailApi(to, subject, html, text)
+    if (transport === 'brevo-api') {
+      await sendViaBrevoApi(to, subject, html, text)
     } else {
-      await sendViaSmtp(to, subject, html, text)
+      await sendViaBrevoSmtp(to, subject, html, text)
     }
   } finally {
     console.log(
       JSON.stringify({
         msg: 'send-email-hook delivery attempt',
-        transport: useApi ? 'gmail-api' : 'smtp',
+        transport,
         elapsed_ms: Date.now() - startedAt,
       }),
     )
@@ -451,9 +438,10 @@ Deno.serve(async (req) => {
     })
   }
 
-  // 2. Deliver the code Supabase generated via Gmail SMTP, to the account's
-  //    institutional address and nowhere else — that is the address the code
-  //    belongs to, and receiving it is what proves control of the mailbox.
+  // 2. Deliver the code Supabase generated over whichever transport is
+  //    configured (Brevo first — see sendEmail), to the account's institutional
+  //    address and nowhere else — that is the address the code belongs to, and
+  //    receiving it is what proves control of the mailbox.
   const { subject, intro, what } = copyFor(email_data.email_action_type)
   const token = email_data.token
   const to = user.email
