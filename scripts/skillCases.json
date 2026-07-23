@@ -73,9 +73,21 @@
     "expect": "good"
   },
   {
-    "name": "Skills the taxonomy has never seen",
+    "name": "Frontend frameworks other than React",
     "student": ["Vue.js", "Svelte", "Tailwind CSS"],
     "required": ["Frontend Development", "CSS"],
+    "expect": "good"
+  },
+  {
+    "name": "Front end spelled as two words",
+    "student": ["Front End", "Web Design"],
+    "required": ["React", "HTML", "CSS", "JavaScript", "Figma"],
+    "expect": "partial"
+  },
+  {
+    "name": "Web design student against a UI/UX listing",
+    "student": ["Web Design", "Adobe XD", "Wireframing"],
+    "required": ["Figma", "UI/UX Design", "HTML", "CSS"],
     "expect": "partial"
   },
   {

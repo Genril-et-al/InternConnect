@@ -120,14 +120,27 @@ export const SEED_PARENTS: Record<string, string[]> = {
   'hmi': ['automation engineering'],
 
   // --- web ---
-  'frontend development': ['software development'],
+  'web development': ['software development'],
+  'frontend development': ['web development'],
   'frontend': ['frontend development'],
+  'web design': ['frontend development', 'ui/ux design'],
+  'responsive design': ['web design'],
   'react': ['frontend development', 'javascript'],
+  'vue': ['frontend development', 'javascript'],
+  'angular': ['frontend development', 'javascript'],
+  'next js': ['react'],
   'html': ['frontend development'],
   'css': ['frontend development'],
+  'tailwind css': ['css'],
+  'bootstrap': ['css'],
+  'sass': ['css'],
   'ui/ux design': ['frontend development'],
   'figma': ['ui/ux design'],
-  'backend development': ['software development'],
+  'adobe xd': ['ui/ux design'],
+  'wireframing': ['ui/ux design'],
+  'wordpress': ['web development'],
+  'full stack development': ['frontend development', 'backend development'],
+  'backend development': ['web development'],
   'backend': ['backend development'],
   'node js': ['backend development', 'javascript'],
   'api development': ['backend development'],
@@ -221,6 +234,31 @@ const ALIASES: Record<string, string> = {
   'source control': 'version control',
   'ui ux': 'ui/ux design',
   'ui/ux': 'ui/ux design',
+  'ui ux design': 'ui/ux design',
+  'ux ui': 'ui/ux design',
+  'ux/ui': 'ui/ux design',
+  'ux ui design': 'ui/ux design',
+  'ui design': 'ui/ux design',
+  'ux design': 'ui/ux design',
+  'user interface design': 'ui/ux design',
+  'user experience design': 'ui/ux design',
+  'front end development': 'frontend development',
+  'frontend developer': 'frontend development',
+  'front end developer': 'frontend development',
+  'back end development': 'backend development',
+  'backend developer': 'backend development',
+  'web dev': 'web development',
+  'web developer': 'web development',
+  'website development': 'web development',
+  'web designer': 'web design',
+  'website design': 'web design',
+  'full stack': 'full stack development',
+  'full stack developer': 'full stack development',
+  'html5': 'html',
+  'css3': 'css',
+  'tailwind': 'tailwind css',
+  'vue js': 'vue',
+  'angular js': 'angular',
   'c sharp': 'c#',
   csharp: 'c#',
   'dot net': '.net',
@@ -231,13 +269,32 @@ const ALIASES: Record<string, string> = {
   'raspberry pi 4': 'raspberry pi',
 }
 
+/**
+ * Every taxonomy skill, keyed by its spelling with all spaces removed.
+ *
+ * Students split compound words unpredictably — "front end", "front-end" and
+ * "frontend" are the same skill, and only the last one used to score. Rather
+ * than enumerate every variant as an alias, we collapse the spaces and look the
+ * skill up that way. Built straight off the seed keys (which are already
+ * lower-case and canonical) so it can be used inside normalizeSkill without
+ * waiting for the graph to exist.
+ */
+const SPACELESS_SEED = new Map<string, string>(
+  Object.keys(SEED_PARENTS).map((skill) => [skill.replace(/ /g, ''), skill]),
+)
+
 export function normalizeSkill(value: string): string {
   const base = value
     .trim()
     .toLowerCase()
     .replace(/[._-]/g, ' ')
     .replace(/\s+/g, ' ')
-  return ALIASES[base] ?? base
+  const alias = ALIASES[base]
+  if (alias) return alias
+
+  const compact = base.replace(/ /g, '')
+  if (compact === base) return base
+  return ALIASES[compact] ?? SPACELESS_SEED.get(compact) ?? base
 }
 
 type Graph = {
