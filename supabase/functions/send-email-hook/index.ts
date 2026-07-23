@@ -9,18 +9,37 @@
 // Supabase to generate + expire + rate-limit the 6-digit code, and verifyOtp()
 // still validates it. This function only owns *delivery*.
 //
-// Delivery path: Gmail SMTP (smtp.gmail.com:465) using a Gmail App Password.
-// This is why the sending logic lives in code we control while still reaching
-// real @cit.edu inboxes. To move off Gmail later, swap the sendEmail() body for
-// a provider API (e.g. Resend) and drop the SMTP secrets.
+// Delivery path: the Gmail HTTP API when the OAuth secrets are set, otherwise
+// Gmail SMTP (smtp.gmail.com:465) with an App Password. Both send as the same
+// mailbox from the same Google account — the only thing that changes is how the
+// message gets handed to Google. The transport is chosen at runtime so SMTP
+// keeps working until the OAuth secrets are in place, and no send is lost to a
+// half-finished migration.
+//
+// Prefer the API. SMTP is the reason this function times out: a session is
+// connect → TLS → AUTH → send → close, five round trips before Google has the
+// message, measured at 2.9-5.1s against a hard 5s ceiling. The API is one POST
+// (~300ms) because the auth rides along in a header. Same sender, same inbox,
+// no new provider, no domain of our own required — a plain @gmail.com account
+// can issue the refresh token.
 //
 // Secrets required (supabase secrets set ...):
 //   SEND_EMAIL_HOOK_SECRET — the hook signing secret Supabase shows when you
 //                            create the Send Email hook (format: "v1,whsec_...")
-//   GMAIL_APP_PASSWORD     — 16-char Google App Password for the sender account
+//   GMAIL_APP_PASSWORD     — 16-char Google App Password (SMTP path only)
+// Optional — set all three together to enable the API path:
+//   GMAIL_CLIENT_ID        — OAuth client ID from Google Cloud Console
+//   GMAIL_CLIENT_SECRET    — that client's secret
+//   GMAIL_REFRESH_TOKEN    — one-time consent for scope gmail.send, issued for
+//                            the GMAIL_USER mailbox. Does not expire on its own.
 // Optional (have sensible defaults):
 //   GMAIL_USER             — sender mailbox (default internconnect000@gmail.com)
 //   EMAIL_FROM_NAME        — display name on the From header (default InternConnect)
+//
+// Note on deliverability: this changes speed, not reputation. Mail still leaves
+// as @gmail.com, so the @cit.edu quarantine risk is exactly what it is today —
+// neither improved nor worsened. Only sending from a domain we control would
+// move that, and that is a separate decision, not a prerequisite for this.
 //
 // This function must be deployed with JWT verification DISABLED — it is called
 // by Supabase's auth server (authenticated by the hook signature above), not by
@@ -38,16 +57,47 @@
 // from both the auth flow and the dashboard. Awaiting costs latency but keeps
 // delivery failures reportable, which is the only reason this is debuggable.
 //
-// Headroom is genuinely tight (measured 4879ms against the 5s budget on a cold
-// start). The real fix is to drop SMTP for an HTTP email API (Resend/Postmark):
-// one fetch settles in ~200-400ms, which fits the budget with room to spare and
-// keeps the error reporting. Until then, expect occasional hook timeouts.
+// On SMTP the headroom is not merely tight, it is regularly blown: warm sends
+// measured 3.45-3.84s against the 5s budget, and cold starts measured 5.12s and
+// 5.14s — those two requests died with error_code "hook_timeout" and the student
+// got nothing. That is a quarter of all signup attempts in one day's auth log.
+// Nothing in this file can shrink an SMTP session enough to make that safe.
+// The Gmail API path settles in one POST (~300ms), which is what actually
+// removes the timeout rather than narrowing it.
+//
+// Every send logs its transport and elapsed ms, so the next person to ask "did
+// the code go out?" can answer it from the function logs alone.
+//
+// Recipients: the account's institutional address, and nothing else. Codes are
+// no longer CC'd to a personal inbox — signup does not ask for one — so
+// receiving a code proves control of the institutional mailbox.
+//
+// Watch @cit.edu delivery. Gmail accepts the message, cit.edu accepts it from
+// Gmail, and it has been quarantined on the far side with no bounce: the hook
+// returns 200, the auth log says "Hook ran successfully", and the student still
+// has an empty inbox. Nothing here can detect that — a 200 from this function
+// means "handed off", never "delivered". Switching SMTP for the Gmail API does
+// not change this either way: both leave as @gmail.com and carry the same
+// reputation. If quarantining recurs, the levers are an institutional allowlist
+// for our sender, or sending from a domain we control — a separate decision
+// from the timeout, and not a prerequisite for fixing it.
 
 import { Webhook } from 'npm:standardwebhooks@1.0.0'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 
 const GMAIL_USER = Deno.env.get('GMAIL_USER') ?? 'internconnect000@gmail.com'
 const FROM_NAME = Deno.env.get('EMAIL_FROM_NAME') ?? 'InternConnect'
+const GMAIL_CLIENT_ID = Deno.env.get('GMAIL_CLIENT_ID')
+const GMAIL_CLIENT_SECRET = Deno.env.get('GMAIL_CLIENT_SECRET')
+const GMAIL_REFRESH_TOKEN = Deno.env.get('GMAIL_REFRESH_TOKEN')
+
+/**
+ * Access tokens last an hour, so cache one per isolate. A warm invocation then
+ * spends a single round trip on the actual send; only a cold start pays for the
+ * refresh. Module scope is the right lifetime here — it dies with the isolate,
+ * which is exactly when the cached token stops being useful anyway.
+ */
+let cachedToken: { value: string; expiresAt: number } | null = null
 
 type EmailData = {
   token: string
@@ -58,7 +108,10 @@ type EmailData = {
 }
 
 type HookPayload = {
-  user: { email: string }
+  user: {
+    id: string
+    email: string
+  }
   email_data: EmailData
 }
 
@@ -154,8 +207,129 @@ function emailText(intro: string, what: string, token: string, to: string): stri
   ].join('\n')
 }
 
-async function sendEmail(
-  to: string,
+/** base64 of arbitrary UTF-8 text. btoa() only accepts latin-1, so the string
+ * has to be encoded to bytes first or anything non-ASCII throws — the email copy
+ * has em-dashes in it. */
+function base64Utf8(value: string): string {
+  const bytes = new TextEncoder().encode(value)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary)
+}
+
+/** RFC 2047 encoded-word. The subject is ASCII today, but encoding it
+ * unconditionally means a future copy change cannot quietly mangle it. */
+function encodeHeader(value: string): string {
+  return `=?UTF-8?B?${base64Utf8(value)}?=`
+}
+
+/** Exchange the long-lived refresh token for an access token, reusing the
+ * cached one whenever it has more than a minute left. The minute of slack keeps
+ * a token from expiring mid-flight on a slow send. */
+async function gmailAccessToken(): Promise<string> {
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) {
+    return cachedToken.value
+  }
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: GMAIL_CLIENT_ID!,
+      client_secret: GMAIL_CLIENT_SECRET!,
+      refresh_token: GMAIL_REFRESH_TOKEN!,
+      grant_type: 'refresh_token',
+    }),
+  })
+
+  const body = await res.json().catch(() => null)
+  if (!res.ok || !body?.access_token) {
+    // Google names the real problem here (invalid_grant when the token was
+    // revoked, invalid_client for a bad ID/secret). Pass it through rather than
+    // collapsing it to a status code.
+    throw new Error(
+      `Gmail token refresh failed (${res.status}): ${JSON.stringify(body ?? {}).slice(0, 300)}`,
+    )
+  }
+
+  cachedToken = {
+    value: body.access_token,
+    expiresAt: Date.now() + (body.expires_in ?? 3600) * 1000,
+  }
+  return cachedToken.value
+}
+
+/**
+ * Gmail's HTTP API: one POST carrying the whole message, no handshake and no
+ * AUTH round trip, because the credential rides in a header. This is the path
+ * that fits inside the hook's 5s budget with room to spare.
+ *
+ * Sends as GMAIL_USER — the same mailbox SMTP uses, so recipients see no
+ * difference. The API wants the raw RFC 5322 message base64url-encoded, which
+ * is why the MIME is assembled by hand instead of by the SMTP client.
+ */
+async function sendViaGmailApi(
+  to: string[],
+  subject: string,
+  html: string,
+  text: string,
+): Promise<void> {
+  const token = await gmailAccessToken()
+  const boundary = `ic_${crypto.randomUUID().replace(/-/g, '')}`
+
+  // multipart/alternative: text first, HTML second. Order matters — clients
+  // render the last part they understand, so HTML has to come last.
+  const mime = [
+    `From: ${FROM_NAME} <${GMAIL_USER}>`,
+    `To: ${to.join(', ')}`,
+    `Reply-To: ${FROM_NAME} <${GMAIL_USER}>`,
+    `Subject: ${encodeHeader(subject)}`,
+    'MIME-Version: 1.0',
+    // Same headers, and the same reasons, as the SMTP path below.
+    'Auto-Submitted: auto-generated',
+    'X-Auto-Response-Suppress: OOF, AutoReply',
+    `X-Entity-Ref-ID: ${crypto.randomUUID()}`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    base64Utf8(text).replace(/(.{76})/g, '$1\r\n'),
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    base64Utf8(html).replace(/(.{76})/g, '$1\r\n'),
+    `--${boundary}--`,
+    '',
+  ].join('\r\n')
+
+  const res = await fetch(
+    'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        // base64url, unpadded — the plain base64 alphabet is rejected.
+        raw: base64Utf8(mime).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
+      }),
+    },
+  )
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Gmail API rejected the send (${res.status}): ${detail.slice(0, 300)}`)
+  }
+}
+
+/** One message, one SMTP session. `to` is a list, but today it is always the
+ * account's institutional address alone — see the delivery note at the top. */
+async function sendViaSmtp(
+  to: string[],
   subject: string,
   html: string,
   text: string,
@@ -197,6 +371,50 @@ async function sendEmail(
   }
 }
 
+/**
+ * Pick a transport and send. The Gmail API wins when all three OAuth secrets
+ * are present; anything short of that falls back to SMTP rather than failing,
+ * so a half-applied migration degrades to the old slow path instead of dropping
+ * codes.
+ *
+ * The elapsed-ms log line is the only record of how close a send ran to the 5s
+ * hook ceiling — keep it.
+ */
+async function sendEmail(
+  to: string[],
+  subject: string,
+  html: string,
+  text: string,
+): Promise<void> {
+  const oauthParts = [GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN]
+  const useApi = oauthParts.every(Boolean)
+  if (!useApi && oauthParts.some(Boolean)) {
+    // Partial config is almost always a typo in one secret name. Say so rather
+    // than silently running the slow path forever.
+    console.error(
+      'Gmail OAuth secrets are incomplete (need GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET ' +
+        'and GMAIL_REFRESH_TOKEN) — falling back to SMTP',
+    )
+  }
+
+  const startedAt = Date.now()
+  try {
+    if (useApi) {
+      await sendViaGmailApi(to, subject, html, text)
+    } else {
+      await sendViaSmtp(to, subject, html, text)
+    }
+  } finally {
+    console.log(
+      JSON.stringify({
+        msg: 'send-email-hook delivery attempt',
+        transport: useApi ? 'gmail-api' : 'smtp',
+        elapsed_ms: Date.now() - startedAt,
+      }),
+    )
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: { http_code: 405, message: 'Method not allowed' } }), {
@@ -233,11 +451,9 @@ Deno.serve(async (req) => {
     })
   }
 
-  // 2. Deliver the code Supabase generated via Gmail SMTP — in the BACKGROUND.
-  //    We schedule the send but do not await it, so the hook responds well within
-  //    the 5s timeout. EdgeRuntime.waitUntil keeps the isolate alive until the
-  //    send settles. Failures are logged (they can't be reported to the auth flow
-  //    once we've already returned 200).
+  // 2. Deliver the code Supabase generated via Gmail SMTP, to the account's
+  //    institutional address and nowhere else — that is the address the code
+  //    belongs to, and receiving it is what proves control of the mailbox.
   const { subject, intro, what } = copyFor(email_data.email_action_type)
   const token = email_data.token
   const to = user.email
@@ -245,7 +461,7 @@ Deno.serve(async (req) => {
   // changing this to a background send.
   try {
     await sendEmail(
-      to,
+      [to],
       subject(token),
       emailHtml(intro, what, token, to),
       emailText(intro, what, token, to),
@@ -258,10 +474,10 @@ Deno.serve(async (req) => {
     )
   }
 
-  // 3. 200 = success (Supabase Send Email hook contract). Returned immediately;
-  //    delivery continues in the background scheduled above. GoTrue reads the
-  //    response and requires a Content-Type header, so we return an empty JSON
-  //    object rather than a null body — a bare 200 trips
+  // 3. 200 = success (Supabase Send Email hook contract), reached only once the
+  //    send above has settled. GoTrue reads the response and requires a
+  //    Content-Type header, so we return an empty JSON object rather than a
+  //    null body — a bare 200 trips
   //    "Invalid Content-Type: Missing Content-Type header".
   return new Response(JSON.stringify({}), {
     status: 200,

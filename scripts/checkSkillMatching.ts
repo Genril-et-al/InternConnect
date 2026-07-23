@@ -30,6 +30,11 @@ const here = dirname(fileURLToPath(import.meta.url))
 const cases: Case[] = JSON.parse(readFileSync(join(here, 'skillCases.json'), 'utf8'))
 
 const verbose = process.argv.includes('--verbose')
+/**
+ * Machine-readable mode, used by skills:learn to compare a batch against the
+ * baseline. Prints one JSON line and nothing else, so stdout stays parseable.
+ */
+const asJson = process.argv.includes('--json')
 let passed = 0
 const failures: string[] = []
 
@@ -41,9 +46,11 @@ for (const c of cases) {
   if (ok) passed++
   else failures.push(`${c.name}: got ${score}%, expected ${c.expect} (${min}-${max}%)`)
 
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${String(score).padStart(4)}%  ${c.expect.padEnd(7)} ${c.name}`)
+  if (!asJson) {
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${String(score).padStart(4)}%  ${c.expect.padEnd(7)} ${c.name}`)
+  }
 
-  if (verbose) {
+  if (verbose && !asJson) {
     for (const need of c.required) {
       const best = c.student
         .map((mine) => ({ mine, score: pairScore(mine, need) }))
@@ -54,11 +61,16 @@ for (const c of cases) {
   }
 }
 
-const pct = Math.round((passed / cases.length) * 100)
-console.log(`\n${passed}/${cases.length} cases passed (${pct}%)`)
+if (asJson) {
+  console.log(JSON.stringify({ passed, total: cases.length, failures }))
+} else {
+  const pct = Math.round((passed / cases.length) * 100)
+  console.log(`\n${passed}/${cases.length} cases passed (${pct}%)`)
 
-if (failures.length) {
-  console.log('\nFailures:')
-  for (const f of failures) console.log(`  - ${f}`)
-  process.exit(1)
+  if (failures.length) {
+    console.log('\nFailures:')
+    for (const f of failures) console.log(`  - ${f}`)
+  }
 }
+
+if (failures.length) process.exit(1)

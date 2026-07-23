@@ -20,8 +20,7 @@ import { formatMiddleInitial } from './name'
 /**
  * Sign-up collects the student's full name and university email (UC-S01),
  * plus a few contact details. Everything else is filled in later on the
- * profile. `personalEmail` is contact detail only — the verification code
- * always goes to the university email.
+ * profile.
  */
 export type SignupName = {
   firstName: string
@@ -30,7 +29,6 @@ export type SignupName = {
   suffix: string
   address?: string
   contactNumber?: string
-  personalEmail?: string
 }
 
 /**
@@ -53,15 +51,26 @@ export async function checkSignupEligibility(
  * Step 1: send a verification code to `email` (creates the pending user).
  *
  * `email` is the institutional address — the university email for students,
- * the work email for companies — and it is both identity and delivery: the
- * code is mailed to the same inbox the roster is keyed on, so receiving it
- * proves control of that mailbox.
+ * the work email for companies. It is the identity: the roster is keyed on it,
+ * auth.users.email is set to it, and it is what they log in with afterwards.
+ * It is also the ONLY address the code goes to; signup no longer asks for a
+ * personal inbox and nothing is CC'd anywhere else, so receiving the code
+ * proves control of the institutional mailbox.
  *
- * This replaces the split introduced in migration 0013, where students named a
- * personal inbox and the code went there instead. A personal email is still
- * collected, but only as profile contact detail; it no longer receives mail
- * and is no longer what they log in with.
+ * That puts the whole flow on @cit.edu delivery working. @cit.edu has
+ * quarantined our Gmail-sent mail with no bounce before, and if that recurs the
+ * fix belongs at the mail layer — an authenticated sending domain
+ * (Resend/Postmark) or an institutional allowlist for our sender — not a second
+ * delivery address here.
  */
+// Do NOT retry this call on a hook timeout. It was tried, and it makes the
+// symptom worse rather than better: GoTrue stores exactly one confirmation
+// token per user, so a second signInWithOtp overwrites the first code. The hook
+// times out at the 5s mark but the edge function keeps running and finishes its
+// ~5.1s SMTP session, so the first code IS delivered — the retry then sends a
+// second one and silently kills the first. The student opens the earlier email,
+// types a code that was valid when it arrived, and is told it is incorrect.
+// Latency belongs to the transport, not to a retry here.
 export async function requestSignupCode(email: string, name: SignupName) {
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
@@ -74,7 +83,6 @@ export async function requestSignupCode(email: string, name: SignupName) {
         suffix: name.suffix.trim(),
         address: name.address?.trim() || null,
         contact_number: name.contactNumber?.trim() || null,
-        personal_email: name.personalEmail?.trim() || null,
       },
     },
   })

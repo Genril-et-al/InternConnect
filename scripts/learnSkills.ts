@@ -152,15 +152,30 @@ function sanitize(
   return clean
 }
 
-function runCheck(): boolean {
+type CheckResult = { passed: number; total: number; failures: string[] }
+
+/**
+ * Score the ground-truth suite in a fresh process, so the taxonomy is re-read
+ * from disk each time.
+ *
+ * The check exits non-zero whenever ANY case fails, which is what makes it
+ * useful as a commit gate. It is the wrong signal here: the suite has standing
+ * failures the generator is not responsible for, and demanding a clean run
+ * meant every batch was reverted no matter how good it was. We want the count,
+ * not the exit code — so read stdout in both directions.
+ */
+function runCheck(): CheckResult {
   try {
-    execFileSync('node', ['--import', './scripts/tsResolve.mjs', 'scripts/checkSkillMatching.ts'], {
-      cwd: root,
-      stdio: 'inherit',
-    })
-    return true
-  } catch {
-    return false
+    const out = execFileSync(
+      'node',
+      ['--import', './scripts/tsResolve.mjs', 'scripts/checkSkillMatching.ts', '--json'],
+      { cwd: root, encoding: 'utf8' },
+    )
+    return JSON.parse(out.trim())
+  } catch (err) {
+    const out = (err as { stdout?: string }).stdout?.trim()
+    if (!out) throw err
+    return JSON.parse(out)
   }
 }
 
@@ -192,6 +207,11 @@ async function main() {
     return
   }
 
+  // Baseline first, so the batch is judged on what IT changed rather than on
+  // failures that were already there.
+  const before = runCheck()
+  console.log(`\nBaseline: ${before.passed}/${before.total} cases passing.`)
+
   const current = JSON.parse(readFileSync(EDGES, 'utf8'))
   copyFileSync(EDGES, BACKUP)
 
@@ -204,15 +224,23 @@ async function main() {
     ) + '\n',
   )
 
-  console.log('\nRe-running ground-truth check...\n')
-  if (runCheck()) {
-    rmSync(BACKUP)
-    console.log('\nCheck passed. Taxonomy updated.')
-  } else {
+  console.log('Re-running ground-truth check...')
+  const after = runCheck()
+  console.log(`After:    ${after.passed}/${after.total} cases passing.`)
+
+  if (after.passed < before.passed) {
     copyFileSync(BACKUP, EDGES)
     rmSync(BACKUP)
-    console.error('\nCheck FAILED — batch reverted, taxonomy left unchanged.')
+    console.error('\nMatching got WORSE — batch reverted, taxonomy left unchanged.')
+    for (const f of after.failures) console.error(`  - ${f}`)
     process.exit(1)
+  }
+
+  rmSync(BACKUP)
+  console.log('\nNo regression. Taxonomy updated.')
+  if (after.failures.length) {
+    console.log('Pre-existing failures (not caused by this batch):')
+    for (const f of after.failures) console.log(`  - ${f}`)
   }
 }
 

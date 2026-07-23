@@ -3,6 +3,7 @@ import type {
   AdminAppStats,
   AdminCompany,
   AdminListing,
+  AdminSkillGap,
   AdminStudent,
   StudentStatus,
   VerifStatus,
@@ -310,4 +311,21 @@ export async function removeApprovedCompany(contactEmail: string): Promise<void>
     .delete()
     .eq('contact_email', contactEmail.trim().toLowerCase())
   if (error) throw new Error(error.message)
+}
+
+/** The unplaceable-skill backlog, most frequently seen first. Admin-only by RLS. */
+export async function fetchSkillGaps(): Promise<AdminSkillGap[]> {
+  const { data, error } = await supabase
+    .from('skill_gaps')
+    .select('skill, first_seen, last_seen, times_seen')
+    .order('times_seen', { ascending: false })
+    .order('skill')
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).map((row) => ({
+    skill: row.skill,
+    firstSeen: row.first_seen,
+    lastSeen: row.last_seen,
+    timesSeen: row.times_seen,
+  }))
 }

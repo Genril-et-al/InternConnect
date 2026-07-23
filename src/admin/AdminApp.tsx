@@ -8,6 +8,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   LogOut,
+  Tags,
 } from 'lucide-react'
 import { useAuth } from '../auth/context'
 import { useSidebarCollapsed } from '../lib/useSidebar'
@@ -18,6 +19,7 @@ import { AdminStudents } from './AdminStudents'
 import { AdminCompanies } from './AdminCompanies'
 import { AdminInternships } from './AdminInternships'
 import { AdminReports } from './AdminReports'
+import { AdminSkillGaps } from './AdminSkillGaps'
 import { EMPTY_APP_STATS } from './adminData'
 import type { AdminAppStats, AdminCompany, AdminListing, AdminStudent } from './adminData'
 import {
@@ -35,6 +37,7 @@ const NAV = [
   { icon: Building2, label: 'Manage Companies' },
   { icon: Briefcase, label: 'Manage Internships' },
   { icon: BarChart3, label: 'Reports' },
+  { icon: Tags, label: 'Skill Backlog' },
 ]
 
 /**
@@ -200,6 +203,7 @@ export function AdminApp() {
               students={students}
             />
           )}
+          {active === 5 && <AdminSkillGaps />}
         </div>
       </main>
     </div>

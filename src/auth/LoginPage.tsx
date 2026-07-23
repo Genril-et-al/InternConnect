@@ -339,9 +339,7 @@ function SignupFlow({
   const [step, setStep] = useState<SignupStep>('role')
   const [accountType, setAccountType] = useState<AccountType | null>(null)
   const [email, setEmail] = useState('')
-  // Contact detail stored on the profile — the code goes to `email`, never
-  // here.
-  const [personalEmail, setPersonalEmail] = useState('')
+
   const [code, setCode] = useState('')
   const [expiresAt, setExpiresAt] = useState<number | null>(null)
   const [timeLeft, setTimeLeft] = useState(0)
@@ -371,8 +369,9 @@ function SignupFlow({
 
 
   const totalSteps = 4
-  const deliveryEmail = email
 
+  // Names, address and contact number come from the roster now — signup no
+  // longer asks for what the NLO already recorded.
   const signupName = {
     firstName: '',
     middleInitial: '',
@@ -380,17 +379,20 @@ function SignupFlow({
     suffix: '',
     address: '',
     contactNumber: '',
-    personalEmail: '',
   }
 
   /**
-   * Mail the code to the institutional address — the university email for
-   * students, the work email for companies. That is also the address the
-   * roster is keyed on and the one they log in with afterwards.
+   * The account is created on the institutional address — the university email
+   * for students, the work email for companies — which is what the roster is
+   * keyed on, what they log in with afterwards, and the only address the
+   * verification code is delivered to.
    */
   async function sendCode() {
     await requestSignupCode(email, signupName)
   }
+
+  /** Where the student should go looking for the code we just sent. */
+  const codeDestination = email
 
   async function handleRequestCode(event: React.FormEvent) {
     event.preventDefault()
@@ -421,7 +423,7 @@ function SignupFlow({
       await sendCode()
       setAttempts(0)
       setExpiresAt(Date.now() + 5 * 60 * 1000)
-      setInfo(`We sent a 6-digit code to ${email}.`)
+      setInfo(`We sent a 6-digit code to ${codeDestination}.`)
       setStep('verify')
     } catch (err) {
       setError(errorMessage(err))
@@ -438,7 +440,13 @@ function SignupFlow({
     try {
       await verifySignupCode(email, code)
       setStep('password')
-    } catch {
+    } catch (err) {
+      // Log the real error. This used to be a bare `catch {}`, which relabelled
+      // every possible failure — network drop, rate limit, hook error — as a bad
+      // code, so a student reporting "it says my code is wrong" told us nothing
+      // about what actually went wrong. The message shown stays friendly; the
+      // console gets the truth.
+      console.error('verifySignupCode failed', err)
       const next = attempts + 1
       setAttempts(next)
       if (next >= MAX_CODE_ATTEMPTS) {
@@ -461,7 +469,7 @@ function SignupFlow({
       setAttempts(0)
       setCode('')
       setExpiresAt(Date.now() + 5 * 60 * 1000)
-      setInfo(`A new code has been sent to ${deliveryEmail}.`)
+      setInfo(`A new code has been sent to ${codeDestination}.`)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -565,12 +573,19 @@ function SignupFlow({
             {timeLeft > 0 ? (
               <>Expires in {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</>
             ) : (
-              <>Code expired. Please request a new one.</>
+              <>This code may have expired. Try it anyway, or request a new one.</>
             )}
           </div>
         )}
         {error && <p className="auth-error">{error}</p>}
-        <button className="auth-primary" disabled={busy || (expiresAt !== null && timeLeft === 0)} type="submit">
+        {/* Deliberately NOT disabled when the timer hits zero. The countdown
+            starts when signInWithOtp returns, so it measures time since we
+            *asked* for the code — not since the student *received* it. Mail that
+            takes longer than 5 minutes to arrive (@cit.edu has held ours) landed
+            the student on a dead button with a code in hand and no way to submit
+            it, which is invisible in the auth log because no request is ever
+            made. Let the server rule on the token; the timer is a hint. */}
+        <button className="auth-primary" disabled={busy} type="submit">
           {busy ? 'Verifying…' : 'Verify code'}
         </button>
         <button className="auth-link" disabled={busy} onClick={handleResend} type="button">
@@ -634,24 +649,10 @@ function SignupFlow({
           value={email}
         />
       </label>
-      {accountType !== 'company' && (
-        <>
-          <label>
-            Personal email <span className="auth-optional">(optional)</span>
-            <input
-              autoComplete="email"
-              onChange={(e) => setPersonalEmail(e.target.value)}
-              placeholder="yourname@gmail.com"
-              type="email"
-              value={personalEmail}
-            />
-          </label>
-          <p className="auth-hint auth-hint-left">
-            Your verification code goes to your university email. The personal
-            address is kept on your profile as a contact detail only.
-          </p>
-        </>
-      )}
+      <p className="auth-hint auth-hint-left">
+        We send your 6-digit code to this address, and it is what you log in
+        with afterwards.
+      </p>
       {error && <p className="auth-error">{error}</p>}
       <button className="auth-primary" disabled={busy} type="submit">
         {busy ? 'Sending code…' : 'Send verification code'}

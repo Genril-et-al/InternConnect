@@ -80,3 +80,15 @@ export const EMPTY_APP_STATS: AdminAppStats = {
   placementRate: 0,
   avgProcessingTimeDays: 0,
 }
+
+/**
+ * A skill the matcher met but could not place in the taxonomy. Collected from
+ * every student's browser (see skillGapSync.ts) so the backlog that
+ * `npm run skills:learn` works through lives in one place.
+ */
+export type AdminSkillGap = {
+  skill: string
+  firstSeen: string
+  lastSeen: string
+  timesSeen: number
+}
