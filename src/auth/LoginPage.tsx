@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Building2, GraduationCap } from 'lucide-react'
 import {
   checkSignupEligibility,
@@ -338,18 +338,30 @@ function SignupFlow({
 }) {
   const [step, setStep] = useState<SignupStep>('role')
   const [accountType, setAccountType] = useState<AccountType | null>(null)
-  const [firstName, setFirstName] = useState('')
-  const [middleInitial, setMiddleInitial] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [suffix, setSuffix] = useState('')
   const [email, setEmail] = useState('')
   // Second delivery address for the code, and a profile contact detail
   // afterwards. Required for students: @cit.edu quarantines our mail, so
   // without it a signup can stall with no inbox to read the code from.
   const [personalEmail, setPersonalEmail] = useState('')
-  const [address, setAddress] = useState('')
-  const [contactNumber, setContactNumber] = useState('')
   const [code, setCode] = useState('')
+  const [expiresAt, setExpiresAt] = useState<number | null>(null)
+  const [timeLeft, setTimeLeft] = useState(0)
+
+  useEffect(() => {
+    if (!expiresAt || step !== 'verify') {
+      setTimeLeft(0)
+      return
+    }
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
+      setTimeLeft(remaining)
+      if (remaining === 0) {
+        clearInterval(interval)
+      }
+    }, 1000)
+    setTimeLeft(Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)))
+    return () => clearInterval(interval)
+  }, [expiresAt, step])
   const [attempts, setAttempts] = useState(0)
   const [password, setPasswordValue] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -360,14 +372,18 @@ function SignupFlow({
 
   const totalSteps = 4
 
+  // Names, address and contact number come from the roster now — signup no
+  // longer asks for what the NLO already recorded. The personal email is the
+  // exception: nothing upstream knows it, and send-email-hook needs it to have
+  // a second inbox to deliver the code to.
   const signupName = {
-    firstName: accountType === 'company' ? '' : firstName,
-    middleInitial: accountType === 'company' ? '' : middleInitial,
-    lastName: accountType === 'company' ? '' : lastName,
-    suffix: accountType === 'company' ? '' : suffix,
-    address: accountType === 'company' ? '' : address,
-    contactNumber: accountType === 'company' ? '' : contactNumber,
-    personalEmail: accountType === 'company' ? '' : personalEmail,
+    firstName: '',
+    middleInitial: '',
+    lastName: '',
+    suffix: '',
+    address: '',
+    contactNumber: '',
+    personalEmail: accountType === 'company' ? '' : personalEmail.trim(),
   }
 
   /**
@@ -399,7 +415,7 @@ function SignupFlow({
       const role = await checkSignupEligibility(email)
       if (!role) {
         setError(
-          "This email isn't cleared to register yet. Students must be pre-registered by the NLO, and companies must be NLO-approved. Ask the NLO to add your email, then try again.",
+          'Institutional Email Not Found. Please use your registered institutional email.',
         )
         return
       }
@@ -415,7 +431,8 @@ function SignupFlow({
       }
       await sendCode()
       setAttempts(0)
-      setInfo(`We sent a 6-digit code to ${codeDestination}. It expires in 5 minutes.`)
+      setExpiresAt(Date.now() + 5 * 60 * 1000)
+      setInfo(`We sent a 6-digit code to ${codeDestination}.`)
       setStep('verify')
     } catch (err) {
       setError(errorMessage(err))
@@ -423,6 +440,7 @@ function SignupFlow({
       setBusy(false)
     }
   }
+
 
   async function handleVerify(event: React.FormEvent) {
     event.preventDefault()
@@ -453,6 +471,7 @@ function SignupFlow({
       await sendCode()
       setAttempts(0)
       setCode('')
+      setExpiresAt(Date.now() + 5 * 60 * 1000)
       setInfo(`A new code has been sent to ${codeDestination}.`)
     } catch (err) {
       setError(errorMessage(err))
@@ -536,7 +555,9 @@ function SignupFlow({
   if (step === 'verify') {
     return (
       <form className="auth-form" onSubmit={handleVerify}>
-        <p className="auth-step">Step 3 of {totalSteps} · Verify email</p>
+        <p className="auth-step">
+          Step 3 of {totalSteps} · Verify email
+        </p>
         <label>
           Verification code
           <input
@@ -550,8 +571,17 @@ function SignupFlow({
           />
         </label>
         {info && <p className="auth-info">{info}</p>}
+        {expiresAt !== null && (
+          <div className={`auth-timer ${timeLeft === 0 ? 'expired' : ''}`}>
+            {timeLeft > 0 ? (
+              <>Expires in {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}</>
+            ) : (
+              <>Code expired. Please request a new one.</>
+            )}
+          </div>
+        )}
         {error && <p className="auth-error">{error}</p>}
-        <button className="auth-primary" disabled={busy} type="submit">
+        <button className="auth-primary" disabled={busy || (expiresAt !== null && timeLeft === 0)} type="submit">
           {busy ? 'Verifying…' : 'Verify code'}
         </button>
         <button className="auth-link" disabled={busy} onClick={handleResend} type="button">
@@ -574,6 +604,7 @@ function SignupFlow({
           onToggle={() => setShowPassword((v) => !v)}
           value={password}
           visible={showPassword}
+          showStrengthIndicator={true}
         />
         <PasswordField
           autoComplete="new-password"
@@ -600,68 +631,7 @@ function SignupFlow({
         Step 2 of {totalSteps} · Your details ·{' '}
         {accountType === 'company' ? 'Company account' : 'Student account'}
       </p>
-      {accountType !== 'company' && (
-        <div className="auth-name-grid">
-          <label>
-            First name
-            <input
-              onChange={(e) => setFirstName(e.target.value)}
-              placeholder="Genril"
-              required
-              value={firstName}
-            />
-          </label>
-          <label>
-            M.I.
-            <input
-              maxLength={4}
-              onChange={(e) => setMiddleInitial(e.target.value)}
-              placeholder="T"
-              value={middleInitial}
-            />
-          </label>
-          <label>
-            Last name
-            <input
-              onChange={(e) => setLastName(e.target.value)}
-              placeholder="Sorono"
-              required
-              value={lastName}
-            />
-          </label>
-          <label>
-            Suffix
-            <input
-              onChange={(e) => setSuffix(e.target.value)}
-              placeholder="Jr., III, etc."
-              value={suffix}
-            />
-          </label>
-        </div>
-      )}
-      {accountType !== 'company' && (
-        <>
-          <label>
-            Address
-            <input
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Your home address"
-              required
-              value={address}
-            />
-          </label>
-          <label>
-            Contact Number
-            <input
-              onChange={(e) => setContactNumber(e.target.value)}
-              placeholder="09123456789"
-              required
-              type="tel"
-              value={contactNumber}
-            />
-          </label>
-        </>
-      )}
+
       <label>
         {accountType === 'company' ? 'Work email' : 'University email'}
         <input

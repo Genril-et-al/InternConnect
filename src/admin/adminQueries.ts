@@ -33,6 +33,8 @@ type StudentRow = {
   deactivated_at: string | null
   application_count: number
   joined: string
+  course: string | null
+  year_level: string | null
 }
 
 function studentStatus(row: StudentRow): StudentStatus {
@@ -70,9 +72,8 @@ export async function fetchStudents(): Promise<AdminStudent[]> {
       studentId = `21-${1000 + (num % 8999)}-0${10 + (num % 89)}`
     }
 
-    // Mock program & year level deterministically if not registered, else assign realistic defaults
-    const program = r.email.includes('dongque') ? 'BSCS' : r.email.includes('alcover') ? 'BSIS' : 'BSIT'
-    const year = r.email.includes('dongque') ? '4th Year' : '3rd Year'
+    const program = r.course || (r.email.includes('dongque') ? 'BSCS' : r.email.includes('alcover') ? 'BSIS' : 'BSIT')
+    const year = r.year_level || (r.email.includes('dongque') ? '4th Year' : '3rd Year')
     const skills = dbSkills || (r.email.includes('dongque') ? ['React', 'TypeScript', 'Node.js'] : ['CSS', 'HTML', 'SQL'])
 
     return {

@@ -238,50 +238,70 @@ export function StudentDashboard({
       </section>
 
       {/* Top skill matches */}
-      <section className="sd-card">
-        <div className="sd-card-head">
-          <h3>Top Skill Matches</h3>
-          <button className="sd-link" onClick={() => onNavigate('Browse Internships')} type="button">
-            Browse all <ChevronRight size={12} />
-          </button>
-        </div>
-        <div className="sd-list">
-          {internships.length === 0 && (
-            <p className="sd-muted sd-empty">No internships posted yet.</p>
-          )}
-          {internships.slice(0, 3).map((job) => (
-            <div 
-              className="sd-list-row clickable" 
-              key={job.id}
-              onClick={() => onOpenInternship?.(job.id)}
-              role="button"
-              tabIndex={0}
-            >
-              {job.companyLogo ? (
-                <img src={job.companyLogo} alt={job.company} className="sd-mark" style={{ objectFit: 'contain' }} />
-              ) : (
-                <span className="sd-mark">{job.company.slice(0, 2).toUpperCase()}</span>
-              )}
-              <div className="sd-list-main">
-                <p className="sd-list-title">{job.title}</p>
-                <p className="sd-muted">
-                  {job.company} · {job.location} · {job.setup}
-                </p>
-              </div>
-              <MatchBar value={job.match} />
-              <button
-                className="sd-primary sm"
-                onClick={() => {
-                  onOpenInternship?.(job.id)
-                }}
-                type="button"
-              >
-                Learn More
-              </button>
+      {internships.length > 0 && internships[0].match === 0 ? (
+        <section className="sd-card">
+          <div className="sd-card-head">
+            <h3>Top Skill Matches</h3>
+            <button className="sd-link" onClick={() => onNavigate('Browse Internships')} type="button">
+              Browse all <ChevronRight size={12} />
+            </button>
+          </div>
+          <div className="sd-list">
+            <div className="sd-empty">
+              <h4 style={{ margin: '0 0 8px 0', color: 'var(--brand-brown)' }}>No Skill Matches</h4>
+              <p className="sd-muted" style={{ margin: 0, textAlign: 'center' }}>
+                The uploaded resume or profile does not match any of the required skills for the selected job.
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
+        </section>
+      ) : (
+        <section className="sd-card">
+          <div className="sd-card-head">
+            <h3>Top Skill Matches</h3>
+            <button className="sd-link" onClick={() => onNavigate('Browse Internships')} type="button">
+              Browse all <ChevronRight size={12} />
+            </button>
+          </div>
+          <div className="sd-list">
+            {internships.length === 0 && (
+              <p className="sd-muted sd-empty">No internships posted yet.</p>
+            )}
+            {internships.slice(0, 3).map((job) => (
+              <div 
+                className="sd-list-row clickable" 
+                key={job.id}
+                onClick={() => onOpenInternship?.(job.id)}
+                role="button"
+                tabIndex={0}
+              >
+                {job.companyLogo ? (
+                  <img src={job.companyLogo} alt={job.company} className="sd-mark" style={{ objectFit: 'contain' }} />
+                ) : (
+                  <span className="sd-mark">{job.company.slice(0, 2).toUpperCase()}</span>
+                )}
+                <div className="sd-list-main">
+                  <p className="sd-list-title">{job.title}</p>
+                  <p className="sd-muted">
+                    {job.company} · {job.location} · {job.setup}
+                  </p>
+                </div>
+                <MatchBar value={job.match} />
+                <button
+                  className="sd-primary sm"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOpenInternship?.(job.id)
+                  }}
+                  type="button"
+                >
+                  Learn More
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Recent applications */}
       <section className="sd-card">

@@ -11,6 +11,7 @@ export function useProactiveNotifications(internships: Internship[], application
     const storageKeyNotified = `internconnect_proactive_notified_${userId}`
     const storageKeyRead = `internconnect_proactive_read_${userId}`
     const storageKeyDismissed = `internconnect_proactive_dismissed_${userId}`
+    const storageKeyDates = `internconnect_proactive_dates_${userId}`
 
     const getStored = (key: string) => {
       try {
@@ -20,9 +21,18 @@ export function useProactiveNotifications(internships: Internship[], application
       }
     }
 
+    const getStoredDates = (key: string) => {
+      try {
+        return JSON.parse(localStorage.getItem(key) || '{}')
+      } catch {
+        return {}
+      }
+    }
+
     const notifiedIds = getStored(storageKeyNotified)
     const readIds = getStored(storageKeyRead)
     const dismissedIds = getStored(storageKeyDismissed)
+    const dates = getStoredDates(storageKeyDates)
 
     // Find high-match internships we haven't notified about yet
     const newMatches = internships.filter(
@@ -30,8 +40,12 @@ export function useProactiveNotifications(internships: Internship[], application
     )
 
     if (newMatches.length > 0) {
-      newMatches.forEach((i) => notifiedIds.add(i.id))
+      newMatches.forEach((i) => {
+        notifiedIds.add(i.id)
+        if (!dates[i.id]) dates[i.id] = new Date().toISOString()
+      })
       localStorage.setItem(storageKeyNotified, JSON.stringify(Array.from(notifiedIds)))
+      localStorage.setItem(storageKeyDates, JSON.stringify(dates))
     }
 
     const activeProactiveIds = Array.from(notifiedIds).filter(id => !dismissedIds.has(id))
@@ -43,7 +57,7 @@ export function useProactiveNotifications(internships: Internship[], application
         return {
           id: `proactive-${internship.id}`,
           message: `New internship matching your skills (${internship.match}%): ${internship.title} at ${internship.company}`,
-          date: new Date().toISOString(),
+          date: dates[id] || new Date().toISOString(), // Keeping raw ISO string for correct sorting
           read: readIds.has(id),
         }
       })

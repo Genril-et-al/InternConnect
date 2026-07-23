@@ -19,6 +19,8 @@ export type NewApprovedStudent = {
   middleInitial?: string
   lastName?: string
   studentNumber?: string
+  course?: string
+  yearLevel?: string
 }
 
 export type NewApprovedCompany = {
@@ -49,6 +51,8 @@ function studentRow(s: NewApprovedStudent) {
     middle_initial: formatMiddleInitial(s.middleInitial) || null,
     last_name: clean(s.lastName),
     student_number: clean(s.studentNumber),
+    course: clean(s.course),
+    year_level: clean(s.yearLevel),
   }
 }
 
@@ -209,6 +213,8 @@ export function parseStudentRows(rows: string[][]): NewApprovedStudent[] {
       middleInitial,
       lastName,
       studentNumber: at(r, ['studentnumber', 'studentno', 'studentid', 'idnumber']),
+      course: at(r, ['course', 'program']),
+      yearLevel: at(r, ['yearlevel', 'year']),
     })
   }
   return out

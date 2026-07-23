@@ -420,12 +420,14 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [studentNumber, setStudentNumber] = useState('')
+  const [course, setCourse] = useState('')
+  const [yearLevel, setYearLevel] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name || !email || !studentNumber || busy) return
+    if (!name || !email || !studentNumber || !course || !yearLevel || busy) return
     // Normalised before both the check and the write, so the roster can't end
     // up holding an address that differs from the sign-up one only by case.
     const institutionalEmail = email.trim().toLowerCase()
@@ -438,7 +440,7 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
     const { firstName, lastName } = splitName(name)
     try {
       // Pre-clears the email so the student can self-register (UC-A03).
-      await addApprovedStudent({ email: institutionalEmail, firstName, lastName, studentNumber })
+      await addApprovedStudent({ email: institutionalEmail, firstName, lastName, studentNumber, course, yearLevel })
       await onAdded() // reload from the roster so the new row shows accurately
       onClose()
     } catch (err) {
@@ -480,6 +482,14 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
           <label className="cp-modal-label">
             Student Number *
             <input className="ic-input" value={studentNumber} onChange={e => setStudentNumber(e.target.value)} placeholder="e.g. 21-1234-567" required />
+          </label>
+          <label className="cp-modal-label">
+            Course/Program *
+            <input className="ic-input" value={course} onChange={e => setCourse(e.target.value)} placeholder="e.g. BSCS" required />
+          </label>
+          <label className="cp-modal-label">
+            Year Level *
+            <input className="ic-input" value={yearLevel} onChange={e => setYearLevel(e.target.value)} placeholder="e.g. 3rd Year" required />
           </label>
           {error && <p className="ic-form-error" style={{ margin: 0, color: 'var(--brand-crimson, #c0392b)', fontSize: '13px' }}>{error}</p>}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>

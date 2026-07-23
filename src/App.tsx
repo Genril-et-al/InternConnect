@@ -353,6 +353,7 @@ function StudentPortal({
             internships={internships}
             appliedIds={new Set(applications.map((a) => a.internshipId))}
             bookmarkedIds={bookmarkedIds}
+            hasAcceptedOffer={applications.some((a) => a.status === 'Accepted')}
             onToggleBookmark={handleToggleBookmark}
             onApply={handleApply}
             selectedInternship={selectedInternship}
@@ -416,6 +417,7 @@ function BrowseInternships({
   internships,
   appliedIds,
   bookmarkedIds,
+  hasAcceptedOffer,
   onToggleBookmark,
   onApply,
   selectedInternship,
@@ -424,6 +426,7 @@ function BrowseInternships({
   internships: Internship[]
   appliedIds: Set<string>
   bookmarkedIds: Set<string>
+  hasAcceptedOffer: boolean
   onToggleBookmark: (listingId: string) => void
   onApply: (listingId: string) => Promise<void>
   selectedInternship: Internship | null
@@ -433,6 +436,7 @@ function BrowseInternships({
   const [searchField, setSearchField] = useState('All')
   const [matchFilter, setMatchFilter] = useState('All')
   const [showApplyModal, setShowApplyModal] = useState(false)
+  const [alertMessage, setAlertMessage] = useState<string | null>(null)
   const [showBookmarksOnly, setShowBookmarksOnly] = useState(false)
 
   const filtered = useMemo(() => {
@@ -479,8 +483,32 @@ function BrowseInternships({
           internship={selectedInternship}
           alreadyApplied={appliedIds.has(selectedInternship.id)}
           onBack={() => onSelectInternship(null)}
-          onApply={() => setShowApplyModal(true)}
+          onApply={() => {
+            if (hasAcceptedOffer) {
+              setAlertMessage('You have already accepted an internship offer. You cannot apply for another position.')
+            } else if (appliedIds.has(selectedInternship.id)) {
+              setAlertMessage('You have already applied for this internship.')
+            } else {
+              setShowApplyModal(true)
+            }
+          }}
         />
+        {alertMessage && (
+          <div className="modal-overlay" onClick={() => setAlertMessage(null)} style={{ zIndex: 9999 }}>
+            <div className="modal-panel" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Notice</h3>
+                <button aria-label="Close" className="modal-close" onClick={() => setAlertMessage(null)} type="button">
+                  <X size={16} />
+                </button>
+              </div>
+              <p style={{ margin: '16px 0 0 0', color: 'var(--text)' }}>{alertMessage}</p>
+              <div className="modal-footer" style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="primary" onClick={() => setAlertMessage(null)} type="button">OK</button>
+              </div>
+            </div>
+          </div>
+        )}
         {showApplyModal && (
           <ApplyModal
             internship={selectedInternship}
@@ -1493,7 +1521,7 @@ function InternshipDetailView({
       </div>
 
       <div className="detail-actions">
-        <button className="primary detail-apply-btn" disabled={alreadyApplied} onClick={onApply} type="button">
+        <button className="primary detail-apply-btn" onClick={onApply} type="button">
           {alreadyApplied ? 'Already Applied' : 'Apply Now'}
         </button>
       </div>

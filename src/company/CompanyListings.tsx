@@ -3,6 +3,9 @@ import { Eye, Plus, Search, Trash2, X } from 'lucide-react'
 import type { CompanyApplicant, CompanyListing, PreEmploymentRequirement } from './companyData'
 import type { NewListingInput } from './companyQueries'
 import { useScrollLock } from '../lib/useScrollLock'
+import { TagInput } from '../profile/TagInput'
+import { SKILL_SUGGESTIONS } from '../lib/suggestions'
+import '../profile/profile.css'
 
 /** UC-C03 — view and search the company's listings with applicant counts. */
 export function CompanyListings({
@@ -303,7 +306,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
   const [department, setDepartment] = useState('')
   const [slots, setSlots] = useState('1')
   const [deadline, setDeadline] = useState('')
-  const [skills, setSkills] = useState('')
+  const [skills, setSkills] = useState<string[]>([])
   const [description, setDescription] = useState('')
   const [hasAllowance, setHasAllowance] = useState(false)
   const [offerDeadlineDays, setOfferDeadlineDays] = useState('3')
@@ -348,7 +351,7 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
         department,
         slots: parseInt(slots) || 1,
         deadline,
-        skills: skills.split(',').map(s => s.trim()).filter(Boolean),
+        skills: skills,
         description,
         hasAllowance,
         offerDeadlineDays: parseInt(offerDeadlineDays) || 3,
@@ -411,7 +414,12 @@ function PostListingModal({ onClose, onCreate }: { onClose: () => void; onCreate
           
           <div>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--brand-brown)', fontSize: '14px' }}>Skills Needed <span style={{color:'var(--brand-crimson)'}}>*</span></label>
-            <input required value={skills} onChange={e => setSkills(e.target.value)} placeholder="e.g. React, Figma, TypeScript" style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)' }} />
+            <TagInput
+              onChange={setSkills}
+              placeholder="Type a skill and press Enter (e.g. React, Figma, TypeScript)"
+              tags={skills}
+              suggestions={SKILL_SUGGESTIONS}
+            />
           </div>
           
           <div>
