@@ -448,6 +448,7 @@ function BrowseInternships({
   selectedInternship: Internship | null
   onSelectInternship: (internship: Internship | null) => void
 }) {
+  const { profile } = useAuth()
   const [query, setQuery] = useState('')
   const [searchField, setSearchField] = useState('All')
   const [matchFilter, setMatchFilter] = useState('All')
@@ -500,10 +501,21 @@ function BrowseInternships({
           alreadyApplied={appliedIds.has(selectedInternship.id)}
           onBack={() => onSelectInternship(null)}
           onApply={() => {
+            const isProfileComplete = Boolean(
+              profile?.photo_url &&
+              profile?.resume_url &&
+              profile?.age &&
+              profile?.gender &&
+              profile?.address &&
+              profile?.contact_number
+            )
+
             if (hasAcceptedOffer) {
               setAlertMessage('You have already accepted an internship offer. You cannot apply for another position.')
             } else if (appliedIds.has(selectedInternship.id)) {
               setAlertMessage('You have already applied for this internship.')
+            } else if (!isProfileComplete) {
+              setAlertMessage('Your profile must be complete before you can apply. Please ensure your photo, resume, and personal information are filled out.')
             } else {
               setShowApplyModal(true)
             }

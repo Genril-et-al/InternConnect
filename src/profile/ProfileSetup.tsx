@@ -633,7 +633,7 @@ export function ProfileSetup({
             </div>
           </label>
           <label className="profile-field-span">
-            Address <span style={{ color: 'var(--brand-crimson)' }}>*</span>
+            <span>Address <span style={{ color: 'var(--brand-crimson)' }}>*</span></span>
             <input
               onChange={(e) => setAddress(e.target.value)}
               placeholder="City, Province"
@@ -651,7 +651,7 @@ export function ProfileSetup({
             />
           </label>
           <label>
-            Contact Number <span style={{ color: 'var(--brand-crimson)' }}>*</span>
+            <span>Contact Number <span style={{ color: 'var(--brand-crimson)' }}>*</span></span>
             <input
               onChange={(e) => setContactNumber(e.target.value)}
               placeholder="09..."
