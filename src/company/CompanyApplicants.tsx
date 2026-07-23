@@ -22,6 +22,7 @@ import { signedDocumentUrl } from '../lib/profile'
 import type { InterviewDetails } from './companyQueries'
 import { Dropdown } from '../components/Dropdown'
 import { useScrollLock } from '../lib/useScrollLock'
+import { Avatar } from '../components/Avatar'
 
 /**
  * UC-C04 / UC-C05 — review applications, open an applicant's profile
@@ -264,7 +265,7 @@ function ListingGroupCard({
 
   const handleSelectAll = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setSelectedIds(new Set(applicants.map(a => a.id)))
+    setSelectedIds(new Set(applicants.filter(a => a.status !== 'Withdrawn').map(a => a.id)))
     if (!isExpanded) onToggleExpand()
   }
 
@@ -331,13 +332,14 @@ function ListingGroupCard({
                   <input 
                     type="checkbox" 
                     checked={selectedIds.has(a.id)}
+                    disabled={a.status === 'Withdrawn'}
                     onChange={(e) => {
                       const newSet = new Set(selectedIds)
                       if (e.target.checked) newSet.add(a.id)
                       else newSet.delete(a.id)
                       setSelectedIds(newSet)
                     }}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--brand-orange)', margin: 0 }}
+                    style={{ width: '18px', height: '18px', cursor: a.status === 'Withdrawn' ? 'not-allowed' : 'pointer', accentColor: 'var(--brand-orange)', margin: 0 }}
                   />
                 </div>
                 <button 
@@ -345,7 +347,7 @@ function ListingGroupCard({
                   type="button" 
                   style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', padding: '12px 16px', cursor: 'pointer', textAlign: 'left', minWidth: 0, outline: 'none' }}
                 >
-                  <span className="cp-row-avatar" style={{ width: '32px', height: '32px', fontSize: '12px' }}>{initials(a.name)}</span>
+                  <Avatar className="cp-row-avatar" name={a.name} photoUrl={a.photoUrl} />
                   <div className="cp-row-main">
                     <p className="cp-row-name" style={{ fontSize: '14px' }}>{a.name}</p>
                     <p className="cp-muted" style={{ fontSize: '12px' }}>
@@ -507,7 +509,7 @@ function ApplicantDetail({
 
       <section className="cp-card">
         <div className="cp-detail-head">
-          <span className="cp-detail-avatar">{initials(applicant.name)}</span>
+          <Avatar className="cp-detail-avatar" name={applicant.name} photoUrl={applicant.photoUrl} />
           <div className="cp-detail-main">
             <h2 className="cp-detail-name">{applicant.name}</h2>
             <p className="cp-muted">
@@ -521,9 +523,15 @@ function ApplicantDetail({
         </div>
 
       <div className="cp-detail-actions" style={{ marginTop: 18 }}>
+        {applicant.status === 'Withdrawn' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(192, 57, 43, 0.06)', border: '1px solid var(--brand-crimson)', borderRadius: '6px', color: 'var(--brand-crimson)', fontSize: '14px', fontWeight: 500, width: '100%' }}>
+            This applicant has withdrawn their application.
+          </div>
+        )}
         {applicant.status === 'Interview' && (() => {
           let interviewConcluded = false;
           let errorMsg = null;
+          const rounds = listings.find((l) => l.title === applicant.role)?.interviewProcess?.rounds ?? ['Interview']
           try {
             const details = JSON.parse(applicant.nextStep ?? '{}');
             if (details.date && details.time) {
@@ -560,18 +568,19 @@ function ApplicantDetail({
             >
               <CheckCircle2 size={13} /> Send Offer
             </button>
-            <button
-              className="cp-accept"
-              disabled={!interviewConcluded || isClosed}
-              title={isClosed ? 'Listing closed' : errorMsg || ''}
-              onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
-              type="button"
-            >
-              <CheckCircle2 size={13} /> Finalize Acceptance
-            </button>
+            {rounds.length <= 1 && (
+              <button
+                className="cp-accept"
+                disabled={!interviewConcluded || isClosed}
+                title={isClosed ? 'Listing closed' : errorMsg || ''}
+                onClick={() => run(() => onSetStatus(applicant.id, 'Accepted'))}
+                type="button"
+              >
+                <CheckCircle2 size={13} /> Finalize Acceptance
+              </button>
+            )}
             {(() => {
               // Find if there is a next round based on listing's process
-              const rounds = listings.find((l) => l.title === applicant.role)?.interviewProcess?.rounds ?? ['Interview']
               let currentRoundIdx = -1
               try {
                 const details = JSON.parse(applicant.nextStep ?? '{}')
@@ -610,7 +619,7 @@ function ApplicantDetail({
             Waiting for student to accept the offer...
           </div>
         )}
-        {applicant.status !== 'Accepted' && applicant.status !== 'Rejected' && applicant.status !== 'Interview' && applicant.status !== 'Offer' && (
+        {applicant.status !== 'Accepted' && applicant.status !== 'Rejected' && applicant.status !== 'Interview' && applicant.status !== 'Offer' && applicant.status !== 'Withdrawn' && (
           <button
             className="cp-accept"
             disabled={isClosed}
@@ -638,7 +647,7 @@ function ApplicantDetail({
             <CheckCircle2 size={13} /> {(listings.find((l) => l.title === applicant.role)?.interviewProcess?.rounds ?? ['Interview']).length === 0 ? 'Send Offer' : 'Accept'}
           </button>
         )}
-        {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && applicant.status !== 'Interview' && applicant.status !== 'Offer' && (
+        {applicant.status !== 'Rejected' && applicant.status !== 'Accepted' && applicant.status !== 'Interview' && applicant.status !== 'Offer' && applicant.status !== 'Withdrawn' && (
           <button className="cp-danger" disabled={isClosed} title={isClosed ? 'Listing closed' : ''} onClick={() => setRejectOpen(true)} type="button">
             <XCircle size={13} /> Reject
           </button>
@@ -766,10 +775,11 @@ function ApplicantDetail({
               <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                 <div>
                   <p style={{ margin: '0 0 4px 0', fontWeight: 500, fontSize: '14px', color: 'var(--text)' }}>{req.name}</p>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {req.description && <p style={{ margin: '4px 0', fontSize: '13px', color: 'var(--text-light)' }}>{req.description}</p>}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
                     {req.isPrintable ? (
                       <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '12px', fontWeight: 500, background: 'var(--bg)', color: 'var(--text-light)' }}>
-                        To be submitted in person
+                        Hardcopy Required
                       </span>
                     ) : (
                       <>
@@ -786,6 +796,11 @@ function ApplicantDetail({
                           </button>
                         )}
                       </>
+                    )}
+                    {req.templateFileUrl && (
+                      <button type="button" onClick={async () => { try { const url = await signedDocumentUrl(req.templateFileUrl!); window.open(url, '_blank'); } catch { alert('Failed to get download link'); } }} style={{ background: 'transparent', border: 'none', color: 'var(--brand-orange)', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline' }}>
+                        Download Template
+                      </button>
                     )}
                   </div>
                   {req.status === 'Needs Revision' && req.feedback && (
@@ -1055,7 +1070,13 @@ function ScheduleInterviewModal({
   const [mode, setMode] = useState<'online' | 'in-person'>('online')
   const [locationOrLink, setLocationOrLink] = useState('')
 
-  const isValid = dateOptions.every(o => o.date && o.time) && locationOrLink.trim()
+  const localTodayStr = new Date(Date.now() - (new Date()).getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+
+  const isValid = dateOptions.every(o => {
+    if (!o.date || !o.time) return false
+    const selectedDateTime = new Date(`${o.date}T${o.time}`)
+    return selectedDateTime.getTime() > Date.now()
+  }) && locationOrLink.trim()
 
   const handleUpdateDateOption = (index: number, field: 'date' | 'time', value: string) => {
     setDateOptions(prev => prev.map((opt, i) => i === index ? { ...opt, [field]: value } : opt))
@@ -1095,7 +1116,7 @@ function ScheduleInterviewModal({
               <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                 <label className="cp-modal-label" style={{ flex: 1 }}>
                   Date {dateOptions.length > 1 ? idx + 1 : ''} *
-                  <input type="date" value={opt.date} onChange={(e) => handleUpdateDateOption(idx, 'date', e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
+                  <input type="date" min={localTodayStr} value={opt.date} onChange={(e) => handleUpdateDateOption(idx, 'date', e.target.value)} style={{ padding: '8px', border: '1px solid var(--border)', borderRadius: '4px', marginTop: '4px', width: '100%' }} />
                 </label>
                 <label className="cp-modal-label" style={{ flex: 1 }}>
                   Time {dateOptions.length > 1 ? idx + 1 : ''} *
@@ -1363,7 +1384,7 @@ export function StatusBadge({ status, nextStep }: { status: ApplicantStatus, nex
   let variant =
     status === 'Accepted'
       ? 'success'
-      : status === 'Rejected'
+      : status === 'Rejected' || status === 'Withdrawn'
         ? 'rejected'
         : status === 'Pending'
           ? 'pending'
@@ -1382,15 +1403,7 @@ export function StatusBadge({ status, nextStep }: { status: ApplicantStatus, nex
   return <span className={`cp-badge ${variant}`}>{displayStatus}</span>
 }
 
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-}
+
 
 /**
  * Storage paths are timestamped (`{uid}/resume-1784372069279.pdf`), so show the

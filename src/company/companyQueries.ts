@@ -33,6 +33,7 @@ const APPLICANT_STATUS_FROM_DB: Record<string, ApplicantStatus> = {
   offered: 'Offer',
   accepted: 'Accepted',
   rejected: 'Rejected',
+  withdrawn: 'Withdrawn',
 }
 
 const APPLICANT_STATUS_TO_DB: Record<ApplicantStatus, string> = {
@@ -42,6 +43,7 @@ const APPLICANT_STATUS_TO_DB: Record<ApplicantStatus, string> = {
   Offer: 'offered',
   Accepted: 'accepted',
   Rejected: 'rejected',
+  Withdrawn: 'withdrawn',
 }
 
 /** The company row owned by the signed-in user. */
@@ -115,27 +117,33 @@ export async function updateCompanyProfile(id: string, updates: Partial<CompanyP
 }
 
 
-type CompanyListingRow = {
-  id: string
-  title: string
-  status: string
-  slots: number
-  deadline: string | null
-  department: string | null
-  skills: string[]
-  description: string | null
-  listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
-  interview_process: { rounds: string[] } | null
-}
+
 
 export async function fetchCompanyListings(companyId: string): Promise<CompanyListing[]> {
-  const { data, error } = await supabase
+  let data: any[] | null = null
+  let error: any = null
+
+  const response = await supabase
     .from('listings')
-    .select('id, title, status, slots, deadline, department, skills, description, interview_process, listing_requirements(id, name, kind, is_printable)')
+    .select('id, title, status, slots, deadline, department, skills, description, has_allowance, interview_process, listing_requirements(id, name, kind, is_printable, description, template_file_url)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
+
+  if (response.error && (response.error.message.includes('template_file_url') || response.error.code === '42703')) {
+    const fallbackResponse = await supabase
+      .from('listings')
+      .select('id, title, status, slots, deadline, department, skills, description, has_allowance, interview_process, listing_requirements(id, name, kind, is_printable)')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+    data = fallbackResponse.data
+    error = fallbackResponse.error
+  } else {
+    data = response.data
+    error = response.error
+  }
+
   if (error) throw new Error(error.message)
-  return ((data ?? []) as unknown as CompanyListingRow[]).map((r) => ({
+  return ((data ?? []) as any[]).map((r) => ({
     id: r.id,
     title: r.title,
     status: LISTING_STATUS_FROM_DB[r.status] ?? 'Draft',
@@ -149,8 +157,11 @@ export async function fetchCompanyListings(companyId: string): Promise<CompanyLi
       name: q.name,
       type: q.kind === 'file' ? ('file' as const) : ('text' as const),
       isPrintable: q.is_printable,
+      description: q.description ?? undefined,
+      templateFileUrl: q.template_file_url ?? null,
     })),
     interviewProcess: r.interview_process as { rounds: string[] } | undefined,
+    hasAllowance: r.has_allowance,
   }))
 }
 
@@ -196,6 +207,8 @@ export async function createListing(companyId: string, input: NewListingInput): 
         name: r.name,
         kind: r.type,
         is_printable: r.isPrintable,
+        description: r.description || null,
+        template_file_url: r.templateFileUrl || null,
       })),
     )
     if (reqErr) throw new Error(reqErr.message)
@@ -226,6 +239,8 @@ export async function updateListing(listingId: string, input: NewListingInput): 
         name: r.name,
         kind: r.type,
         is_printable: r.isPrintable,
+        description: r.description || null,
+        template_file_url: r.templateFileUrl || null,
       })),
     )
     if (reqError) throw new Error(reqError.message)
@@ -268,9 +283,9 @@ type ApplicantProfile = {
   skills: string[]
   specializations: string[]
   resume_url: string | null
-  cover_letter_url: string | null
   portfolio_link: string | null
   portfolio_file_url: string | null
+  photo_url: string | null
 }
 
 type ApplicantRow = {
@@ -284,7 +299,7 @@ type ApplicantRow = {
   listings: {
     title: string
     skills: string[]
-    listing_requirements: { id: string; name: string; is_printable: boolean }[]
+    listing_requirements: { id: string; name: string; is_printable: boolean; description: string | null; template_file_url: string | null }[]
   } | null
   requirement_submissions: {
     id: string
@@ -296,15 +311,36 @@ type ApplicantRow = {
 }
 
 export async function fetchApplicants(companyId: string): Promise<CompanyApplicant[]> {
-  const { data, error } = await supabase
+  let data: any[] | null = null
+  let error: any = null
+
+  const response = await supabase
     .from('applications')
     .select(
       'id, listing_id, student_id, status, feedback, next_step, created_at, ' +
-        'listings!inner(title, skills, company_id, listing_requirements(id, name, is_printable)), ' +
+        'listings!inner(title, skills, company_id, listing_requirements(id, name, is_printable, description, template_file_url)), ' +
         'requirement_submissions(id, requirement_id, status, file_path, text_value)',
     )
     .eq('listings.company_id', companyId)
     .order('created_at', { ascending: false })
+
+  if (response.error && (response.error.message.includes('template_file_url') || response.error.code === '42703')) {
+    const fallbackResponse = await supabase
+      .from('applications')
+      .select(
+        'id, listing_id, student_id, status, feedback, next_step, created_at, ' +
+          'listings!inner(title, skills, company_id, listing_requirements(id, name, is_printable)), ' +
+          'requirement_submissions(id, requirement_id, status, file_path, text_value)',
+      )
+      .eq('listings.company_id', companyId)
+      .order('created_at', { ascending: false })
+    data = fallbackResponse.data
+    error = fallbackResponse.error
+  } else {
+    data = response.data
+    error = response.error
+  }
+
   if (error) throw new Error(error.message)
   const rows = (data ?? []) as unknown as ApplicantRow[]
 
@@ -315,12 +351,28 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
   const studentIds = [...new Set(rows.map((r) => r.student_id))]
   const profileById = new Map<string, ApplicantProfile>()
   if (studentIds.length > 0) {
+    let profilesData: ApplicantProfile[] = []
     const { data: profiles, error: profilesError } = await supabase
       .from('applicant_profiles')
-      .select('id, full_name, email, skills, specializations, resume_url, cover_letter_url, portfolio_link, portfolio_file_url')
+      .select('id, full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url, photo_url')
       .in('id', studentIds)
-    if (profilesError) throw new Error(profilesError.message)
-    for (const p of (profiles ?? []) as ApplicantProfile[]) profileById.set(p.id, p)
+      
+    if (profilesError) {
+      if (profilesError.message.includes('photo_url') || profilesError.code === '42703') {
+        const { data: fallbackProfiles, error: fallbackError } = await supabase
+          .from('applicant_profiles')
+          .select('id, full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url')
+          .in('id', studentIds)
+        if (fallbackError) throw new Error(fallbackError.message)
+        profilesData = (fallbackProfiles ?? []).map(p => ({ ...p, photo_url: null })) as ApplicantProfile[]
+      } else {
+        throw new Error(profilesError.message)
+      }
+    } else {
+      profilesData = (profiles ?? []) as ApplicantProfile[]
+    }
+    
+    for (const p of profilesData) profileById.set(p.id, p)
   }
 
   return rows.map((r) => {
@@ -349,6 +401,8 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
         fileUrl: sub?.file_path ?? undefined,
         feedback: sub?.status === 'rejected' ? (parsedFeedback[q.id] ?? undefined) : undefined,
         isPrintable: q.is_printable,
+        description: q.description ?? undefined,
+        templateFileUrl: q.template_file_url ?? null,
       }
     })
     return {
@@ -368,11 +422,13 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
       resume: profile?.resume_url ?? '',
       portfolioLink: profile?.portfolio_link ?? undefined,
       portfolioFile: profile?.portfolio_file_url ?? undefined,
-      // Cover letters are files on the student's profile now, not typed text.
-      coverLetterFile: profile?.cover_letter_url ?? undefined,
+      // Cover letters are uploaded on a per-application basis using deterministic paths.
+      // We fall back to the profile cover letter for legacy applications.
+      coverLetterFile: `${r.student_id}/applications/${r.listing_id}_cover_letter.pdf`,
       feedback: r.feedback ?? undefined,
       nextStep: r.next_step ?? undefined,
       submittedRequirements: submitted,
+      photoUrl: profile?.photo_url ?? null,
     }
   })
 }

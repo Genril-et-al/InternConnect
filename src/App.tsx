@@ -330,9 +330,9 @@ function StudentPortal({
   const openProgress = (app: Application) => setSelectedAppId(app.id)
 
   const handleApply = useCallback(
-    async (listingId: string) => {
+    async (listingId: string, coverLetter: File) => {
       if (!userId) throw new Error('Not signed in.')
-      await applyToListing(userId, listingId)
+      await applyToListing(userId, listingId, coverLetter)
       await refresh()
     },
     [userId, refresh],
@@ -453,7 +453,7 @@ function BrowseInternships({
   bookmarkedIds: Set<string>
   hasAcceptedOffer: boolean
   onToggleBookmark: (listingId: string) => void
-  onApply: (listingId: string) => Promise<void>
+  onApply: (listingId: string, coverLetter: File) => Promise<void>
   selectedInternship: Internship | null
   onSelectInternship: (internship: Internship | null) => void
 }) {
@@ -549,7 +549,7 @@ function BrowseInternships({
         {showApplyModal && (
           <ApplyModal
             internship={selectedInternship}
-            onSubmit={() => onApply(selectedInternship.id)}
+            onSubmit={(coverLetter) => onApply(selectedInternship.id, coverLetter)}
             onClose={() => setShowApplyModal(false)}
           />
         )}
@@ -1205,9 +1205,13 @@ function RequirementSubmitRow({
           <p style={{ margin: 0, fontWeight: 500, fontSize: '14px' }}>{requirement.name}</p>
           {requirement.description && <p style={{ margin: '4px 0', fontSize: '13px', color: 'var(--text)' }}>{requirement.description}</p>}
           <p className="muted" style={{ margin: '2px 0 0 0', fontSize: '12px' }}>
-            {requirement.type === 'file' ? 'File upload' : 'Text instruction'}
-            {requirement.isPrintable && ' · Needs to be printed'}
+            {requirement.isPrintable ? 'Hardcopy Required' : 'File upload'}
           </p>
+          {requirement.templateFileUrl && (
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>
+              Template: <a href="#" onClick={async (e) => { e.preventDefault(); try { const url = await signedDocumentUrl(requirement.templateFileUrl!); window.open(url, '_blank'); } catch (err) { alert('Failed to get download link'); } }} style={{ color: 'var(--brand-orange)', textDecoration: 'underline' }}>Download template file</a>
+            </p>
+          )}
         </div>
         <span style={{ fontSize: '12px', fontWeight: 600, color: statusColor, whiteSpace: 'nowrap' }}>
           {statusLabel}
@@ -1597,6 +1601,10 @@ function InternshipDetailView({
             <span className="detail-info-value">{internship.slots}</span>
           </div>
           <div className="detail-info-item">
+            <span className="detail-info-label">Allowance</span>
+            <span className="detail-info-value">{internship.hasAllowance ? 'Provided' : 'None'}</span>
+          </div>
+          <div className="detail-info-item">
             <span className="detail-info-label">Skill Match Score</span>
             <span className="detail-info-value detail-match">
               {internship.match === null ? '—' : `${internship.match}%`}
@@ -1673,7 +1681,7 @@ function ApplyModal({
   onClose,
 }: {
   internship: Internship
-  onSubmit: () => Promise<void>
+  onSubmit: (coverLetter: File) => Promise<void>
   onClose: () => void
 }) {
   useScrollLock()
@@ -1684,6 +1692,7 @@ function ApplyModal({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [openingDoc, setOpeningDoc] = useState(false)
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null)
+  const [coverLetter, setCoverLetter] = useState<File | null>(null)
 
   const hasResume = Boolean(profile?.resume_url)
 
@@ -1712,10 +1721,14 @@ function ApplyModal({
   }
 
   const handleSubmit = async () => {
+    if (!coverLetter) {
+      setSubmitError('A cover letter is required to apply.')
+      return
+    }
     setSubmitting(true)
     setSubmitError(null)
     try {
-      await onSubmit()
+      await onSubmit(coverLetter)
       setSubmitted(true)
       setTimeout(() => {
         onClose()
@@ -1786,14 +1799,7 @@ function ApplyModal({
                     </p>
                   )}
 
-                  {profile?.cover_letter_url && (
-                    <ApplyDocumentRow
-                      busy={openingDoc}
-                      label="Cover Letter"
-                      name={documentFileName(profile.cover_letter_url)}
-                      onView={() => viewDocument(profile.cover_letter_url, 'Cover Letter')}
-                    />
-                  )}
+
 
                   {profile?.portfolio_file_url && (
                     <ApplyDocumentRow
@@ -1819,6 +1825,34 @@ function ApplyModal({
                   These come from your profile — update them there to change what is sent.
                 </p>
               </div>
+
+              <div className="modal-upload-field" style={{ marginTop: '16px' }}>
+                <label>Cover Letter (Required)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label className="profile-upload block" style={{ marginTop: '8px' }}>
+                    <input
+                      accept=".pdf"
+                      hidden
+                      onChange={(e) => {
+                        setCoverLetter(e.target.files?.[0] ?? null)
+                        e.target.value = ''
+                        setSubmitError(null)
+                      }}
+                      type="file"
+                    />
+                    {coverLetter ? coverLetter.name : 'Upload PDF cover letter'}
+                  </label>
+                  {coverLetter && (
+                    <button 
+                      type="button" 
+                      onClick={() => window.open(URL.createObjectURL(coverLetter), '_blank')}
+                      style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: 'var(--brand-orange)', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: '13px' }}
+                    >
+                      Preview {coverLetter.name}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {submitError && <p className="muted" style={{ color: 'var(--brand-crimson)' }}>{submitError}</p>}
@@ -1827,7 +1861,7 @@ function ApplyModal({
               <button onClick={onClose} type="button">Cancel</button>
               <button
                 className="primary"
-                disabled={!hasResume || submitting}
+                disabled={!hasResume || !coverLetter || submitting}
                 onClick={handleSubmit}
                 type="button"
               >

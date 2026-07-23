@@ -5,6 +5,8 @@ import type { NewListingInput } from './companyQueries'
 import { useScrollLock } from '../lib/useScrollLock'
 import { TagInput } from '../profile/TagInput'
 import { SKILL_SUGGESTIONS } from '../lib/suggestions'
+import { supabase } from '../lib/supabase'
+import { signedDocumentUrl } from '../lib/profile'
 import '../profile/profile.css'
 
 /** UC-C03 — view and search the company's listings with applicant counts. */
@@ -69,7 +71,16 @@ export function CompanyListings({
           <h1 className="cp-title">My Listings</h1>
           <p className="cp-subtitle">{listings.length} internship listings</p>
         </div>
-        <button className="cp-primary" type="button" onClick={() => setIsPosting(true)}>
+        <button
+          className="cp-primary"
+          type="button"
+          disabled={verification !== 'verified'}
+          onClick={() => setIsPosting(true)}
+          style={{
+            opacity: verification !== 'verified' ? 0.6 : 1,
+            cursor: verification !== 'verified' ? 'not-allowed' : 'pointer'
+          }}
+        >
           <Plus size={14} /> Post New Listing
         </button>
       </div>
@@ -278,6 +289,10 @@ function PreviewListingView({
             <span className="listing-preview-label">Deadline</span>
             <span className="listing-preview-value">{listing.deadline}</span>
           </div>
+          <div>
+            <span className="listing-preview-label">Allowance</span>
+            <span className="listing-preview-value">{listing.hasAllowance ? 'Provided' : 'None'}</span>
+          </div>
         </div>
 
         <section className="listing-preview-card">
@@ -300,11 +315,17 @@ function PreviewListingView({
                 <div key={req.id} style={{ marginBottom: '12px' }}>
                   <span className="listing-preview-req-name">{req.name}</span>
                   <span className="listing-preview-req-meta">
-                    {req.type === 'file' ? 'File upload' : 'Text instruction'}
-                    {req.isPrintable && ' · Needs to be printed'}
+                    {req.isPrintable ? 'Hardcopy Required' : 'File upload'}
                   </span>
+                  {req.templateFileUrl && (
+                    <div style={{ marginTop: '4px' }}>
+                      <span className="listing-preview-req-meta" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        Template: <a href="#" onClick={async (e) => { e.preventDefault(); try { const url = await signedDocumentUrl(req.templateFileUrl!); window.open(url, '_blank'); } catch (err) { alert('Failed to get download link'); } }} style={{ color: 'var(--brand-orange)', textDecoration: 'underline' }}>Download template file</a>
+                      </span>
+                    </div>
+                  )}
                   {req.description && (
-                    <p style={{ marginTop: '4px', fontSize: '14px', color: 'var(--text-light)', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                    <p style={{ marginTop: '6px', fontSize: '14px', color: 'var(--text-light)', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
                       {req.description}
                     </p>
                   )}
@@ -365,6 +386,25 @@ function PostListingModal({
     initialListing?.requirements?.length ? initialListing.requirements : [{ id: newRequirementId(), name: '', type: 'text', isPrintable: false }]
   )
 
+  const [uploadingReqId, setUploadingReqId] = useState<string | null>(null)
+
+  const handleUploadTemplate = async (reqId: string, file: File) => {
+    try {
+      setUploadingReqId(reqId)
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'bin'
+      const path = `templates/${reqId}-${Date.now()}.${ext}`
+      const { error } = await supabase.storage
+        .from('documents')
+        .upload(path, file, { contentType: file.type, cacheControl: '0' })
+      if (error) throw error
+      updateRequirement(reqId, { templateFileUrl: path })
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setUploadingReqId(null)
+    }
+  }
+
   const addRequirement = () => {
     setRequirements([
       ...requirements,
@@ -401,7 +441,13 @@ function PostListingModal({
         publish: publishImmediately,
         requirements: requirements
           .filter(r => r.name.trim() !== '')
-          .map(r => ({ name: r.name.trim(), type: r.type, isPrintable: r.isPrintable, description: r.description?.trim() })),
+          .map(r => ({
+            name: r.name.trim(),
+            type: r.isPrintable ? ('text' as const) : ('file' as const),
+            isPrintable: r.isPrintable,
+            description: r.description?.trim(),
+            templateFileUrl: r.templateFileUrl || null
+          })),
         interviewProcess: {
           rounds: interviewMode === 'none' ? [] : interviewMode === 'single' ? ['Interview'] : interviewRounds.filter(r => r.trim() !== '')
         }
@@ -549,12 +595,36 @@ function PostListingModal({
 
                     <div style={{ padding: '12px', background: 'var(--bg-subtle)', borderRadius: '6px', border: '1px dashed var(--border)', marginBottom: '12px' }}>
                       <p style={{ fontSize: '12px', marginBottom: '8px', color: 'var(--text-light)' }}>File upload (Optional template/document for the student):</p>
-                      <input type="file" style={{ fontSize: '12px' }} />
+                      {req.templateFileUrl ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg)', padding: '6px 12px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--text-strong)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            📄 {req.templateFileUrl.split('/').pop()}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateRequirement(req.id, { templateFileUrl: null })}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--brand-crimson)', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <input 
+                          type="file" 
+                          disabled={uploadingReqId === req.id}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) handleUploadTemplate(req.id, file)
+                          }}
+                          style={{ fontSize: '12px' }} 
+                        />
+                      )}
+                      {uploadingReqId === req.id && <span style={{ fontSize: '12px', color: 'var(--brand-orange)', display: 'block', marginTop: '4px' }}>Uploading...</span>}
                     </div>
 
                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', background: 'var(--bg-subtle)', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', color: 'var(--text-light)' }}>
                       <input type="checkbox" checked={req.isPrintable} onChange={e => updateRequirement(req.id, { isPrintable: e.target.checked })} style={{ width: '14px', height: '14px', margin: 0 }} />
-                      Needs to be printed
+                      Hardcopy Required
                     </label>
                   </div>
                   {requirements.length > 1 && (

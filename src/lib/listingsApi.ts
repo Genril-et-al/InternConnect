@@ -78,6 +78,7 @@ type ListingRow = {
   slots: number
   deadline: string | null
   skills: string[]
+  has_allowance: boolean
   companies: { id: string; name: string; industry: string | null; logo_url: string | null } | null
 }
 
@@ -98,6 +99,7 @@ function toInternship(row: ListingRow, profileSkills: string[]): Internship {
     status: listingStatus(row.deadline),
     skills: row.skills ?? [],
     summary: row.description ?? '',
+    hasAllowance: row.has_allowance,
   }
 }
 
@@ -137,7 +139,7 @@ export async function fetchOpenListings(
   for (let from = 0; ; from += LISTINGS_PAGE_SIZE) {
     const { data, error } = await supabase
       .from('listings')
-      .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, companies(id, name, industry, logo_url)')
+      .select('id, title, description, location, setup, duration_hours, slots, deadline, skills, has_allowance, companies(id, name, industry, logo_url)')
       .eq('status', 'open')
       .order('created_at', { ascending: false })
       // id breaks ties so the window is stable: listings sharing a created_at
@@ -166,22 +168,43 @@ type ApplicationRow = {
   listings: {
     title: string
     companies: { id: string; owner_id: string; name: string; logo_url: string | null } | null
-    listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
+    listing_requirements: { id: string; name: string; kind: string; is_printable: boolean; description: string | null; template_file_url: string | null }[]
   } | null
   requirement_submissions: { requirement_id: string; status: string; text_value: string | null; file_path: string | null }[]
 }
 
 /** The signed-in student's applications, newest first. */
 export async function fetchMyApplications(studentId: string): Promise<Application[]> {
-  const { data, error } = await supabase
+  let data: any[] | null = null
+  let error: any = null
+
+  const response = await supabase
     .from('applications')
     .select(
       'id, listing_id, status, next_step, feedback, created_at, ' +
-        'listings(title, companies(id, owner_id, name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
+        'listings(title, companies(id, owner_id, name, logo_url), listing_requirements(id, name, kind, is_printable, description, template_file_url)), ' +
         'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
     .eq('student_id', studentId)
     .order('created_at', { ascending: false })
+
+  if (response.error && (response.error.message.includes('template_file_url') || response.error.code === '42703')) {
+    const fallbackResponse = await supabase
+      .from('applications')
+      .select(
+        'id, listing_id, status, next_step, feedback, created_at, ' +
+          'listings(title, companies(id, owner_id, name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
+          'requirement_submissions(requirement_id, status, text_value, file_path)',
+      )
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false })
+    data = fallbackResponse.data
+    error = fallbackResponse.error
+  } else {
+    data = response.data
+    error = response.error
+  }
+
   if (error) throw new Error(error.message)
   return ((data ?? []) as unknown as ApplicationRow[]).map((r) => {
     let parsedFeedback: Record<string, string> = {}
@@ -203,6 +226,8 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
         name: q.name,
         type: q.kind === 'file' ? ('file' as const) : ('text' as const),
         isPrintable: q.is_printable,
+        description: q.description ?? undefined,
+        templateFileUrl: q.template_file_url ?? null,
         submissionStatus: !sub
           ? ('not_submitted' as const)
           : sub.status === 'approved'
@@ -238,7 +263,18 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
 export async function applyToListing(
   studentId: string,
   listingId: string,
+  coverLetterFile: File,
 ): Promise<void> {
+  // Upload cover letter to a deterministic path so we don't need a DB column
+  const path = `${studentId}/applications/${listingId}_cover_letter.pdf`
+  const { error: uploadError } = await supabase.storage
+    .from('documents')
+    .upload(path, coverLetterFile, { upsert: true })
+  
+  if (uploadError) {
+    throw new Error(`Failed to upload cover letter: ${uploadError.message}`)
+  }
+
   const { error } = await supabase.from('applications').insert({
     listing_id: listingId,
     student_id: studentId,

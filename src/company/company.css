@@ -753,3 +753,12 @@
   color: var(--text-muted);
   font-size: 12px;
 }
+
+.cp-row-avatar img,
+.cp-detail-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
