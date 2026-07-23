@@ -5,7 +5,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $BODY
+as $BODY$
 declare
   v_title text;
   v_owner uuid;
@@ -47,7 +47,7 @@ begin
 
   return new;
 end;
-$BODY;
+$BODY$;
 
 drop trigger if exists trg_notify_interview_updates on public.applications;
 create trigger trg_notify_interview_updates
