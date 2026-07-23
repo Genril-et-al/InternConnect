@@ -843,15 +843,17 @@ function ProgressModal({
   }
 
   const rejectedAtInterview = application.status === 'Rejected' && !!application.nextStep
+  // Companies can post a listing with no interview stage; hide that step here.
+  const hasInterview = application.hasInterview !== false
   const steps = [
     { label: 'Application Submitted', active: true, done: true },
     { label: 'Under Review', active: application.status !== 'Pending', done: application.status !== 'Pending', status: (application.status === 'Rejected' && !application.nextStep) ? 'error' : '' },
-    { 
-      label: 'Interview', 
-      active: ['Interview scheduled', 'Offered', 'Accepted'].includes(application.status) || rejectedAtInterview, 
+    ...(hasInterview ? [{
+      label: 'Interview',
+      active: ['Interview scheduled', 'Offered', 'Accepted'].includes(application.status) || rejectedAtInterview,
       done: ['Interview scheduled', 'Offered', 'Accepted'].includes(application.status) || rejectedAtInterview,
-      status: application.status === 'Interview scheduled' ? 'warning' : (rejectedAtInterview ? 'error' : '') 
-    },
+      status: application.status === 'Interview scheduled' ? 'warning' : (rejectedAtInterview ? 'error' : '')
+    }] : []),
     { label: 'Offer Extended', active: ['Offered', 'Accepted'].includes(application.status), done: ['Offered', 'Accepted'].includes(application.status), status: application.status === 'Offered' ? 'warning' : '' },
     { label: 'Pre-Employment Requirements', active: application.status === 'Accepted' && (application.approvedRequirements || 0) < (application.requirements?.length || 0), done: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length },
     { label: 'Ready to Start', active: application.status === 'Accepted' && application.approvedRequirements === application.requirements?.length, done: false },

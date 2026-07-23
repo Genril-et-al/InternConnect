@@ -165,6 +165,7 @@ type ApplicationRow = {
   created_at: string
   listings: {
     title: string
+    interview_process: { rounds: string[] } | null
     companies: { id: string; owner_id: string; name: string; logo_url: string | null } | null
     listing_requirements: { id: string; name: string; kind: string; description: string | null; is_printable: boolean }[]
   } | null
@@ -177,7 +178,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
     .from('applications')
     .select(
       'id, listing_id, status, next_step, feedback, created_at, ' +
-        'listings(title, companies(id, owner_id, name, logo_url), listing_requirements(id, name, kind, description, is_printable)), ' +
+        'listings(title, interview_process, companies(id, owner_id, name, logo_url), listing_requirements(id, name, kind, description, is_printable)), ' +
         'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
     .eq('student_id', studentId)
@@ -231,6 +232,10 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
       feedback: generalFeedback,
       requirements: reqs,
       approvedRequirements: approved,
+      // No interview_process row (legacy listing) means the default single
+      // interview; an explicit empty rounds array means the company chose
+      // "no interview".
+      hasInterview: (r.listings?.interview_process?.rounds?.length ?? 1) > 0,
     }
   })
 }
