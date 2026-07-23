@@ -88,15 +88,20 @@ export function CompanyApplicants({
   const visibleListings = useMemo(() => {
     return listings.filter(l => {
       if (listingFilter !== 'All listings' && l.title !== listingFilter) return false
-      const hasMatches = filteredApplicants.some(a => a.role === l.title)
-      const hasAny = applicants.some(a => a.role === l.title)
-      
-      // If we're searching/filtering and there are no matches, always hide
+
+      // The toggle wins outright: when it's on, show every listing the listing
+      // dropdown allows — including ones with no applicants (or none matching
+      // the active filters). This has to be checked before the filter guard
+      // below, otherwise searching/status/match filtering silently disables it.
+      if (showEmptyListings) return true
+
+      // Toggle off: hide listings with nothing to show. While a search/status/
+      // match filter is active that means "no matching applicants"; otherwise it
+      // means "no applicants at all".
       const isFiltering = search !== '' || matchFilter !== 'Any match %' || statusFilter !== 'All'
-      if (isFiltering) return hasMatches
-      
-      // If not filtering, obey the toggle
-      return showEmptyListings ? true : hasAny
+      return isFiltering
+        ? filteredApplicants.some(a => a.role === l.title)
+        : applicants.some(a => a.role === l.title)
     })
   }, [listings, listingFilter, filteredApplicants, showEmptyListings, applicants, search, matchFilter, statusFilter])
 
