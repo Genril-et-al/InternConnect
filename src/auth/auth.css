@@ -108,6 +108,36 @@
   z-index: 1;
 }
 
+/* ── Rotating taglines (HeroTagline.tsx) ───────────────────────────── */
+/* Every line occupies the same grid cell, so the block keeps the height of
+   the longest one and the panel never jumps as they swap. */
+.auth-hero-taglines {
+  display: grid;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-hero-taglines > .auth-hero-sub {
+  grid-area: 1 / 1;
+  margin-block: 0;
+  opacity: 0;
+  /* The outgoing line fades out over the same window the incoming one fades
+     in; the small lift keeps the change from reading as a flicker. */
+  transform: translateY(6px);
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+
+.auth-hero-taglines > .auth-hero-sub.is-active {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-hero-taglines > .auth-hero-sub {
+    transition: none;
+  }
+}
+
 /* ── Coverflow carousel (HeroCarousel.tsx) ─────────────────────────── */
 .cf {
   align-items: center;

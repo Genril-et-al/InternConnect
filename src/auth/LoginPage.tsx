@@ -10,6 +10,7 @@ import {
   verifySignupCode,
 } from '../lib/auth'
 import { HeroCarousel, hasHeroSlides } from './HeroCarousel'
+import { HeroTagline } from './HeroTagline'
 import { PasswordField } from './PasswordField'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { DEMO_ADMIN, DEMO_COMPANY, DEMO_STUDENT } from '../lib/demo'
@@ -58,9 +59,7 @@ export function LoginPage() {
         ) : (
           <h1>Find Your Perfect Internship.</h1>
         )}
-        <p className="auth-hero-sub">
-          Explore verified opportunities, apply with ease, and track your internship journey—all in one platform designed for students and the industry.
-        </p>
+        <HeroTagline />
       </section>
 
       <section className="auth-card">
