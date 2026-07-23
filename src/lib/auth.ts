@@ -20,8 +20,8 @@ import { formatMiddleInitial } from './name'
 /**
  * Sign-up collects the student's full name and university email (UC-S01),
  * plus a few contact details. Everything else is filled in later on the
- * profile. `personalEmail` is contact detail only — the verification code
- * always goes to the university email.
+ * profile. `personalEmail` is a profile contact detail AND the second inbox the
+ * verification code is delivered to — see requestSignupCode below.
  */
 export type SignupName = {
   firstName: string
@@ -53,14 +53,21 @@ export async function checkSignupEligibility(
  * Step 1: send a verification code to `email` (creates the pending user).
  *
  * `email` is the institutional address — the university email for students,
- * the work email for companies — and it is both identity and delivery: the
- * code is mailed to the same inbox the roster is keyed on, so receiving it
- * proves control of that mailbox.
+ * the work email for companies. It is the identity: the roster is keyed on it,
+ * auth.users.email is set to it, and it is what they log in with afterwards.
  *
- * This replaces the split introduced in migration 0013, where students named a
- * personal inbox and the code went there instead. A personal email is still
- * collected, but only as profile contact detail; it no longer receives mail
- * and is no longer what they log in with.
+ * Delivery is separate. @cit.edu accepts our mail and then quarantines it with
+ * no bounce, so a code sent only there never arrives — that is why migration
+ * 0013 moved the identity to a personal address in the first place, and why
+ * reverting it (20260723062543) brought signups to a halt again. Instead of
+ * moving the identity a second time, `personal_email` travels in the metadata
+ * below and send-email-hook addresses the one message to both inboxes. The
+ * student reads the code wherever it lands; the account is unaffected.
+ *
+ * The cost, carried over from 0013: receiving the code no longer proves control
+ * of the university mailbox. Closing that back up means fixing delivery at the
+ * mail layer — an authenticated sending domain (Resend/Postmark) or an
+ * institutional allowlist for our sender — not another change here.
  */
 export async function requestSignupCode(email: string, name: SignupName) {
   const { error } = await supabase.auth.signInWithOtp({
