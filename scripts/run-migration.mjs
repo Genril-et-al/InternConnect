@@ -1,16 +1,20 @@
 /**
  * One-shot script to apply the listing_requirements migration.
- * Usage: node scripts/run-migration.mjs <SUPABASE_SERVICE_ROLE_KEY>
+ * Usage: node scripts/run-migration.mjs <SUPABASE_ACCESS_TOKEN>
  *
- * Find your service_role key at:
- *   Supabase Dashboard → Project Settings → API → service_role secret
+ * This hits the Management API (api.supabase.com), which authenticates with a
+ * personal access token — NOT the project service_role key. Using the
+ * service_role key here returns 401.
+ *
+ * Create a token at:
+ *   Supabase Dashboard → Account → Access Tokens → Generate new token
  */
 
 const PROJECT_REF = 'mpuysdwgzijrppofvked';
-const serviceKey = process.argv[2];
+const accessToken = process.argv[2];
 
-if (!serviceKey) {
-  console.error('Usage: node scripts/run-migration.mjs <SUPABASE_SERVICE_ROLE_KEY>');
+if (!accessToken) {
+  console.error('Usage: node scripts/run-migration.mjs <SUPABASE_ACCESS_TOKEN>');
   process.exit(1);
 }
 
@@ -51,7 +55,7 @@ async function runMigration() {
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${serviceKey}`,
+      'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ query: SQL }),

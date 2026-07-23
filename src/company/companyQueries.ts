@@ -120,27 +120,11 @@ export async function updateCompanyProfile(id: string, updates: Partial<CompanyP
 
 
 export async function fetchCompanyListings(companyId: string): Promise<CompanyListing[]> {
-  let data: any[] | null = null
-  let error: any = null
-
-  const response = await supabase
+  const { data, error } = await supabase
     .from('listings')
     .select('id, title, status, slots, deadline, department, skills, description, has_allowance, interview_process, listing_requirements(id, name, kind, is_printable, description, template_file_url)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
-
-  if (response.error && (response.error.message.includes('template_file_url') || response.error.code === '42703')) {
-    const fallbackResponse = await supabase
-      .from('listings')
-      .select('id, title, status, slots, deadline, department, skills, description, has_allowance, interview_process, listing_requirements(id, name, kind, is_printable)')
-      .eq('company_id', companyId)
-      .order('created_at', { ascending: false })
-    data = fallbackResponse.data
-    error = fallbackResponse.error
-  } else {
-    data = response.data
-    error = response.error
-  }
 
   if (error) throw new Error(error.message)
   return ((data ?? []) as any[]).map((r) => ({
@@ -313,10 +297,7 @@ type ApplicantRow = {
 }
 
 export async function fetchApplicants(companyId: string): Promise<CompanyApplicant[]> {
-  let data: any[] | null = null
-  let error: any = null
-
-  const response = await supabase
+  const { data, error } = await supabase
     .from('applications')
     .select(
       'id, listing_id, student_id, status, feedback, next_step, created_at, ' +
@@ -325,23 +306,6 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
     )
     .eq('listings.company_id', companyId)
     .order('created_at', { ascending: false })
-
-  if (response.error && (response.error.message.includes('template_file_url') || response.error.code === '42703')) {
-    const fallbackResponse = await supabase
-      .from('applications')
-      .select(
-        'id, listing_id, student_id, status, feedback, next_step, created_at, ' +
-          'listings!inner(title, skills, company_id, listing_requirements(id, name, is_printable)), ' +
-          'requirement_submissions(id, requirement_id, status, file_path, text_value)',
-      )
-      .eq('listings.company_id', companyId)
-      .order('created_at', { ascending: false })
-    data = fallbackResponse.data
-    error = fallbackResponse.error
-  } else {
-    data = response.data
-    error = response.error
-  }
 
   if (error) throw new Error(error.message)
   const rows = (data ?? []) as unknown as ApplicantRow[]

@@ -176,10 +176,7 @@ type ApplicationRow = {
 
 /** The signed-in student's applications, newest first. */
 export async function fetchMyApplications(studentId: string): Promise<Application[]> {
-  let data: any[] | null = null
-  let error: any = null
-
-  const response = await supabase
+  const { data, error } = await supabase
     .from('applications')
     .select(
       'id, listing_id, status, next_step, feedback, created_at, ' +
@@ -188,23 +185,6 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
     )
     .eq('student_id', studentId)
     .order('created_at', { ascending: false })
-
-  if (response.error && (response.error.message.includes('template_file_url') || response.error.code === '42703')) {
-    const fallbackResponse = await supabase
-      .from('applications')
-      .select(
-        'id, listing_id, status, next_step, feedback, created_at, ' +
-          'listings(title, companies(id, owner_id, name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
-          'requirement_submissions(requirement_id, status, text_value, file_path)',
-      )
-      .eq('student_id', studentId)
-      .order('created_at', { ascending: false })
-    data = fallbackResponse.data
-    error = fallbackResponse.error
-  } else {
-    data = response.data
-    error = response.error
-  }
 
   if (error) throw new Error(error.message)
   return ((data ?? []) as unknown as ApplicationRow[]).map((r) => {
