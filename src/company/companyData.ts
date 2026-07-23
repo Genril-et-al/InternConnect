@@ -83,6 +83,10 @@ export type CompanyApplicant = {
   requirements?: RequirementFile[]
   submittedRequirements?: SubmittedRequirement[]
   photoUrl?: string | null
+  /** Course / programme from the student's registration record (e.g. "BSIT"). */
+  course?: string | null
+  /** Year level from the student's registration record (e.g. "3rd Year"). */
+  yearLevel?: string | null
 }
 
 export const MATCH_FILTERS: Record<string, number> = {

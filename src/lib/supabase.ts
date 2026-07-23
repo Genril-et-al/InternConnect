@@ -67,6 +67,12 @@ export type Profile = {
   profile_completed: boolean
   is_active: boolean
   deactivation_reason: string | null
+  /** Course / programme copied from the approved_students roster at sign-up (e.g. "BSIT"). */
+  course: string | null
+  /** Year level copied from the approved_students roster at sign-up (e.g. "3rd Year"). */
+  year_level: string | null
+  /** University name — defaults to "Cebu Institute of Technology – University". */
+  university: string | null
   created_at: string
   updated_at: string
 }

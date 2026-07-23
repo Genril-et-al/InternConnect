@@ -374,6 +374,10 @@ function PostListingModal({
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  const minDeadlineStr = initialListing
+    ? ''
+    : new Date(Date.now() + 7 * 86400000 - (new Date()).getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+
   const [interviewMode, setInterviewMode] = useState<'none' | 'single' | 'multi'>(
     initialListing?.interviewProcess?.rounds.length === 0 ? 'none' : (initialListing?.interviewProcess?.rounds.length === 1 ? 'single' : 'multi')
   )
@@ -488,7 +492,7 @@ function PostListingModal({
           <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--brand-brown)', fontSize: '14px' }}>Application Deadline</label>
-              <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text)' }} />
+              <input type="date" min={minDeadlineStr} value={deadline} onChange={e => setDeadline(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-subtle)', color: 'var(--text)' }} />
             </div>
             <div style={{ width: '180px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600, color: 'var(--brand-brown)', fontSize: '14px' }}>Offer Expiration (Days)</label>

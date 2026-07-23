@@ -157,8 +157,20 @@ function App() {
 
   const role = profile.role
   const displayName = profile.full_name?.trim() || profile.email
-  const roleLabel =
-    role === 'student' ? 'Student' : role === 'company' ? 'Company' : 'Coordinator'
+
+  // For students, show their course and year level so mismatches with their
+  // resume are immediately visible. Fall back to "Student" when the fields are
+  // not yet populated (e.g. accounts created before the roster columns existed).
+  const studentCourseLabel = role === 'student'
+    ? [
+        profile.course?.trim(),
+        profile.year_level?.trim(),
+      ].filter(Boolean).join(' · ') || 'Student'
+    : null
+
+  const roleLabel = role === 'student'
+    ? studentCourseLabel!
+    : role === 'company' ? 'Company' : 'Coordinator'
 
   const navItems = role === 'student' ? STUDENT_NAV : COMPANY_NAV
   const portalLabel = role === 'student' ? 'Student Portal' : 'Company Portal'

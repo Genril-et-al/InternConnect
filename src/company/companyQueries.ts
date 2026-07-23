@@ -286,6 +286,8 @@ type ApplicantProfile = {
   portfolio_link: string | null
   portfolio_file_url: string | null
   photo_url: string | null
+  course: string | null
+  year_level: string | null
 }
 
 type ApplicantRow = {
@@ -354,17 +356,26 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
     let profilesData: ApplicantProfile[] = []
     const { data: profiles, error: profilesError } = await supabase
       .from('applicant_profiles')
-      .select('id, full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url, photo_url')
+      .select('id, full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url, photo_url, course, year_level')
       .in('id', studentIds)
       
     if (profilesError) {
       if (profilesError.message.includes('photo_url') || profilesError.code === '42703') {
+        // Older view without photo_url or course/year_level — degrade gracefully.
         const { data: fallbackProfiles, error: fallbackError } = await supabase
           .from('applicant_profiles')
           .select('id, full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url')
           .in('id', studentIds)
         if (fallbackError) throw new Error(fallbackError.message)
-        profilesData = (fallbackProfiles ?? []).map(p => ({ ...p, photo_url: null })) as ApplicantProfile[]
+        profilesData = (fallbackProfiles ?? []).map(p => ({ ...p, photo_url: null, course: null, year_level: null })) as ApplicantProfile[]
+      } else if (profilesError.message.includes('course') || profilesError.message.includes('year_level')) {
+        // View exists with photo_url but not yet course/year_level — fetch without them.
+        const { data: fallbackProfiles, error: fallbackError } = await supabase
+          .from('applicant_profiles')
+          .select('id, full_name, email, skills, specializations, resume_url, portfolio_link, portfolio_file_url, photo_url')
+          .in('id', studentIds)
+        if (fallbackError) throw new Error(fallbackError.message)
+        profilesData = (fallbackProfiles ?? []).map(p => ({ ...p, course: null, year_level: null })) as ApplicantProfile[]
       } else {
         throw new Error(profilesError.message)
       }
@@ -429,6 +440,8 @@ export async function fetchApplicants(companyId: string): Promise<CompanyApplica
       nextStep: r.next_step ?? undefined,
       submittedRequirements: submitted,
       photoUrl: profile?.photo_url ?? null,
+      course: profile?.course ?? null,
+      yearLevel: profile?.year_level ?? null,
     }
   })
 }

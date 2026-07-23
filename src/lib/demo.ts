@@ -32,6 +32,9 @@ export const DEMO_STUDENT: Profile = {
   profile_completed: true,
   is_active: true,
   deactivation_reason: null,
+  course: 'BSIT',
+  year_level: '3rd Year',
+  university: 'Cebu Institute of Technology – University',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }
@@ -69,6 +72,9 @@ export const DEMO_COMPANY: Profile = {
   profile_completed: true,
   is_active: true,
   deactivation_reason: null,
+  course: null,
+  year_level: null,
+  university: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }
@@ -101,6 +107,9 @@ export const DEMO_ADMIN: Profile = {
   profile_completed: true,
   is_active: true,
   deactivation_reason: null,
+  course: null,
+  year_level: null,
+  university: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }

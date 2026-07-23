@@ -592,18 +592,37 @@ export function ProfileSetup({
         </div>
       </section>
 
-      {/* University */}
+      {/* University, Course & Year */}
       <section className="profile-section">
         <div className="profile-section-head">
-          <h2>University</h2>
+          <h2>University &amp; Programme</h2>
           <span className="profile-optional">Locked</span>
         </div>
         <div className="profile-name-grid">
           <label className="profile-field-span">
             University
-            <input disabled value="Cebu Institute of Technology – University" />
+            <input disabled value={profile?.university ?? 'Cebu Institute of Technology – University'} />
+          </label>
+          <label>
+            Course / Programme
+            <input
+              disabled
+              value={profile?.course ?? '—'}
+              title="Set by the admin when you were added to the roster. Contact the admin to correct it."
+            />
+          </label>
+          <label>
+            Year Level
+            <input
+              disabled
+              value={profile?.year_level ?? '—'}
+              title="Set by the admin when you were added to the roster. Contact the admin to correct it."
+            />
           </label>
         </div>
+        <p className="profile-info" style={{ marginTop: '8px', fontSize: '13px' }}>
+          Course and year level come from your registration record. If they don’t match your resume, contact the admin to have them corrected.
+        </p>
       </section>
 
       {/* Personal Information */}
