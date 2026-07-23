@@ -36,7 +36,6 @@ import {
   rejectOffer,
   withdrawAcceptance,
   submitRequirementFile,
-  submitRequirementText,
 } from './lib/listingsApi'
 import type { PreEmploymentRequirement } from './lib/mockData'
 import { useSidebarCollapsed } from './lib/useSidebar'

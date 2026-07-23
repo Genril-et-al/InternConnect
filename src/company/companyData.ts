@@ -7,6 +7,8 @@ export type PreEmploymentRequirement = {
   id: string
   name: string
   type: 'file' | 'text'
+  /** Free-text instruction shown to the student alongside the requirement. */
+  description?: string
   isPrintable: boolean
 }
 
@@ -21,6 +23,8 @@ export type CompanyListing = {
   description: string
   requirements?: PreEmploymentRequirement[]
   interviewProcess?: { rounds: string[] }
+  /** Days an offer stays open before it expires; falls back to 3 when unset. */
+  offerDeadlineDays?: number
 }
 
 export type ApplicantStatus = 'Pending' | 'Reviewed' | 'Interview' | 'Offer' | 'Accepted' | 'Rejected'

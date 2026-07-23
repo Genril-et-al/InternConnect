@@ -464,12 +464,10 @@ function ApplicantDetail({
       <div className="cp-detail-actions" style={{ marginTop: 18 }}>
         {applicant.status === 'Interview' && (() => {
           let interviewConcluded = false;
-          let hasSchedule = false;
           let errorMsg = null;
           try {
             const details = JSON.parse(applicant.nextStep ?? '{}');
             if (details.date && details.time) {
-              hasSchedule = true;
               const interviewDate = new Date(`${details.date}T${details.time}`);
               if (Date.now() > interviewDate.getTime()) {
                 interviewConcluded = true;

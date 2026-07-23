@@ -103,6 +103,8 @@ export type NewListingInput = {
   deadline: string // yyyy-mm-dd or ''
   skills: string[]
   description: string
+  hasAllowance: boolean
+  offerDeadlineDays: number
   publish: boolean
   requirements: Omit<PreEmploymentRequirement, 'id'>[]
   interviewProcess: { rounds: string[] }
