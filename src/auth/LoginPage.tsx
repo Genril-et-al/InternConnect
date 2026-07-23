@@ -18,10 +18,10 @@ import { useAuth } from './context'
 import './auth.css'
 
 type Mode = 'login' | 'signup'
-// 'personal' is student-only: @cit.edu quarantines our mail, so students name a
-// personal inbox to receive the code (migration 0013). Companies skip it and
-// are verified at their work email as before.
-type SignupStep = 'role' | 'details' | 'personal' | 'verify' | 'password'
+// Students and companies now follow the same four steps: the code is mailed to
+// the institutional address they registered with, so there is no separate
+// "where should we send it" step any more.
+type SignupStep = 'role' | 'details' | 'verify' | 'password'
 type AccountType = 'student' | 'company'
 
 const MAX_CODE_ATTEMPTS = 3 // UC-S01 alt flow 4a: limited attempts.
@@ -261,8 +261,8 @@ function ForgotPasswordForm({
       <form className="auth-form" onSubmit={handleVerify}>
         <p className="auth-info">
           If an account exists for <strong>{email.trim().toLowerCase()}</strong>, we've
-          sent a 6-digit recovery code to the personal email on that account.
-          Check it (and the spam folder), then enter the code below.
+          sent a 6-digit recovery code to the email on that account. Check it
+          (and the spam folder), then enter the code below.
         </p>
         <label>
           Recovery code
@@ -304,8 +304,8 @@ function ForgotPasswordForm({
     <form className="auth-form" onSubmit={handleSubmit}>
       <p className="auth-step">Reset your password</p>
       <p className="auth-hint auth-hint-left">
-        Enter your university email. We'll send a code to the personal email on
-        your account. You won't need your old password.
+        Enter your university email. We'll send a code to the inbox your account
+        was verified at. You won't need your old password.
       </p>
       <label>
         University email
@@ -343,9 +343,8 @@ function SignupFlow({
   const [lastName, setLastName] = useState('')
   const [suffix, setSuffix] = useState('')
   const [email, setEmail] = useState('')
-  // Where the code is actually mailed: the personal address for students, and
-  // `email` itself for companies. Kept separate so verify/resend always target
-  // the delivery inbox while `email` stays the roster identity.
+  // Contact detail stored on the profile — the code goes to `email`, never
+  // here.
   const [personalEmail, setPersonalEmail] = useState('')
   const [address, setAddress] = useState('')
   const [contactNumber, setContactNumber] = useState('')
@@ -358,11 +357,7 @@ function SignupFlow({
   const [busy, setBusy] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  const isStudent = accountType !== 'company'
-  // Students gain a step: name the inbox that receives the code.
-  const totalSteps = isStudent ? 5 : 4
-  // Identity is always the rostered address; delivery may differ.
-  const deliveryEmail = isStudent ? personalEmail : email
+  const totalSteps = 4
 
   const signupName = {
     firstName: accountType === 'company' ? '' : firstName,
@@ -375,12 +370,12 @@ function SignupFlow({
   }
 
   /**
-   * Mail the code. For students the university address rides along as metadata
-   * so handle_new_user can resolve the role from the roster (migration 0013);
-   * for companies there is no split and the parameter is omitted.
+   * Mail the code to the institutional address — the university email for
+   * students, the work email for companies. That is also the address the
+   * roster is keyed on and the one they log in with afterwards.
    */
   async function sendCode() {
-    await requestSignupCode(deliveryEmail, signupName, isStudent ? email : undefined)
+    await requestSignupCode(email, signupName)
   }
 
   async function handleRequestCode(event: React.FormEvent) {
@@ -409,45 +404,9 @@ function SignupFlow({
         )
         return
       }
-      // The roster check above is the only thing gating a student here, so no
-      // code is sent yet — they still have to name a delivery inbox.
-      if (isStudent) {
-        setStep('personal')
-        return
-      }
       await sendCode()
       setAttempts(0)
       setInfo(`We sent a 6-digit code to ${email}. It expires in 5 minutes.`)
-      setStep('verify')
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleSendToPersonal(event: React.FormEvent) {
-    event.preventDefault()
-    setError('')
-    setInfo('')
-    const personal = personalEmail.trim().toLowerCase()
-    // A @cit.edu address here would defeat the point — that inbox is exactly
-    // the one that never receives our mail.
-    if (personal.endsWith('@cit.edu')) {
-      setError(
-        'Please enter a personal email address, such as Gmail, Outlook, or Yahoo — not your university email.',
-      )
-      return
-    }
-    if (personal === email.trim().toLowerCase()) {
-      setError('That is your university email. Enter a different, personal inbox.')
-      return
-    }
-    setBusy(true)
-    try {
-      await sendCode()
-      setAttempts(0)
-      setInfo(`We sent a 6-digit code to ${personal}. It expires in 5 minutes.`)
       setStep('verify')
     } catch (err) {
       setError(errorMessage(err))
@@ -461,17 +420,14 @@ function SignupFlow({
     setError('')
     setBusy(true)
     try {
-      // Verify against the DELIVERY address — that is the auth user's email.
-      await verifySignupCode(deliveryEmail, code)
+      await verifySignupCode(email, code)
       setStep('password')
     } catch {
       const next = attempts + 1
       setAttempts(next)
       if (next >= MAX_CODE_ATTEMPTS) {
         setError('Too many incorrect attempts. Please request a new code.')
-        // Send students back to the delivery step, not all the way to details:
-        // their roster check already passed.
-        setStep(isStudent ? 'personal' : 'details')
+        setStep('details')
       } else {
         setError(`Incorrect or expired code. ${MAX_CODE_ATTEMPTS - next} attempt(s) left.`)
       }
@@ -488,7 +444,7 @@ function SignupFlow({
       await sendCode()
       setAttempts(0)
       setCode('')
-      setInfo(`A new code has been sent to ${deliveryEmail}.`)
+      setInfo(`A new code has been sent to ${email}.`)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -568,56 +524,10 @@ function SignupFlow({
     )
   }
 
-  if (step === 'personal') {
-    return (
-      <form className="auth-form" onSubmit={handleSendToPersonal}>
-        <p className="auth-step">Step 3 of {totalSteps} · Where to send your code</p>
-        <p className="auth-hint auth-hint-left">
-          <strong>{email.trim().toLowerCase()}</strong> is on the NLO roster. Add a
-          personal email you check regularly — Gmail, Outlook, or Yahoo — and
-          we'll send your verification code there.
-        </p>
-        <label>
-          Personal email
-          <input
-            autoComplete="email"
-            autoFocus
-            onChange={(e) => setPersonalEmail(e.target.value)}
-            placeholder="yourname@gmail.com"
-            required
-            type="email"
-            value={personalEmail}
-          />
-        </label>
-        <p className="auth-hint auth-hint-left">
-          You'll log in with this address from now on. Your university email stays
-          on your profile.
-        </p>
-        {error && <p className="auth-error">{error}</p>}
-        <button className="auth-primary" disabled={busy} type="submit">
-          {busy ? 'Sending code…' : 'Send verification code'}
-        </button>
-        <button
-          className="auth-link"
-          disabled={busy}
-          onClick={() => {
-            setError('')
-            setStep('details')
-          }}
-          type="button"
-        >
-          Back
-        </button>
-      </form>
-    )
-  }
-
   if (step === 'verify') {
     return (
       <form className="auth-form" onSubmit={handleVerify}>
-        <p className="auth-step">
-          Step {isStudent ? 4 : 3} of {totalSteps} · Verify email
-        </p>
+        <p className="auth-step">Step 3 of {totalSteps} · Verify email</p>
         <label>
           Verification code
           <input
@@ -756,9 +666,27 @@ function SignupFlow({
           value={email}
         />
       </label>
+      {accountType !== 'company' && (
+        <>
+          <label>
+            Personal email <span className="auth-optional">(optional)</span>
+            <input
+              autoComplete="email"
+              onChange={(e) => setPersonalEmail(e.target.value)}
+              placeholder="yourname@gmail.com"
+              type="email"
+              value={personalEmail}
+            />
+          </label>
+          <p className="auth-hint auth-hint-left">
+            Your verification code goes to your university email. The personal
+            address is kept on your profile as a contact detail only.
+          </p>
+        </>
+      )}
       {error && <p className="auth-error">{error}</p>}
       <button className="auth-primary" disabled={busy} type="submit">
-        {busy ? 'Checking…' : isStudent ? 'Continue' : 'Send verification code'}
+        {busy ? 'Sending code…' : 'Send verification code'}
       </button>
       <button
         className="auth-link"

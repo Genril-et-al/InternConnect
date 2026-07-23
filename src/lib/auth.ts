@@ -18,8 +18,10 @@ import { formatMiddleInitial } from './name'
  */
 
 /**
- * Sign-up collects only the student's full name and university email
- * (UC-S01). Personal details are filled in later on the profile.
+ * Sign-up collects the student's full name and university email (UC-S01),
+ * plus a few contact details. Everything else is filled in later on the
+ * profile. `personalEmail` is contact detail only — the verification code
+ * always goes to the university email.
  */
 export type SignupName = {
   firstName: string
@@ -50,23 +52,17 @@ export async function checkSignupEligibility(
 /**
  * Step 1: send a verification code to `email` (creates the pending user).
  *
- * `universityEmail` splits identity from delivery. Pass it for students and
- * `email` becomes the PERSONAL address the code is mailed to, while the
- * university address travels in user metadata for handle_new_user to resolve
- * the role against the roster (migration 0013). @cit.edu accepts our mail and
- * then quarantines it, so codes sent there never arrive.
+ * `email` is the institutional address — the university email for students,
+ * the work email for companies — and it is both identity and delivery: the
+ * code is mailed to the same inbox the roster is keyed on, so receiving it
+ * proves control of that mailbox.
  *
- * Omit it — the company path — and `email` is both identity and delivery, as
- * before.
- *
- * Consequence for students: auth.users.email is the personal address, so that
- * is what they log in with afterwards.
+ * This replaces the split introduced in migration 0013, where students named a
+ * personal inbox and the code went there instead. A personal email is still
+ * collected, but only as profile contact detail; it no longer receives mail
+ * and is no longer what they log in with.
  */
-export async function requestSignupCode(
-  email: string,
-  name: SignupName,
-  universityEmail?: string,
-) {
+export async function requestSignupCode(email: string, name: SignupName) {
   const { error } = await supabase.auth.signInWithOtp({
     email: email.trim().toLowerCase(),
     options: {
@@ -79,9 +75,6 @@ export async function requestSignupCode(
         address: name.address?.trim() || null,
         contact_number: name.contactNumber?.trim() || null,
         personal_email: name.personalEmail?.trim() || null,
-        ...(universityEmail
-          ? { university_email: universityEmail.trim().toLowerCase() }
-          : {}),
       },
     },
   })
@@ -112,13 +105,14 @@ export async function setPassword(password: string) {
  *   3. setPassword()             — set the new password on that session
  *
  * Both steps go through the `password-reset` edge function rather than calling
- * supabase.auth directly. Students type their UNIVERSITY email but their auth
- * identity is a PERSONAL address (migration 0013), and only the server may
- * hold that mapping — exposing it to a logged-out caller would let anyone
- * harvest personal addresses by guessing firstname.lastname@cit.edu.
+ * supabase.auth directly. Accounts created while migration 0013 was in force
+ * authenticate with a PERSONAL address even though the student types their
+ * UNIVERSITY email, and only the server may hold that mapping — exposing it to
+ * a logged-out caller would let anyone harvest personal addresses by guessing
+ * firstname.lastname@cit.edu.
  *
- * Everyone else (companies, pre-0013 accounts) resolves to the same address
- * they typed, so one path serves both.
+ * Everyone else — companies, and students registered before 0013 or after the
+ * revert — resolves to the same address they typed, so one path serves both.
  */
 
 /**
