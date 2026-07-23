@@ -124,14 +124,14 @@ type CompanyListingRow = {
   department: string | null
   skills: string[]
   description: string | null
-  listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
+  listing_requirements: { id: string; name: string; kind: string; description: string | null; is_printable: boolean }[]
   interview_process: { rounds: string[] } | null
 }
 
 export async function fetchCompanyListings(companyId: string): Promise<CompanyListing[]> {
   const { data, error } = await supabase
     .from('listings')
-    .select('id, title, status, slots, deadline, department, skills, description, interview_process, listing_requirements(id, name, kind, is_printable)')
+    .select('id, title, status, slots, deadline, department, skills, description, interview_process, listing_requirements(id, name, kind, description, is_printable)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
@@ -148,6 +148,7 @@ export async function fetchCompanyListings(companyId: string): Promise<CompanyLi
       id: q.id,
       name: q.name,
       type: q.kind === 'file' ? ('file' as const) : ('text' as const),
+      description: q.description ?? undefined,
       isPrintable: q.is_printable,
     })),
     interviewProcess: r.interview_process as { rounds: string[] } | undefined,
@@ -195,6 +196,7 @@ export async function createListing(companyId: string, input: NewListingInput): 
         listing_id: data.id,
         name: r.name,
         kind: r.type,
+        description: r.description ?? null,
         is_printable: r.isPrintable,
       })),
     )
@@ -225,6 +227,7 @@ export async function updateListing(listingId: string, input: NewListingInput): 
         listing_id: listingId,
         name: r.name,
         kind: r.type,
+        description: r.description ?? null,
         is_printable: r.isPrintable,
       })),
     )

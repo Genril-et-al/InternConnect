@@ -166,7 +166,7 @@ type ApplicationRow = {
   listings: {
     title: string
     companies: { id: string; owner_id: string; name: string; logo_url: string | null } | null
-    listing_requirements: { id: string; name: string; kind: string; is_printable: boolean }[]
+    listing_requirements: { id: string; name: string; kind: string; description: string | null; is_printable: boolean }[]
   } | null
   requirement_submissions: { requirement_id: string; status: string; text_value: string | null; file_path: string | null }[]
 }
@@ -177,7 +177,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
     .from('applications')
     .select(
       'id, listing_id, status, next_step, feedback, created_at, ' +
-        'listings(title, companies(id, owner_id, name, logo_url), listing_requirements(id, name, kind, is_printable)), ' +
+        'listings(title, companies(id, owner_id, name, logo_url), listing_requirements(id, name, kind, description, is_printable)), ' +
         'requirement_submissions(requirement_id, status, text_value, file_path)',
     )
     .eq('student_id', studentId)
@@ -202,6 +202,7 @@ export async function fetchMyApplications(studentId: string): Promise<Applicatio
         id: q.id,
         name: q.name,
         type: q.kind === 'file' ? ('file' as const) : ('text' as const),
+        description: q.description ?? undefined,
         isPrintable: q.is_printable,
         submissionStatus: !sub
           ? ('not_submitted' as const)
