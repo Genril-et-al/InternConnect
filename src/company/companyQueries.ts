@@ -246,9 +246,12 @@ export async function setListingStatus(
   if (dbStatus === 'closed') {
     const { error: appError } = await supabase
       .from('applications')
-      .update({ status: 'expired' })
+      .update({ 
+        status: 'rejected',
+        feedback: 'Hiring completed – All available internship positions have been filled.'
+      })
       .eq('listing_id', listingId)
-      .in('status', ['pending', 'under_review', 'shortlisted', 'interview_scheduled'])
+      .in('status', ['pending', 'under_review', 'shortlisted', 'interview_scheduled', 'offered'])
     if (appError) throw new Error(appError.message)
   }
 }

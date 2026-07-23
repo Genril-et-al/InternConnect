@@ -32,12 +32,13 @@ export const DEMO_STUDENT: Profile = {
   portfolio_file_url: null,
   profile_completed: true,
   is_active: true,
+  deactivation_reason: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }
 
 /**
- * Demo NLO admin for temporary offline access to the admin portal.
+ * Demo admin for temporary offline access to the admin portal.
  * In the real backend, admins are seeded manually (never self-registered).
  */
 /** Demo company representative for offline access to the company portal. */
@@ -69,6 +70,7 @@ export const DEMO_COMPANY: Profile = {
   portfolio_file_url: null,
   profile_completed: true,
   is_active: true,
+  deactivation_reason: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }
@@ -101,6 +103,7 @@ export const DEMO_ADMIN: Profile = {
   portfolio_file_url: null,
   profile_completed: true,
   is_active: true,
+  deactivation_reason: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 }

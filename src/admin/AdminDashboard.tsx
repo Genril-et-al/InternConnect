@@ -78,7 +78,7 @@ export function AdminDashboard({
       <div className="ic-page-head">
         <div>
           <h1 className="ic-title">Platform Overview</h1>
-          <p className="ic-subtitle">Welcome back, NLO Admin</p>
+          <p className="ic-subtitle">Welcome back, Admin</p>
         </div>
         <div className="topbar-actions">
           <button className="ic-primary" onClick={() => onNav(4)} type="button">

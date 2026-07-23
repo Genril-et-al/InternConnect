@@ -133,6 +133,11 @@ function App() {
     return (
       <div className="auth-loading">
         <p>Your account has been deactivated. Please contact the NLO office.</p>
+        {profile.deactivation_reason && (
+          <p className="auth-error" style={{ maxWidth: '400px' }}>
+            Reason: {profile.deactivation_reason}
+          </p>
+        )}
         <button className="primary" onClick={signOut} type="button">
           Sign out
         </button>

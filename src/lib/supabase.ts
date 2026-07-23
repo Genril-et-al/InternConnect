@@ -67,6 +67,7 @@ export type Profile = {
   portfolio_file_url: string | null
   profile_completed: boolean
   is_active: boolean
+  deactivation_reason: string | null
   created_at: string
   updated_at: string
 }
