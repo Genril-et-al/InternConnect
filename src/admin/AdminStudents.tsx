@@ -16,6 +16,14 @@ import { removeApprovedStudent, setStudentActive } from './adminQueries'
 import { Dropdown } from '../components/Dropdown'
 import { useScrollLock } from '../lib/useScrollLock'
 
+/**
+ * Students are rostered by their university address, never a personal one: it
+ * is the identity handle_new_user matches against the roster at sign-up
+ * (migration 0013), so a personal address here would clear an account that can
+ * never be resolved back to this student.
+ */
+const STUDENT_EMAIL_DOMAIN = '@cit.edu'
+
 /** UC-A01 — Manage Student Accounts: roster, activate, deactivate. */
 export function AdminStudents({
   students,
@@ -418,12 +426,19 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name || !email || !studentNumber || busy) return
+    // Normalised before both the check and the write, so the roster can't end
+    // up holding an address that differs from the sign-up one only by case.
+    const institutionalEmail = email.trim().toLowerCase()
+    if (!institutionalEmail.endsWith(STUDENT_EMAIL_DOMAIN)) {
+      setError(`Enter the student's institutional email — it must end in ${STUDENT_EMAIL_DOMAIN}.`)
+      return
+    }
     setBusy(true)
     setError(null)
     const { firstName, lastName } = splitName(name)
     try {
       // Pre-clears the email so the student can self-register (UC-A03).
-      await addApprovedStudent({ email, firstName, lastName, studentNumber })
+      await addApprovedStudent({ email: institutionalEmail, firstName, lastName, studentNumber })
       await onAdded() // reload from the roster so the new row shows accurately
       onClose()
     } catch (err) {
@@ -449,8 +464,18 @@ function AddStudentModal({ onClose, onAdded }: { onClose: () => void, onAdded: (
             <input className="ic-input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Juan Dela Cruz" required />
           </label>
           <label className="cp-modal-label">
-            Email Address *
-            <input className="ic-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. juan.delacruz@cit.edu" required />
+            Institutional Email *
+            <input
+              className="ic-input"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder={`e.g. juan.delacruz${STUDENT_EMAIL_DOMAIN}`}
+              required
+            />
+            <span className="ic-muted" style={{ fontSize: '12px', fontWeight: 400 }}>
+              Must be the student's {STUDENT_EMAIL_DOMAIN} address.
+            </span>
           </label>
           <label className="cp-modal-label">
             Student Number *
