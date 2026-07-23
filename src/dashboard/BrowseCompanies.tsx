@@ -14,6 +14,7 @@ export function BrowseCompanies({
   const [companies, setCompanies] = useState<StudentCompany[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  const [searchField, setSearchField] = useState('All')
   const [companyFilter, setCompanyFilter] = useState('All')
   const [locationFilter, setLocationFilter] = useState('All')
   const [selectedCompany, setSelectedCompany] = useState<StudentCompany | null>(null)
@@ -51,14 +52,17 @@ export function BrowseCompanies({
   const filteredCompanies = useMemo(
     () =>
       companies.filter((c) => {
-        const matchesQuery = (c.name + ' ' + c.location)
-          .toLowerCase()
-          .includes(query.toLowerCase())
+        let textToSearch: string
+        if (searchField === 'Name') textToSearch = c.name
+        else if (searchField === 'Location') textToSearch = c.location
+        else textToSearch = c.name + ' ' + c.location
+
+        const matchesQuery = textToSearch.toLowerCase().includes(query.toLowerCase())
         const matchesCompany = companyFilter === 'All' || c.name === companyFilter
         const matchesLocation = locationFilter === 'All' || c.location === locationFilter
         return matchesQuery && matchesCompany && matchesLocation
       }),
-    [companies, query, companyFilter, locationFilter]
+    [companies, query, searchField, companyFilter, locationFilter]
   )
 
   if (selectedCompany) {
@@ -179,8 +183,17 @@ export function BrowseCompanies({
             aria-label="Search companies"
             className="browse-search-input"
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by name or location..."
+            placeholder={searchField === 'All' ? 'Search by name or location...' : `Search by ${searchField.toLowerCase()}...`}
             value={query}
+          />
+          <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />
+          <Dropdown
+            align="right"
+            ariaLabel="Search field"
+            onChange={setSearchField}
+            options={['All', 'Name', 'Location']}
+            value={searchField}
+            variant="bare"
           />
         </div>
       </div>
@@ -211,45 +224,59 @@ export function BrowseCompanies({
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--muted)' }}>Loading companies...</div>
       ) : (
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+        <section className="listing-strips">
           {filteredCompanies.length === 0 ? (
-            <p className="muted" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '32px 0' }}>
+            <p className="muted" style={{ textAlign: 'center', padding: '32px 0' }}>
               No companies match your search.
             </p>
           ) : (
-            filteredCompanies.map((company) => (
-              <article
-                key={company.id}
-                className="sd-card clickable"
-                style={{ padding: '24px', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
-                onClick={() => setSelectedCompany(company)}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                  {company.logo_url ? (
-                    <img src={company.logo_url} alt={company.name} style={{ width: '48px', height: '48px', objectFit: 'contain', borderRadius: '6px', border: '1px solid var(--border)' }} />
-                  ) : (
-                    <div style={{ width: '48px', height: '48px', background: 'var(--border)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 500, color: 'var(--muted)' }}>
-                      {company.name.slice(0, 2).toUpperCase()}
+            filteredCompanies.map((company) => {
+              const openRoles = internships.filter(
+                (i) => i.companyId === company.id || i.company === company.name
+              ).length
+
+              return (
+                <article
+                  key={company.id}
+                  className="internship-strip clickable"
+                  onClick={() => setSelectedCompany(company)}
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="strip-top">
+                    {company.logo_url ? (
+                      <img src={company.logo_url} alt={company.name} className="strip-avatar" style={{ objectFit: 'contain' }} />
+                    ) : (
+                      <span className="strip-avatar">{company.name.slice(0, 2).toUpperCase()}</span>
+                    )}
+                    <div className="strip-main">
+                      <h3>{company.name}</h3>
+                      <p className="strip-subtitle">
+                        {company.industry} · {company.location}
+                      </p>
+                      <p className="strip-summary">{company.description}</p>
                     </div>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {company.name}
-                    </h3>
-                    <p style={{ fontSize: '13px', color: 'var(--muted)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {company.industry}
-                    </p>
+                    <div className="strip-right">
+                      <button
+                        className="strip-apply-btn primary"
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSelectedCompany(company); }}
+                      >
+                        View Company
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <p style={{ fontSize: '14px', color: 'var(--text)', margin: '0 0 16px 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {company.description}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--muted)' }}>
-                  <MapPin size={14} />
-                  {company.location}
-                </div>
-              </article>
-            ))
+                  <div className="strip-bottom">
+                    <span className="strip-deadline">
+                      {openRoles === 0
+                        ? 'No open roles'
+                        : `${openRoles} open role${openRoles !== 1 ? 's' : ''}`}
+                    </span>
+                  </div>
+                </article>
+              )
+            })
           )}
         </section>
       )}
